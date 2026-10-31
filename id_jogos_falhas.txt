@@ -1,0 +1,13 @@
+{
+  "campeonatos": [
+    {
+      "id_campeonato": 242,
+      "campeonato": "MLS",
+      "pais": "Estados Unidos",
+      "temporada": "2023",
+      "ids_jogos": [
+        10952033
+      ]
+    }
+  ]
+}

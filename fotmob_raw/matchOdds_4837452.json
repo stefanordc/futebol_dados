@@ -1,0 +1,56 @@
+{
+  "persistentKey": "Bet365_default",
+  "providerId": 23,
+  "logoUrl": "https://images.fotmob.com/images/betting/bet365.png",
+  "promoText": {
+    "lang": "en",
+    "text": "Sign up with bet365. View Open Account Offer details.",
+    "text2": "",
+    "link": "https://www.bet365.com/hub/aff/open-account?affiliate=365_641909",
+    "linkIOS": "https://www.bet365.com/hub/aff/open-account?affiliate=365_202740",
+    "linkWeb": "",
+    "callToAction": ""
+  },
+  "ongoing": false,
+  "callToActionLink": "https://bet365.com/hub/aff/open-account?affiliate=365_641908",
+  "betBoostMarkets": null,
+  "odds": {
+    "resolvedOddsMarket": {
+      "selections": [
+        {
+          "oddsDecimal": "1.60",
+          "link": "https://bet365.com/dl/sportsbookredirect/?affiliate=365_00927938&bs={participant}~0&bet=1",
+          "name": "1",
+          "team": "H"
+        },
+        {
+          "oddsDecimal": "4.50",
+          "link": "https://bet365.com/dl/sportsbookredirect/?affiliate=365_00927938&bs={participant}~0&bet=1",
+          "name": "X",
+          "team": "D"
+        },
+        {
+          "oddsDecimal": "4.20",
+          "link": "https://bet365.com/dl/sportsbookredirect/?affiliate=365_00927938&bs={participant}~0&bet=1",
+          "name": "2",
+          "team": "A"
+        }
+      ],
+      "resolvedWinnerIndex": 0
+    }
+  },
+  "restrictions": {
+    "disableLiveOdds": false,
+    "excludedLeagueIds": [
+      "11548",
+      "11648"
+    ],
+    "excludedMatchIds": [
+      "5159283",
+      "5159284",
+      "5159285",
+      "5214835",
+      "5333731"
+    ]
+  }
+}

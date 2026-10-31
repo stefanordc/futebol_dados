@@ -1,0 +1,106 @@
+{
+  "gerado_em": "2026-10-30T16:12:22",
+  "campeonatos": [
+    {
+      "campeonato": "Espanhol",
+      "temporada": "2026/2027",
+      "de": "2026-10-27",
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 4,
+        "eventos_por_status": {
+          "canceled": 1,
+          "finished": 99,
+          "postponed": 1
+        },
+        "finalizados_na_temporada": 99,
+        "finalizados_no_intervalo": 0,
+        "primeira_data": "2026-08-15",
+        "ultima_data": "2026-10-26"
+      }
+    },
+    {
+      "campeonato": "Espanhol",
+      "temporada": "2025/2026",
+      "de": null,
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 13,
+        "eventos_por_status": {
+          "finished": 380,
+          "postponed": 3
+        },
+        "finalizados_na_temporada": 380,
+        "finalizados_no_intervalo": 380,
+        "primeira_data": "2025-08-15",
+        "ultima_data": "2026-05-24"
+      }
+    },
+    {
+      "campeonato": "Espanhol",
+      "temporada": "2024/2025",
+      "de": null,
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 13,
+        "eventos_por_status": {
+          "finished": 380,
+          "postponed": 3
+        },
+        "finalizados_na_temporada": 380,
+        "finalizados_no_intervalo": 380,
+        "primeira_data": "2024-08-15",
+        "ultima_data": "2025-05-25"
+      }
+    },
+    {
+      "campeonato": "Italiano",
+      "temporada": "2026/2027",
+      "de": null,
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 3,
+        "eventos_por_status": {
+          "finished": 90
+        },
+        "finalizados_na_temporada": 90,
+        "finalizados_no_intervalo": 90,
+        "primeira_data": "2026-08-22",
+        "ultima_data": "2026-10-29"
+      }
+    },
+    {
+      "campeonato": "Italiano",
+      "temporada": "2025/2026",
+      "de": null,
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 13,
+        "eventos_por_status": {
+          "finished": 380,
+          "postponed": 5
+        },
+        "finalizados_na_temporada": 380,
+        "finalizados_no_intervalo": 380,
+        "primeira_data": "2025-08-23",
+        "ultima_data": "2026-05-24"
+      }
+    },
+    {
+      "campeonato": "Italiano",
+      "temporada": "2024/2025",
+      "de": null,
+      "ate": "2026-10-29",
+      "diagnostico": {
+        "paginas": 13,
+        "eventos_por_status": {
+          "finished": 380
+        },
+        "finalizados_na_temporada": 380,
+        "finalizados_no_intervalo": 380,
+        "primeira_data": "2024-08-17",
+        "ultima_data": "2025-05-25"
+      }
+    }
+  ]
+}

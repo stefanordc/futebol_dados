@@ -1,0 +1,30 @@
+{
+  "87": {
+    "campeonato": "LaLiga",
+    "pais": "Espanha",
+    "ccode3": "ESP",
+    "temporadas": ["2026/2027", "2025/2026", "2024/2025"]
+  },
+
+  "55": {
+    "campeonato": "Serie A",
+    "pais": "Itália",
+    "ccode3": "ITA",
+    "temporadas": ["2026/2027", "2025/2026", "2024/2025"]
+  },
+
+  "26": {
+    "campeonato": "Brasileiro",
+    "pais": "Brasil",
+    "ccode3": "BRA",
+    "temporadas": ["2026", "2025", "2024"]
+  },
+
+  "47": {
+    "campeonato": "Premier League",
+    "pais": "Inglaterra",
+    "ccode3": "ENG",
+    "temporadas": ["2026/2027", "2025/2026", "2024/2025"]
+  }
+
+}

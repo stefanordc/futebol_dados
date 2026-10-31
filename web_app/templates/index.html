@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Análise de Jogos</title>
+  <link rel="icon" type="image/png" href="/static/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/static/img/favicon.png" />
+  <link rel="stylesheet" href="/static/css/app.css?v=28" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><img class="brand-logo" src="/static/img/logo.png" alt="Dados Futebol" /><span class="brand-text">DADOS<span>FUTEBOL</span></span></a>
+      <label class="search">
+        <span>⌕</span>
+        <input id="busca" type="search" placeholder="Procurar clube ou liga" autocomplete="off" />
+      </label>
+      <nav data-nav="jogos"></nav>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar panel">
+      <div class="panel-title">Principais ligas</div>
+      <div id="lista-ligas">
+        <div class="loading">Carregando ligas…</div>
+      </div>
+    </aside>
+
+    <section>
+      <div class="page-heading hero-heading page-heading-center">
+        <h1 class="page-title">Jogos</h1>
+      </div>
+      <div class="feed-head">
+        <h2 class="feed-subtitle">Última rodada</h2>
+        <div class="chips">
+          <button class="chip active" data-filtro="todos" type="button">Todos</button>
+        </div>
+      </div>
+      <div id="feed">
+        <div class="loading">Carregando jogos…</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/nav.js?v=26" type="module"></script>
+  <script src="/static/js/home.js" type="module"></script>
+</body>
+</html>

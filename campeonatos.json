@@ -1,0 +1,20 @@
+{
+    "8": {
+        "link_base": "https://www.sofascore.com/pt/football/tournament/spain/laliga/",
+        "campeonato": "Espanhol",
+        "pais": "Espanha",
+        "97268": "2026/2027",
+        "77559": "2025/2026",
+        "61643": "2024/2025"
+    },
+    
+    "23": {
+        "link_base": "https://www.sofascore.com/pt/football/tournament/italy/serie-a/",
+        "campeonato": "Italiano",
+        "pais": "Itália",
+        "95836": "2026/2027",
+        "76457": "2025/2026",
+        "63515": "2024/2025"
+    }
+
+}
