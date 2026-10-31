@@ -242,11 +242,21 @@ async function loadLista(tipo, extra = {}) {
   return res.json();
 }
 
+const ATAQUE_SUBABAS = {
+  xg: { nome: "xG", metricas: ["xg","xg_jogada_normal","xg_jogada_ensaiada","xg_sem_penalti","xgot"] },
+  finalizacoes: { nome: "Finalizações", metricas: ["total_chutes","chutes_certos","chutes_fora","chutes_bloqueados","chutes_trave","chutes_dentro_area","chutes_fora_area"] },
+  chances: { nome: "Chances criadas", metricas: ["grandes_chances","grandes_chances_perdidas","toques_area_adversaria"] },
+};
+let ataqueSubAba = "xg";
+function ataqueAbasHtml() {
+  return `<div class="df-attack-tabbar" role="group" aria-label="Indicadores de ataque">${Object.entries(ATAQUE_SUBABAS).map(([key,v]) => `<button class="df-attack-tab ${ataqueSubAba===key?"active":""}" type="button" data-ataque-aba="${key}" aria-pressed="${ataqueSubAba===key}">${v.nome}</button>`).join("")}</div>`;
+}
+
 function tabelaColetivas(data, modo = "soma") {
   if (!data?.metricas?.length && data?.grupo !== "minutos") {
     return `<div class="empty">Sem dados coletivos.</div>`;
   }
-  const mets = data.metricas || [];
+  const mets = data.grupo === "ataque" ? (data.metricas || []).filter(m => ATAQUE_SUBABAS[ataqueSubAba].metricas.includes(m.chave)) : (data.metricas || []);
   const media = modo === "media";
   const showCamp = !state.campeonatoId;
 
@@ -502,10 +512,20 @@ async function renderColetivas() {
         ? corpo
         : `<section class="section">
       <h2 class="section-title">${grupos[state.subGrupo] || ""}</h2>
+      ${state.subGrupo === "ataque" ? ataqueAbasHtml() : ""}
       ${corpo}
     </section>`
     }
   `;
+  painel.querySelectorAll("[data-ataque-aba]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!ATAQUE_SUBABAS[btn.dataset.ataqueAba] || btn.dataset.ataqueAba === ataqueSubAba) return;
+      ataqueSubAba = btn.dataset.ataqueAba;
+      state.ordenar = null;
+      state.ordem = "desc";
+      await renderColetivas();
+    });
+  });
   $("#tabs-grupo")?.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("[data-grupo]");
     if (!btn) return;

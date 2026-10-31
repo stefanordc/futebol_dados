@@ -31,7 +31,7 @@ const params = new URLSearchParams(location.search);
 
 let state = {
   data: null,
-  aba: params.get("aba") || "jogos",
+  aba: params.get("aba") || "geral",
   temporada: params.get("temporada") || null,
   grupo: params.get("grupo") || "ataque",
   compararId: params.get("comparar_id") ? Number(params.get("comparar_id")) : null,
@@ -171,8 +171,8 @@ function headerHtml() {
     ${filtrosClubeHtml()}
     <div class="tabs" id="clube-tabs">
       ${[
-        ["jogos", "Jogos"],
         ["geral", "Geral"],
+        ["jogos", "Jogos"],
         ["estatisticas", "Estatísticas"],
         ["elenco", "Elenco"],
         ["analise", "Análise do Elenco"],

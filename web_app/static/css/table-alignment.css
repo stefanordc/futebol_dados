@@ -1,0 +1,24 @@
+/* Coluna exclusiva para escudos e fotos em tabelas de rankings, jogos e perfis. */
+.data-table th.df-image-column, .data-table td.df-image-column,
+.analise-table th.df-image-column, .analise-table td.df-image-column,
+.stats-clube-table th.df-image-column, .stats-clube-table td.df-image-column {
+  box-sizing:border-box!important;
+  width:46px!important;
+  min-width:46px!important;
+  max-width:46px!important;
+  padding:8px 7px!important;
+  text-align:center!important;
+  vertical-align:middle!important;
+}
+.df-image-heading {font-size:10px!important;letter-spacing:.03em;color:var(--muted)!important}
+.df-image-holder {width:28px;height:28px;margin:auto;display:flex;align-items:center;justify-content:center;flex:none}
+.df-image-holder>img, .df-image-element {width:26px!important;height:26px!important;max-width:26px!important;max-height:26px!important;object-fit:contain!important;display:block!important;border-radius:4px}
+.df-image-fallback {display:grid;place-items:center;width:26px;height:26px;margin:auto;border-radius:50%;color:var(--muted);border:1px solid var(--line);font-weight:700;font-size:11px;background:var(--bg-card)}
+.data-table .df-name-column, .analise-table .df-name-column {min-width:125px!important;text-align:left!important}
+.data-table .df-name-column .cell-inner {display:flex;gap:0!important;align-items:center}
+.data-table .df-name-column .entity-link {white-space:normal}
+/* Linhas e cards que já possuem imagem usam área de largura fixa. */
+.time > img, .liga-block-head > img, .liga-select img, .club-tile-logo, .mini-av {
+  flex:0 0 28px;object-fit:contain
+}
+@media(max-width:640px){.data-table th.df-image-column,.data-table td.df-image-column {width:40px!important;min-width:40px!important;max-width:40px!important;padding:6px 4px!important}}

@@ -1,0 +1,9 @@
+/* Estatísticas > Coletivas > Ataque: grupos de indicadores sem rolagem horizontal excessiva. */
+.df-attack-tabbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0 16px;margin:2px 0 8px;border-bottom:1px solid var(--line)}
+.df-attack-tab{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg-card);color:var(--muted);padding:10px 16px;font-size:13px;font-weight:650;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+.df-attack-tab:hover{background:var(--bg-hover);color:var(--text)}
+.df-attack-tab.active{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.df-attack-tab:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#tbl-col th,#tbl-col td{white-space:nowrap}
+@media(max-width:560px){.df-attack-tabbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.df-attack-tab{justify-content:center;padding:10px 6px;font-size:11px;text-align:center;white-space:normal}}
+@media(prefers-reduced-motion:reduce){.df-attack-tab{transition:none}}
