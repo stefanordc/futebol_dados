@@ -181,6 +181,7 @@ let state = {
     grupo: "ataque",
     selecionados: [],
     modo: "soma",
+    subcategoria: "xg",
     sort: null,
     ordem: "desc",
     data: null,
@@ -285,6 +286,59 @@ function tabelaArtilharia(rows, filtros) {
     </div>`;
 }
 
+
+/* Categorias reutilizáveis do painel de estatísticas de campeonatos. */
+const LIGA_CATEGORIAS={
+  ataque:[["xg","xG","xg xg_jogada_normal xg_jogada_ensaiada xg_sem_penalti xgot"],["finalizacoes","Finalizações","total_chutes chutes_certos chutes_fora chutes_bloqueados chutes_trave chutes_dentro_area chutes_fora_area"],["criacao","Criação de jogadas","grandes_chances grandes_chances_perdidas toques_area_adversaria"]],
+  passes:[["posse","Posse e circulação","posse_bola passes passes_certos passes_campo_defesa passes_campo_ataque"],["construcao","Construção","passes_longos passes_longos_certos"],["cruzamentos","Cruzamentos e bolas paradas","cruzamentos cruzamentos_certos escanteios laterais"],["outros","Outros","impedimentos"]],
+  defesa:[["acoes","Ações defensivas","desarmes interceptacoes bloqueios bolas_afastadas defesas_goleiro"],["duelos","Duelos terrestres","disputas_ganhas disputas_chao disputas_chao_ganhas"],["aereo","Jogo aéreo","disputas_aereas disputas_aereas_ganhas"]],
+  duelos:[["dribles","Dribles","dribles dribles_certos"],["faltas","Faltas","faltas_cometidas faltas_recebidas"],["cartoes","Cartões","cartao_amarelo cartao_vermelho"]],
+  fisicos:[["distancia","Distância","distancia_percorrida pct_vit_mais_km"],["sprints","Sprints","sprints pct_vit_mais_sprints"]],
+  finalizacoes:[["volume","Volume e precisão","chutes certas gols"],["distancias","Distâncias","dist_chute dist_certa dist_gol"]]
+};
+function ligaCategoriasAtuais(grupo,metricas) {
+  const groups=LIGA_CATEGORIAS[grupo]||[],keys=new Set(metricas.map(m=>m.chave));
+  const used=new Set(),result=[];
+  for(const [id,label,list] of groups){
+    const campos=list.split(' ').filter(k=>keys.has(k));
+    if(!campos.length)continue;
+    campos.forEach(k=>used.add(k));
+    result.push({id,label,campos});
+  }
+  const extras=metricas.map(m=>m.chave).filter(k=>!used.has(k));
+  if(extras.length)result.push({id:'restantes',label:'Outros indicadores',campos:extras});
+  return result;
+}
+function ligaMetricas(data) {
+  return data?.grupo==='finalizacoes'
+    ? ['chutes','certas','gols','dist_chute','dist_certa','dist_gol'].map(chave=>({chave}))
+    : (data?.metricas||[]);
+}
+function ligaCategoria(data) {
+  const cats=ligaCategoriasAtuais(state.stats.grupo,ligaMetricas(data));
+  return cats.find(c=>c.id===state.stats.subcategoria)||cats[0]||null;
+}
+function ligaSubtabs(data) {
+  if(!data)return '';
+  const cats=ligaCategoriasAtuais(state.stats.grupo,ligaMetricas(data));
+  if(cats.length<=1)return '';
+  const current=ligaCategoria(data);
+  return '<nav class="liga-stat-subtabs" aria-label="Subcategorias das estatísticas">'+
+    cats.map(cat=>'<button type="button" class="tab '+(cat.id===current.id?'active':'')+
+      '" data-subcategoria="'+cat.id+'" aria-pressed="'+(cat.id===current.id)+'">'+cat.label+'</button>').join('')+
+    '</nav>';
+}
+function ligaValor(row,key,modo) {
+  const item=row?.valores?.[key]||{};
+  const soma=item.soma==null?null:Number(item.soma);
+  const media=item.media==null?null:Number(item.media);
+  // Percentuais e notas não possuem total acumulável; mantém a média nos dois modos.
+  if(key==='posse_bola'||key==='rating'||key.startsWith('pct_'))return media;
+  if(modo==='soma')return soma;
+  const games=Number(row?.jogos_fisico||row?.jogos||0);
+  return soma!=null&&Number.isFinite(soma)&&games>0?soma/games:media;
+}
+
 function thSort(key, label, cur, ordem) {
   const mark = cur === key ? (ordem === "desc" ? " ↓" : " ↑") : "";
   return `<th class="sortable" data-sort="${key}">${label}${mark}</th>`;
@@ -292,12 +346,10 @@ function thSort(key, label, cur, ordem) {
 
 function tabelaColetivas(data, { showCamp = false, modo = "media" } = {}) {
   if (!data?.metricas?.length) return `<div class="empty">Sem dados coletivos.</div>`;
-  const mets = data.metricas;
-  const dig = (chave, v) => {
-    if (v == null) return "—";
-    if (chave.includes("posse") || chave === "rating") return n(v, 2);
-    return Number.isInteger(Number(v)) ? n(v, 0) : n(v, 2);
-  };
+  const categoria=ligaCategoria(data);
+  const mets=categoria ? data.metricas.filter(m=>categoria.campos.includes(m.chave)) : data.metricas;
+  const dig=(chave,v)=>v==null||!Number.isFinite(Number(v)) ? "—" :
+    n(v,modo==="media" ? 2 : (chave==="posse_bola"||chave==="rating"||chave.startsWith("pct_") ? 2 : 0));
   return `
     <div class="table-wrap">
       <table class="data-table stats-table">
@@ -307,7 +359,7 @@ function tabelaColetivas(data, { showCamp = false, modo = "media" } = {}) {
             ${thSort("clube", "Clube", data.ordenar, data.ordem)}
             ${showCamp ? thSort("campeonato", "Campeonato", data.ordenar, data.ordem) : ""}
             ${thSort("jogos", "J", data.ordenar, data.ordem)}
-            ${mets.map((m) => thSort(m.chave, m.label, data.ordenar, data.ordem)).join("")}
+            ${mets.map((m) => thSort(m.chave, modo==="media" && !["posse_bola","rating"].includes(m.chave) && !m.chave.startsWith("pct_") ? m.label+" / jogo" : m.label, data.ordenar, data.ordem)).join("")}
           </tr>
         </thead>
         <tbody>
@@ -325,9 +377,7 @@ function tabelaColetivas(data, { showCamp = false, modo = "media" } = {}) {
               <td>${r.jogos ?? "—"}</td>
               ${mets
                 .map((m) => {
-                  const v = (r.valores || {})[m.chave] || {};
-                  const val = modo === "soma" ? v.soma : v.media;
-                  return `<td>${dig(m.chave, val)}</td>`;
+                  return `<td>${dig(m.chave,ligaValor(r,m.chave,modo))}</td>`;
                 })
                 .join("")}
             </tr>`;
@@ -386,17 +436,21 @@ function renderStatsPanel() {
   let corpo = "";
   if (isFin) {
     const media = state.stats.modo === "media";
-    const val = (r, k) => (media ? r[`${k}_media`] : r[k]);
+    const col=ligaCategoria(data)?.campos || ["chutes","certas","gols","dist_chute","dist_certa","dist_gol"];
+    const show=k=>col.includes(k);
+    const val=(r,k)=>media && ["chutes","certas","gols"].includes(k) ? (r[`${k}_media`]??(r.jogos>0?Number(r[k]||0)/r.jogos:null)) : r[k];
     corpo = `
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
               <th>#</th><th>Clube</th><th>J</th>
-              <th>${media ? "Chutes/J" : "Chutes"}</th>
-              <th>${media ? "Certas/J" : "Certas"}</th>
-              <th>${media ? "Gols/J" : "Gols"}</th>
-              <th>Dist. chute</th><th>Dist. certa</th><th>Dist. gol</th>
+              ${show("chutes")?`<th>${media ? "Chutes/J" : "Chutes"}</th>`:""}
+              ${show("certas")?`<th>${media ? "Certas/J" : "Certas"}</th>`:""}
+              ${show("gols")?`<th>${media ? "Gols/J" : "Gols"}</th>`:""}
+              ${show("dist_chute")?'<th>Dist. chute (m)</th>':""}
+              ${show("dist_certa")?'<th>Dist. certa (m)</th>':""}
+              ${show("dist_gol")?'<th>Dist. gol (m)</th>':""}
             </tr>
           </thead>
           <tbody>
@@ -406,12 +460,12 @@ function renderStatsPanel() {
               <td>${(data.page - 1) * data.page_size + i + 1}</td>
               ${cellEntity(logo(r.logo, 18), r.clube, r.clube_id ? `/clube/${r.clube_id}` : null)}
               <td>${r.jogos}</td>
-              <td>${n(val(r, "chutes"), media ? 2 : 0)}</td>
-              <td>${n(val(r, "certas"), media ? 2 : 0)}</td>
-              <td><strong>${n(val(r, "gols"), media ? 2 : 0)}</strong></td>
-              <td>${n(r.dist_chute, 1)}</td>
-              <td>${n(r.dist_certa, 1)}</td>
-              <td>${n(r.dist_gol, 1)}</td>
+              ${show("chutes")?`<td>${n(val(r,"chutes"),media?2:0)}</td>`:""}
+              ${show("certas")?`<td>${n(val(r,"certas"),media?2:0)}</td>`:""}
+              ${show("gols")?`<td><strong>${n(val(r,"gols"),media?2:0)}</strong></td>`:""}
+              ${show("dist_chute")?`<td>${n(r.dist_chute,1)}</td>`:""}
+              ${show("dist_certa")?`<td>${n(r.dist_certa,1)}</td>`:""}
+              ${show("dist_gol")?`<td>${n(r.dist_gol,1)}</td>`:""}
             </tr>`
               )
               .join("")}
@@ -451,12 +505,13 @@ function renderStatsPanel() {
           .join("")}
       </div>
       <div class="modo-toggle">
-        <button type="button" class="chip-btn ${state.stats.modo === "media" ? "on" : ""}" data-modo="media">Média / jogo</button>
-        <button type="button" class="chip-btn ${state.stats.modo === "soma" ? "on" : ""}" data-modo="soma">Total</button>
+        <button type="button" class="chip-btn ${state.stats.modo === "media" ? "on" : ""}" data-modo="media" aria-pressed="${state.stats.modo === 'media'}">Média / jogo</button>
+        <button type="button" class="chip-btn ${state.stats.modo === "soma" ? "on" : ""}" data-modo="soma" aria-pressed="${state.stats.modo === 'soma'}">Total</button>
       </div>
     </div>
     <section class="section">
       <h2 class="section-title">${grupos[state.stats.grupo] || "Grupo"}</h2>
+      ${ligaSubtabs(data)}
       ${corpo}
     </section>
   `;
@@ -510,12 +565,23 @@ function bindStatsPanel() {
     const btn = ev.target.closest("[data-grupo]");
     if (!btn) return;
     state.stats.grupo = btn.dataset.grupo;
+    state.stats.subcategoria = null;
+    state.stats.sort = null;
     await loadStatsLiga(1);
     paintStats();
   });
-  document.querySelectorAll("[data-modo]").forEach((btn) => {
+  $("#painel-stats")?.querySelectorAll("[data-modo]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      state.stats.modo = btn.dataset.modo;
+      const novo=btn.dataset.modo;
+      if (!["media","soma"].includes(novo) || state.stats.modo===novo) return;
+      state.stats.modo=novo;
+      paintStats();
+    });
+  });
+  $("#painel-stats")?.querySelectorAll("[data-subcategoria]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.subcategoria===state.stats.subcategoria) return;
+      state.stats.subcategoria=btn.dataset.subcategoria;
       paintStats();
     });
   });

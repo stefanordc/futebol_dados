@@ -57,3 +57,16 @@ body[data-page="club"] .analise-table .df-analysis-player .entity-link { white-s
 body[data-page="club"] .analise-table .df-analysis-player .entity-link { display: inline; max-width: none; line-height: 1.35; }
 body[data-page="club"] .analise-table .df-analysis-photo { text-align: center; overflow: hidden; }
 body[data-page="club"] .analise-table .df-analysis-photo img { width: 30px; height: 30px; display: inline-block; object-fit: cover; border-radius: 8px; vertical-align: middle; }
+
+/* Campeonato → Estatísticas: sub-abas e tabelas dimensionadas por assunto. */
+body[data-page="league"] #painel-stats{min-width:0;max-width:100%}
+body[data-page="league"] .liga-stat-subtabs{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 20px;padding:0 0 14px;border-bottom:1px solid var(--df-border,var(--line))}
+body[data-page="league"] .liga-stat-subtabs .tab{min-height:36px;white-space:nowrap}
+body[data-page="league"] #painel-stats .section{min-width:0;max-width:100%}
+body[data-page="league"] #painel-stats .table-wrap{width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+body[data-page="league"] #painel-stats .stats-table{width:100%;min-width:560px;table-layout:auto}
+body[data-page="league"] #painel-stats .stats-table th,body[data-page="league"] #painel-stats .stats-table td{white-space:nowrap;text-align:right}
+body[data-page="league"] #painel-stats .stats-table .name-cell,body[data-page="league"] #painel-stats .stats-table th.name-cell{text-align:left}
+body[data-page="league"] #painel-stats .modo-toggle{display:flex;flex-shrink:0;gap:8px;align-items:center}
+body[data-page="league"] #painel-stats .modo-toggle .chip-btn:focus-visible,body[data-page="league"] .liga-stat-subtabs .tab:focus-visible{outline:2px solid var(--df-orange,var(--accent));outline-offset:3px}
+@media(max-width:900px){body[data-page="league"] #painel-stats .filters-row{align-items:flex-start;flex-wrap:wrap}body[data-page="league"] .liga-stat-subtabs{gap:6px}}
