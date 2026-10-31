@@ -203,6 +203,83 @@
       style,description,
       warning:[all.length>maxFetches?`Amostra limitada às ${maxFetches} partidas candidatas mais recentes.`:null,fail?`${fail} partidas não puderam ser consultadas.`:null,games<5?'Amostra pequena (menos de cinco partidas).':null].filter(Boolean).join(' ')};
   }
+  const SPECIAL_LABELS=[
+    'Força ofensiva','Força defensiva','Bola parada ofensiva',
+    'Bola parada defensiva','Bola aérea ofensiva','Bola aérea defensiva'
+  ];
+  const SPECIAL_NOTES=[
+    'Volume ofensivo e qualidade das chances por jogo',
+    'Gols sofridos e ações defensivas por jogo',
+    'xG de jogada ensaiada e gols identificados em bola parada, por jogo',
+    'Gols em bola parada sofridos (menor é melhor); apenas lances identificados',
+    'Gols de cabeça e duelos aéreos ganhos (duelos como indicador complementar)',
+    'Gols de cabeça sofridos e aproveitamento geral em duelos aéreos'
+  ];
+  const normal=(s)=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const goal=(shot)=>/gol|goal/.test(normal(shot?.tipo_evento));
+  const ownGoal=(shot)=>shot?.foi_gol_contra===true||shot?.foi_gol_contra===1||shot?.foi_gol_contra==='true';
+  const setPiece=(shot)=>/escanteio|corner|bolaparada|setpiece|falta|freekick|penalt/.test(normal(shot?.situacao_jogada||shot?.situacao||''));
+  const headerGoal=(shot)=>/cabeca|header|head/.test(normal(shot?.tipo_finalizacao||''));
+  async function clubSpecialRadar(primary,progress,token){
+    const [attack,defense,matchesResponse] = await Promise.all([
+      get(api('clube',{aba:'estatisticas',grupo:'ataque'})),
+      get(api('clube',{aba:'estatisticas',grupo:'defesa'})),
+      get(api('clube',{aba:'jogos'})),
+    ]);
+    const attackRow=extractStats(attack.estatisticas,idInUrl);
+    const defenseRow=extractStats(defense.estatisticas,idInUrl);
+    const plays=matchesResponse?.jogos?.linhas||[];
+    const limited=plays.slice(0,80);
+    let ptr=0,seen=0,failed=0;
+    const details=[];
+    await Promise.all(Array.from({length:Math.min(4,limited.length)},async()=>{
+      while(ptr<limited.length&&token===sequence){
+        const m=limited[ptr++];
+        try{details.push(await get(`/api/jogo/${m.id}`));}
+        catch{failed++;}
+        seen++;
+        if(seen%10===0)progress?.(`Avaliando bola parada e jogo aéreo: ${seen}/${limited.length}`);
+      }
+    }));
+    if(token!==sequence)return null;
+    const samples=details.length;
+    let forSet=0,againstSet=0,forHeaders=0,againstHeaders=0,classified=0;
+    for(const game of details){
+      for(const shot of game.finalizacoes||[]){
+        if(!goal(shot))continue;
+        const team=Number(shot.clube_id);
+        const forUs=ownGoal(shot)?team!==idInUrl:team===idInUrl;
+        const situ=shot.situacao_jogada||shot.situacao;
+        if(situ)classified++;
+        if(setPiece(shot)){if(forUs)forSet++;else againstSet++;}
+        if(headerGoal(shot)){if(forUs)forHeaders++;else againstHeaders++;}
+      }
+    }
+    const aerial=metric(defenseRow,'disputas_aereas_ganhas','soma');
+    const attempts=metric(defenseRow,'disputas_aereas','soma');
+    const aerialRate=divide(aerial,attempts);
+    const aerialPG=divide(aerial,number(defenseRow.jogos));
+    const xgSet=metric(attackRow,'xg_jogada_ensaiada','soma');
+    const xgSetRate=divide(xgSet,number(attackRow.jogos));
+    // Sem classificação explícita, NÃO supor gols de bola parada = zero.
+    const setOff=combine(score(xgSetRate,.55),classified?score(divide(forSet,samples),.65):null);
+    const setDef=classified?inverse(divide(againstSet,samples),.65):null;
+    const aerialOff=combine(score(aerialPG,13),classified?score(divide(forHeaders,samples),.35):null);
+    const aerialDef=combine(score(aerialRate,.72),classified?inverse(divide(againstHeaders,samples),.35):null);
+    const first=primary?.values||[];
+    return {
+      title:'Força por fundamento', subtitle:`${samples} partidas analisadas · referência relativa de 0 a 100`,
+      labels:SPECIAL_LABELS,
+      values:[first[0]??null,first[1]??null,setOff,setDef,aerialOff,aerialDef],
+      notes:SPECIAL_NOTES,
+      warning:[
+        'Os atributos de bola parada e bola aérea usam os campos registrados e aproximações de duelos; não são medições oficiais.',
+        !classified?'Não há classificação de situação dos gols suficiente para avaliar a bola parada defensiva.':null,
+        failed?`${failed} partidas indisponíveis.`:null,
+        plays.length>limited.length?`Amostra limitada às ${limited.length} partidas mais recentes.`:null,
+      ].filter(Boolean).join(' ')
+    };
+  }
   function point(i,value,radius,center=210){
     const angle=-Math.PI/2+i*Math.PI/3,rad=radius*value;
     return {x:center+Math.cos(angle)*rad,y:center+Math.sin(angle)*rad};
@@ -226,10 +303,10 @@
     }).join('');
     return `<svg viewBox="0 0 420 420" class="df-profile-radar-svg" role="img" aria-label="Gráfico radar com seis atributos. ${esc(labels.map((name,i)=>`${name}: ${values[i]??'indisponível'}`).join('; '))}"><title>Radar de desempenho</title>${grid}${spokes}${poly}${spots}${labelsSvg}</svg>`;
   }
-  function card(data){
+  function card(data,cardId="df-radar-card"){
     const valid=data.values.filter(x=>x!=null).length;
     const values=data.values.map(v=>v==null?'—':`${v}/100`);
-    return `<section class="section df-radar-section" id="df-profile-radar" aria-labelledby="df-radar-heading"><div class="df-radar-heading"><div><h2 class="section-title" id="df-radar-heading">${esc(data.title)}</h2><p class="muted">${esc(data.subtitle)}</p></div><span class="df-radar-tag">Índice estimado · não oficial</span></div>
+    return `<section class="section df-radar-section" id="${cardId}" aria-labelledby="${cardId}-heading"><div class="df-radar-heading"><div><h2 class="section-title" id="${cardId}-heading">${esc(data.title)}</h2><p class="muted">${esc(data.subtitle)}</p></div><span class="df-radar-tag">Índice estimado · não oficial</span></div>
     ${data.style?`<div class="df-coach-style"><strong>${esc(data.style)}</strong><p>${esc(data.description)}</p></div>`:''}
     ${data.warning?`<p class="df-radar-warning">${esc(data.warning)}</p>`:''}
     <div class="df-radar-layout"><div>${radarSvg(data.labels,data.values)}</div><div class="df-radar-measures">${data.labels.map((name,i)=>`<div class="df-radar-metric" title="${esc(data.notes[i])}"><div class="df-radar-metric-line"><span>${i+1}. ${esc(name)}</span><strong>${values[i]}</strong></div><div class="df-radar-track"><span style="width:${data.values[i]??0}%"></span></div><small>${esc(data.notes[i])}</small></div>`).join('')}</div></div>
@@ -238,22 +315,57 @@
   function mount(){
     const root=$('#conteudo'),header=root?.querySelector('.entity-header');
     if(!header)return;
-    const q=scope(),sig=`${kind}:${idInUrl}?${q.toString()}`;
+    const clubPanel=kind==='clube'?$('#clube-painel'):null;
+    const onGeneral=kind!=='clube'||Boolean($('#clube-tabs [data-aba="geral"].active'));
     let node=$('#df-profile-radar');
+    if(kind==='clube'&&(!onGeneral||!clubPanel)){
+      if(node)node.remove();
+      renderKey='';++sequence;
+      return;
+    }
+    const q=scope(),sig=`${kind}:${idInUrl}?${q.toString()}`;
     if(node && renderKey===sig)return;
     renderKey=sig;
     const token=++sequence;
-    if(!node){node=document.createElement('section');node.id='df-profile-radar';node.className='section df-radar-section';header.insertAdjacentElement('afterend',node);}
-    node.innerHTML='<p class="muted df-radar-loading" role="status">Calculando perfil de desempenho…</p>';
-    const update=(t)=>{if(token===sequence&&node.isConnected)node.innerHTML=`<p class="muted df-radar-loading" role="status">${esc(t)}</p>`;};
-    const promise=kind==='clube'?clubRadar():kind==='jogador'?playerRadar():coachRadar(update,token);
-    Promise.resolve(promise).then(data=>{
-      if(token!==sequence||!node.isConnected||!data)return;
-      // Não substitui o wrapper antes de a função mount verificar renderKey.
-      const wrapper=document.createElement('div');wrapper.innerHTML=card(data);
-      const section=wrapper.firstElementChild;
-      node.replaceWith(section);
-    }).catch(e=>{if(token===sequence&&node.isConnected)node.innerHTML=`<p class="error">Não foi possível calcular o radar: ${esc(e.message)}</p>`;});
+    if(!node){
+      node=document.createElement('div');node.id='df-profile-radar';
+      if(kind==='clube')clubPanel.prepend(node);
+      else header.insertAdjacentElement('afterend',node);
+    }
+    if(kind==='clube'){
+      node.className='df-radar-pair';
+      node.innerHTML='<div id="df-radar-main" class="df-radar-placeholder" role="status">Carregando radar de desempenho…</div><div id="df-radar-special" class="df-radar-placeholder" role="status">Carregando radar de fundamentos…</div>';
+      const main=$('#df-radar-main',node),special=$('#df-radar-special',node);
+      const progress=(msg)=>{if(token===sequence&&special?.isConnected)special.textContent=msg;};
+      const first=clubRadar();
+      first.then(data=>{
+        if(token!==sequence||!main.isConnected)return;
+        main.outerHTML=card(data,'df-radar-main');
+      }).catch(e=>{
+        if(token!==sequence||!main.isConnected)return;
+        main.textContent=`Não foi possível calcular o radar: ${e.message}`;
+        main.classList.add('error');
+      });
+      first.then(data=>clubSpecialRadar(data,progress,token)).then(data=>{
+        if(token!==sequence||!special.isConnected||!data)return;
+        special.outerHTML=card(data,'df-radar-special');
+      }).catch(e=>{
+        if(token!==sequence||!special.isConnected)return;
+        special.textContent=`Fundamentos indisponíveis: ${e.message}`;
+        special.classList.add('error');
+      });
+    }else{
+      node.className='df-radar-single';
+      node.innerHTML='<div class="df-radar-placeholder" role="status">Calculando perfil de desempenho…</div>';
+      const progress=(msg)=>{if(token===sequence&&node.isConnected)node.textContent=msg;};
+      const promise=kind==='jogador'?playerRadar():coachRadar(progress,token);
+      Promise.resolve(promise).then(data=>{
+        if(token!==sequence||!node.isConnected||!data)return;
+        node.innerHTML=card(data,'df-radar-main');
+      }).catch(e=>{
+        if(token===sequence&&node.isConnected)node.innerHTML=`<div class="error">Não foi possível calcular o radar: ${esc(e.message)}</div>`;
+      });
+    }
   }
   const obs=new MutationObserver(()=>{if(frame)return;frame=requestAnimationFrame(()=>{frame=0;mount();});});
   obs.observe(document.documentElement,{childList:true,subtree:true});
