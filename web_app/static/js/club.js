@@ -346,13 +346,14 @@ function renderAnalise() {
     <section class="section analise-card">
       <h2 class="section-title">Top 5 — ${t.label}</h2>
       <table class="data-table analise-table">
-        <thead><tr><th>#</th><th>Jogador</th><th>${shortLab(t.label)}</th><th>J</th></tr></thead>
+        <thead><tr><th scope="col">#</th><th scope="col">IMG</th><th scope="col">Jogador</th><th scope="col">${shortLab(t.label)}</th><th scope="col">J</th></tr></thead>
         <tbody>
           ${itens
             .map(
               (p, i) => `<tr>
             <td>${i + 1}</td>
-            <td class="name-cell"><div class="cell-inner">${img(p.foto)}<a class="entity-link" href="/jogador/${p.id}" title="${p.nome}">${p.nome}</a></div></td>
+            <td class="df-analysis-photo">${img(p.foto)}</td>
+            <td class="df-analysis-player"><a class="entity-link" href="/jogador/${p.id}" title="${p.nome}">${p.nome}</a></td>
             <td><strong>${fmtValor(t.chave, p.display, { media: media && t.chave !== "rating" })}</strong></td>
             <td>${p.jogos}</td>
           </tr>`
