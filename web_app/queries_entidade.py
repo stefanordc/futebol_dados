@@ -420,48 +420,6 @@ def detalhe_tecnico(tecnico_id: int, temporada: str | None = None) -> dict | Non
 
 
 def detalhe_arbitro(arbitro_id: int, temporada: str | None = None) -> dict | None:
-    base = fetch_one(
-        "SELECT id, nome, nacionalidade, id_fotmob, foto FROM arbitros WHERE id = %s",
-        (arbitro_id,),
-    )
-    if not base:
-        return None
-    item = _serialize(base)
-    if not item.get("foto") and item.get("id_fotmob"):
-        item["foto"] = FOTO_PESSOA.format(id=item["id_fotmob"])
-
-    temps = fetch_all(
-        """
-        SELECT DISTINCT temporada FROM jogos
-        WHERE arbitro_id = %s AND temporada IS NOT NULL
-        ORDER BY temporada DESC
-        """,
-        (arbitro_id,),
-    )
-    temporadas = [r["temporada"] for r in temps]
-    if temporada not in temporadas:
-        temporada = temporadas[0] if temporadas else None
-
-    linhas = []
-    if temporada:
-        rows = fetch_all(
-            """
-            SELECT c.id AS campeonato_id, c.nome AS campeonato,
-                   COUNT(*) AS jogos,
-                   SUM(COALESCE(j.gols_casa,0) + COALESCE(j.gols_fora,0)) AS gols
-            FROM jogos j
-            JOIN campeonatos c ON c.id = j.campeonato_id
-            WHERE j.arbitro_id = %s AND j.temporada = %s AND j.gols_casa IS NOT NULL
-            GROUP BY c.id, c.nome
-            ORDER BY jogos DESC
-            """,
-            (arbitro_id, temporada),
-        )
-        linhas = [_serialize(r) for r in rows]
-    return {
-        "tipo": "arbitro",
-        "entidade": item,
-        "temporada": temporada,
-        "temporadas": temporadas,
-        "linhas": linhas,
-    }
+    """Resumo agregado em uma única consulta, sem carregar jogos individualmente via HTTP."""
+    from queries_performance import perfil_arbitro
+    return perfil_arbitro(arbitro_id, temporada)

@@ -14,6 +14,7 @@ import queries_clube
 import queries_entidade
 import queries_liga
 import queries_stats
+import queries_performance
 
 DIR = Path(__file__).resolve().parent
 TEMPLATES = DIR / "templates"
@@ -389,6 +390,16 @@ def api_clube(
     if not dados:
         raise HTTPException(status_code=404, detail="Clube não encontrado")
     return dados
+
+
+@app.get("/api/clube/{clube_id}/fundamentos")
+def api_clube_fundamentos(
+    clube_id: int, temporada: str,
+    campeonato_id: int | None = None, mando: str = "todos",
+):
+    return queries_performance.fundamentos_clube(
+        clube_id, temporada, campeonato_id=campeonato_id, mando=mando
+    )
 
 
 @app.get("/api/jogador/{jogador_id}")

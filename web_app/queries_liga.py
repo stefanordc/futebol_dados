@@ -181,25 +181,40 @@ def rodada_destaque(campeonato_id: int, temporada: str) -> int | None:
 
 
 def rodadas_liga(campeonato_id: int, temporada: str) -> list[dict]:
-    """Todas as rodadas em ordem crescente, cada uma com todos os jogos."""
+    """Busca todas as partidas em uma única consulta (evita N+1 por rodada)."""
     rows = fetch_all(
         """
-        SELECT DISTINCT NULLIF(regexp_replace(COALESCE(rodada, ''), '[^0-9]', '', 'g'), '')::int AS n_rodada
-        FROM jogos
-        WHERE campeonato_id = %s AND temporada = %s
-          AND NULLIF(regexp_replace(COALESCE(rodada, ''), '[^0-9]', '', 'g'), '') IS NOT NULL
-        ORDER BY n_rodada ASC
+        WITH base AS (
+          SELECT j.id, j.data, j.rodada, j.gols_casa, j.gols_fora,
+                 j.casa_id, j.fora_id,
+                 NULLIF(regexp_replace(COALESCE(j.rodada,''), '[^0-9]', '', 'g'),'')::int AS n_rodada
+          FROM jogos j
+          WHERE j.campeonato_id = %s AND j.temporada = %s
+        )
+        SELECT b.id, b.data, b.rodada, b.gols_casa, b.gols_fora, b.n_rodada,
+               ca.clube AS casa, fa.clube AS fora,
+               cfc.id_externo AS casa_id_fotmob,
+               cff.id_externo AS fora_id_fotmob
+        FROM base b
+        JOIN clubes ca ON ca.id = b.casa_id
+        JOIN clubes fa ON fa.id = b.fora_id
+        LEFT JOIN clubes_fontes cfc ON cfc.clube_id = ca.id AND cfc.fonte = 'fotmob'
+        LEFT JOIN clubes_fontes cff ON cff.clube_id = fa.id AND cff.fonte = 'fotmob'
+        WHERE b.n_rodada IS NOT NULL
+        ORDER BY b.n_rodada, b.data NULLS LAST, b.id
         """,
         (campeonato_id, temporada),
     )
+    buckets: dict[int, list[dict]] = {}
+    for r in rows:
+        item = _serialize(r)
+        num = int(item.pop("n_rodada"))
+        item["casa_logo"] = _logo_clube(item.get("casa_id_fotmob"))
+        item["fora_logo"] = _logo_clube(item.get("fora_id_fotmob"))
+        buckets.setdefault(num, []).append(item)
     return [
-        {
-            "rodada": f"Rodada {r['n_rodada']}",
-            "n_rodada": r["n_rodada"],
-            "jogos": _jogos_rodada(campeonato_id, temporada, r["n_rodada"]),
-        }
-        for r in rows
-        if r.get("n_rodada") is not None
+        {"rodada": f"Rodada {numero}", "n_rodada": numero, "jogos": jogos}
+        for numero, jogos in buckets.items()
     ]
 
 

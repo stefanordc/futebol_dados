@@ -106,7 +106,7 @@
 
   const PLAYER_LABELS=['Finalização','Criação','Drible','Desarme','Interceptação','Duelos'];
   const PLAYER_NOTES=[
-    'Precisão de chutes: chutes no alvo divididos pelo total de chutes. Valor 100 apenas quando todas as finalizações foram no alvo.',
+    'Qualidade estimada: gols por 90 min, precisão de chutes e conversão frente ao xG, ajustada por amostra. Escala própria 1–99; não é atributo oficial do FIFA.',
     'Assistências, chances criadas e xA por 90 minutos',
     'Dribles certos por 90 minutos e taxa de sucesso',
     'Desarmes e ações defensivas por 90 minutos',
@@ -123,8 +123,15 @@
     const per90=(k)=>divide(sum(k),units);
     const pGoals=per90('gols'),shots=per90('chutes_certos'),xg=per90('xg');
     const attempts=sum('chutes_total'),onTarget=sum('chutes_certos');
-    // Precisão real: 100 somente se todas as tentativas registradas foram no alvo.
-    const finishing=attempts!=null&&attempts>0&&onTarget!=null ? Math.round(clamp(100*onTarget/attempts)) : null;
+    // Índice estimado de finalização (1-99), não é só precisão de chutes.
+    // Mistura gols/90, precisão com suavização de amostra e gols em relação ao xG.
+    // A fórmula não reproduz o algoritmo proprietário da EA Sports.
+    const accurate=attempts>0 && onTarget!=null ? (onTarget+6)/(attempts+12) : null;
+    const prod=pGoals!=null ? 0.5+0.5*Math.tanh((pGoals-0.35)/0.52) : null;
+    const clinical=xg>0 && pGoals!=null ? clamp(pGoals/xg,0,1.6)/1.6 : null;
+    const inputs=[[accurate,.35],[prod,.45],[clinical,.20]].filter(([v])=>v!=null);
+    const weight=inputs.reduce((a,v)=>a+v[1],0);
+    const finishing=weight>0 ? Math.round(clamp(12+86*inputs.reduce((a,v)=>a+v[0]*v[1],0)/weight,1,99)) : null;
     const pAs=per90('assistencias'), chances=per90('chances_criadas'), xa=per90('xa');
     const dr=per90('dribles_certos'), att=per90('dribles');
     const tackles=per90('desarmes'),defActions=per90('acoes_defensivas');
@@ -227,63 +234,34 @@
   const setPiece=(shot)=>/escanteio|corner|bolaparada|setpiece|falta|freekick|penalt/.test(normal(shot?.situacao_jogada||shot?.situacao||''));
   const headerGoal=(shot)=>/cabeca|header|head/.test(normal(shot?.tipo_finalizacao||''));
   async function clubSpecialRadar(primary,progress,token){
-    const [attack,defense,matchesResponse] = await Promise.all([
+    // Agregado SQL: substitui 80 consultas individuais de partidas.
+    const q=scope();
+    const [summary,attack,defense] = await Promise.all([
+      get('/api/clube/'+idInUrl+'/fundamentos?'+q.toString()),
       get(api('clube',{aba:'estatisticas',grupo:'ataque'})),
       get(api('clube',{aba:'estatisticas',grupo:'defesa'})),
-      get(api('clube',{aba:'jogos'})),
     ]);
-    const attackRow=extractStats(attack.estatisticas,idInUrl);
-    const defenseRow=extractStats(defense.estatisticas,idInUrl);
-    const plays=matchesResponse?.jogos?.linhas||[];
-    const limited=plays.slice(0,80);
-    let ptr=0,seen=0,failed=0;
-    const details=[];
-    await Promise.all(Array.from({length:Math.min(4,limited.length)},async()=>{
-      while(ptr<limited.length&&token===sequence){
-        const m=limited[ptr++];
-        try{details.push(await get(`/api/jogo/${m.id}`));}
-        catch{failed++;}
-        seen++;
-        if(seen%10===0)progress?.(`Avaliando bola parada e jogo aéreo: ${seen}/${limited.length}`);
-      }
-    }));
     if(token!==sequence)return null;
-    const samples=details.length;
-    let forSet=0,againstSet=0,forHeaders=0,againstHeaders=0,classified=0;
-    for(const game of details){
-      for(const shot of game.finalizacoes||[]){
-        if(!goal(shot))continue;
-        const team=Number(shot.clube_id);
-        const forUs=ownGoal(shot)?team!==idInUrl:team===idInUrl;
-        const situ=shot.situacao_jogada||shot.situacao;
-        if(situ)classified++;
-        if(setPiece(shot)){if(forUs)forSet++;else againstSet++;}
-        if(headerGoal(shot)){if(forUs)forHeaders++;else againstHeaders++;}
-      }
-    }
-    const aerial=metric(defenseRow,'disputas_aereas_ganhas','soma');
-    const attempts=metric(defenseRow,'disputas_aereas','soma');
-    const aerialRate=divide(aerial,attempts);
-    const aerialPG=divide(aerial,number(defenseRow.jogos));
-    const xgSet=metric(attackRow,'xg_jogada_ensaiada','soma');
-    const xgSetRate=divide(xgSet,number(attackRow.jogos));
-    // Sem classificação explícita, NÃO supor gols de bola parada = zero.
-    const setOff=combine(score(xgSetRate,.55),classified?score(divide(forSet,samples),.65):null);
-    const setDef=classified?inverse(divide(againstSet,samples),.65):null;
-    const aerialOff=combine(score(aerialPG,13),classified?score(divide(forHeaders,samples),.35):null);
-    const aerialDef=combine(score(aerialRate,.72),classified?inverse(divide(againstHeaders,samples),.35):null);
-    const first=primary?.values||[];
+    const att=extractStats(attack.estatisticas,idInUrl);
+    const def=extractStats(defense.estatisticas,idInUrl);
+    const games=number(summary.jogos)||0;
+    const identified=number(summary.gols_classificados)||0;
+    const xgSet=metric(att,'xg_jogada_ensaiada','soma');
+    const setOff=combine(score(divide(xgSet,number(att.jogos)),.55),
+      identified>0?score(divide(number(summary.bola_parada_pro),games),.65):null);
+    const setDef=identified>0?inverse(divide(number(summary.bola_parada_contra),games),.65):null;
+    const aerial=metric(def,'disputas_aereas_ganhas','soma');
+    const aerialTotal=metric(def,'disputas_aereas','soma');
+    const aerialOff=combine(score(divide(aerial,number(def.jogos)),13),
+      identified>0?score(divide(number(summary.cabeca_pro),games),.35):null);
+    const aerialDef=combine(score(divide(aerial,aerialTotal),.72),
+      identified>0?inverse(divide(number(summary.cabeca_contra),games),.35):null);
     return {
-      title:'Força por fundamento', subtitle:`${samples} partidas analisadas · referência relativa de 0 a 100`,
-      labels:SPECIAL_LABELS,
-      values:[first[0]??null,first[1]??null,setOff,setDef,aerialOff,aerialDef],
-      notes:SPECIAL_NOTES,
-      warning:[
-        'Os atributos de bola parada e bola aérea usam os campos registrados e aproximações de duelos; não são medições oficiais.',
-        !classified?'Não há classificação de situação dos gols suficiente para avaliar a bola parada defensiva.':null,
-        failed?`${failed} partidas indisponíveis.`:null,
-        plays.length>limited.length?`Amostra limitada às ${limited.length} partidas mais recentes.`:null,
-      ].filter(Boolean).join(' ')
+      title:'Força por fundamento',
+      subtitle:games+' jogos analisados · cálculo agregado no banco',
+      labels:SPECIAL_LABELS,notes:SPECIAL_NOTES,
+      values:[primary?.values?.[0]??null,primary?.values?.[1]??null,setOff,setDef,aerialOff,aerialDef],
+      warning:identified===0?'Sem classificação suficiente de gols para avaliar bola parada defensiva e gols de cabeça.':null
     };
   }
   function point(i,value,radius,center=210){

@@ -248,60 +248,60 @@ function coachStatsHtml(){
   const metrics=[['Partidas',games],['Vitórias',wins],['Empates',draws],['Derrotas',losses],['Pontos',pts],['Aproveitamento',games?((100*pts)/(3*games)).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—']];
   return `<div class="df-ref-kpis">${metrics.map(([label,v])=>`<article class="df-ref-kpi"><span>${label}</span><strong>${v}</strong></article>`).join('')}</div>`;
 }
+
+const safeText = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const displayNum = (v, d=0) => v==null ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const displayPct = v=>v==null?'—':displayNum(v,1)+'%';
+
 function refereeTable(){
   const rows=state.data?.linhas||[];
-  return `<div class="table-wrap"><table class="data-table"><thead><tr><th>Campeonato</th><th>J</th><th>Gols</th><th>Faltas</th><th>Amarelos</th><th>Vermelhos</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.campeonato_id?`<a href="/liga/${r.campeonato_id}">${r.campeonato}</a>`:r.campeonato}</td><td>${r.jogos??'—'}</td><td>${r.gols??'—'}</td><td>${r.faltas??'—'}</td><td>${r.amarelos??'—'}</td><td>${r.vermelhos??'—'}</td></tr>`).join('')||'<tr><td colspan="6">Resumo por campeonato indisponível; use a análise por partidas abaixo.</td></tr>'}</tbody></table></div>`;
+  return '<div class="table-wrap"><table class="data-table"><thead><tr><th>Campeonato</th><th>Jogos</th><th>Faltas</th><th>Amarelos</th><th>Vermelhos</th><th>% mandante</th><th>% visitante</th></tr></thead><tbody>'+
+    (rows.map(r=>'<tr><td><a href="/liga/'+r.campeonato_id+'">'+safeText(r.campeonato)+'</a></td><td>'+displayNum(r.jogos)+'</td><td>'+displayNum(r.faltas)+'</td><td>'+displayNum(r.amarelos)+'</td><td>'+displayNum(r.vermelhos)+'</td><td>'+displayPct(r.pct_mandante)+'</td><td>'+displayPct(r.pct_visitante)+'</td></tr>').join('')||
+    '<tr><td colspan="7">Sem partidas disponíveis no período selecionado.</td></tr>')+
+    '</tbody></table></div>';
 }
-function refereeAdvancedHtml(){return `<section class="section" id="df-ref-advanced"><h2 class="section-title">Análise por mando de campo</h2><p class="muted">Os índices são calculados exclusivamente sobre partidas confirmadas para este árbitro. O levantamento pode ser limitado pelo volume das APIs existentes.</p><button type="button" class="chip-btn" id="df-ref-analyze">Consultar partidas e estatísticas</button><div id="df-ref-result" aria-live="polite"></div></section>`;}
-async function analyzeReferee(){
-  const btn=$('#df-ref-analyze'),target=$('#df-ref-result');if(!btn||!target)return;
-  btn.disabled=true;target.innerHTML='<p class="muted">Localizando campeonatos e partidas…</p>';
-  try {
-    const leagueR=await fetch('/api/ligas');if(!leagueR.ok)throw Error('Não foi possível consultar as ligas');
-    const leagues=(await leagueR.json()).ligas||[];
-    const selected=state.temporada;
-    let leagueIds=(state.data.linhas||[]).map(r=>Number(r.campeonato_id)).filter(Boolean);
-    if(!leagueIds.length){
-      // Descoberta via ranking agregado de árbitros por liga, sem criar rotas no backend.
-      const scan=leagues.slice(0,35),ids=[];let ptr=0;
-      await Promise.all(Array.from({length:Math.min(5,scan.length)},async()=>{while(ptr<scan.length){const league=scan[ptr++];const response=await fetch(`/api/stats/arbitros?campeonato_id=${league.id}`);if(!response.ok)continue;const data=await response.json();if((data.itens||[]).some(a=>Number(a.id)===id))ids.push(Number(league.id));}}));
-      leagueIds=ids;
-    }
-    const unique=[...new Set(leagueIds)].slice(0,12);
-    if(!unique.length){target.innerHTML='<p class="muted">Nenhuma competição encontrada nas consultas disponíveis.</p>';return;}
-    const candidates=[];
-    for(const leagueId of unique){
-      const q=selected?`?temporada=${encodeURIComponent(selected)}`:'';
-      const response=await fetch(`/api/liga/${leagueId}${q}`);if(!response.ok)continue;
-      const data=await response.json();for(const round of data.rodadas||[])for(const game of round.jogos||[])if(game.gols_casa!=null)candidates.push({id:game.id,campeonato:data.nome||`Liga ${leagueId}`});
-    }
-    const pool=[...new Map(candidates.map(g=>[g.id,g])).values()].slice(0,240);
-    let ptr=0,complete=0,errors=0;
-    const actual=[];
-    await Promise.all(Array.from({length:Math.min(6,pool.length)},async()=>{while(ptr<pool.length){const candidate=pool[ptr++];try{const response=await fetch(`/api/jogo/${candidate.id}`);if(!response.ok)throw Error('HTTP '+response.status);const game=await response.json();if(Number(game.arbitro_id)===id)actual.push({...game,_league:candidate.campeonato});}catch(e){errors++;}complete++;if(complete%10===0)target.innerHTML=`<p class="muted">Consultadas ${complete}/${pool.length} partidas, ${actual.length} deste árbitro…</p>`;}}));
-    if(!actual.length){target.innerHTML=`<p class="muted">Nenhuma partida identificada para este árbitro na amostra de ${pool.length} jogos. Não é possível estimar os indicadores por mando.</p>`;return;}
-    const games=actual.length;const totals={homeWins:0,homeNonLoss:0,awayWins:0,draws:0,offsideHome:0,offsideAway:0,foulsHome:0,foulsAway:0,yellowsHome:0,yellowsAway:0,redsHome:0,redsAway:0};
-    const sum=(k)=>actual.reduce((acc,g)=>acc+(Number(g.estatisticas?.completo?.Casa?.[k])||0)+(Number(g.estatisticas?.completo?.Fora?.[k])||0),0);
-    for(const g of actual){
-      const home=Number(g.gols_casa),away=Number(g.gols_fora);
-      if(home>away)totals.homeWins++;if(home>=away)totals.homeNonLoss++;if(away>home)totals.awayWins++;if(home===away)totals.draws++;
-      const h=g.estatisticas?.completo?.Casa||{},a=g.estatisticas?.completo?.Fora||{};
-      totals.offsideHome+=Number(h.impedimentos)||0;totals.offsideAway+=Number(a.impedimentos)||0;
-      totals.foulsHome+=Number(h.faltas_cometidas)||0;totals.foulsAway+=Number(a.faltas_cometidas)||0;
-      totals.yellowsHome+=Number(h.cartao_amarelo)||0;totals.yellowsAway+=Number(a.cartao_amarelo)||0;
-      totals.redsHome+=Number(h.cartao_vermelho)||0;totals.redsAway+=Number(a.cartao_vermelho)||0;
-    }
-    const percent=x=>(100*x/games).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
-    const byLeague=new Map();for(const g of actual){const l=byLeague.get(g._league)||{games:0,yellows:0,reds:0,fouls:0};l.games++;for(const side of ['Casa','Fora']){const e=g.estatisticas?.completo?.[side]||{};l.yellows+=Number(e.cartao_amarelo)||0;l.reds+=Number(e.cartao_vermelho)||0;l.fouls+=Number(e.faltas_cometidas)||0;}byLeague.set(g._league,l);}
-    const items=[['Vitórias do mandante',percent(totals.homeWins)],['Mandante vence ou empata',percent(totals.homeNonLoss)],['Vitórias do visitante',percent(totals.awayWins)],['Empates',percent(totals.draws)],['Impedimentos — mandante',totals.offsideHome],['Impedimentos — visitante',totals.offsideAway],['Faltas cometidas — mandante',totals.foulsHome],['Faltas cometidas — visitante',totals.foulsAway],['Faltas a favor do mandante',totals.foulsAway],['Faltas a favor do visitante',totals.foulsHome],['Amarelos — mandante',totals.yellowsHome],['Amarelos — visitante',totals.yellowsAway],['Vermelhos — mandante',totals.redsHome],['Vermelhos — visitante',totals.redsAway],['Gols anulados','Não disponível']];
-    target.innerHTML=`<p class="muted">Amostra: <strong>${games} partidas confirmadas</strong> entre ${pool.length} consultadas. ${errors?`${errors} consultas falharam.`:''} Os percentuais se referem apenas a essa amostra e não representam necessariamente toda a carreira.</p><div class="df-ref-kpis">${items.map(([k,v])=>`<article class="df-ref-kpi"><span>${k}</span><strong>${v}</strong></article>`).join('')}</div><h3>Partidas confirmadas por campeonato</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Campeonato</th><th>J</th><th>Faltas</th><th>Amarelos</th><th>Vermelhos</th></tr></thead><tbody>${[...byLeague].map(([name,r])=>`<tr><td>${name}</td><td>${r.games}</td><td>${r.fouls}</td><td>${r.yellows}</td><td>${r.reds}</td></tr>`).join('')}</tbody></table></div>`;
-  }catch(e){target.innerHTML=`<p class="error">Falha na análise: ${String(e.message||e)}</p>`;}finally{btn.disabled=false;}
+function refereeCards(){
+  const r=state.data?.resumo||{};
+  const metrics=[
+    ['Partidas apitadas',displayNum(r.jogos)],['Vitórias do mandante',displayPct(r.pct_mandante)],
+    ['Mandante venceu ou empatou',displayPct(r.pct_mandante_ou_empate)],['Vitórias do visitante',displayPct(r.pct_visitante)],
+    ['Empates',displayPct(r.pct_empates)],['Faltas marcadas',displayNum(r.faltas)],
+    ['Faltas cometidas — mandante',displayNum(r.faltas_casa)],['Faltas cometidas — visitante',displayNum(r.faltas_fora)],
+    ['Faltas a favor do mandante',displayNum(r.faltas_fora)],['Faltas a favor do visitante',displayNum(r.faltas_casa)],
+    ['Amarelos mandante',displayNum(r.amarelos_casa)],['Amarelos visitante',displayNum(r.amarelos_fora)],
+    ['Vermelhos mandante',displayNum(r.vermelhos_casa)],['Vermelhos visitante',displayNum(r.vermelhos_fora)],
+    ['Impedimentos mandante',displayNum(r.impedimentos_casa)],['Impedimentos visitante',displayNum(r.impedimentos_fora)],
+    ['Gols anulados','Sem dados'],
+  ];
+  return '<div class="df-ref-kpis">'+metrics.map(([name,value])=>'<article class="df-ref-kpi"><span>'+name+'</span><strong>'+value+'</strong></article>').join('')+'</div>';
+}
+function refereeRadar(){
+  const r=state.data?.resumo||{},games=Number(r.jogos||0);
+  const per=(key,max)=>games>0&&r[key]!=null?Math.max(0,Math.min(100,100*Number(r[key])/games/max)):null;
+  const labels=['Vitórias mandante','Vitórias visitante','Faltas/jogo','Cartões mandante','Cartões visitante'];
+  const values=[r.pct_mandante,r.pct_visitante,per('faltas',35),per('amarelos_casa',4),per('amarelos_fora',4)]
+    .map(v=>v==null||!Number.isFinite(Number(v))?null:Math.max(0,Math.min(100,Number(v))));
+  const p=(i,f)=>{const a=-Math.PI/2+2*Math.PI*i/5;return [200+135*f*Math.cos(a),190+135*f*Math.sin(a)];};
+  const pts=(f)=>labels.map((_,i)=>p(i,f).join(',')).join(' ');
+  const grid=[.25,.5,.75,1].map(f=>'<polygon points="'+pts(f)+'" fill="none" stroke="var(--radar-grid,#424957)"/>').join('');
+  const lines=labels.map((_,i)=>'<line x1="200" y1="190" x2="'+p(i,1).join('" y2="')+'" stroke="var(--radar-grid,#424957)"/>').join('');
+  const poly=values.every(v=>v!=null)?'<polygon points="'+labels.map((_,i)=>p(i,values[i]/100).join(',')).join(' ')+'" fill="var(--radar-fill,rgba(255,107,26,.19))" stroke="var(--accent,#ff6b1a)" stroke-width="3"/>':'';
+  const dots=values.map((v,i)=>v==null?'':'<circle cx="'+p(i,v/100)[0]+'" cy="'+p(i,v/100)[1]+'" r="4" fill="var(--accent,#ff6b1a)"/>').join('');
+  const annotation=labels.map((label,i)=>{const xy=p(i,1.23);return '<text x="'+xy[0]+'" y="'+xy[1]+'" text-anchor="middle" fill="var(--text,#fff)" font-size="11">'+safeText(label)+'</text>'}).join('');
+  return '<section class="section"><h2 class="section-title">Perfil de arbitragem</h2><p class="muted">Índice visual de 0 a 100. Vitórias são percentuais observados; faltas e cartões são normalizados por partida, não indicam qualidade do árbitro.</p><div class="df-ref-radar-layout"><svg viewBox="0 0 400 400" role="img" aria-label="Radar estatístico do árbitro">'+grid+lines+poly+dots+annotation+'</svg><div class="df-ref-radar-list">'+labels.map((name,i)=>'<div><span>'+name+'</span><strong>'+(values[i]==null?'—':Math.round(values[i])+'/100')+'</strong></div>').join('')+'</div></div></section>';
+}
+function refereeGames(){
+  const rows=state.data?.jogos||[];
+  return '<section class="section"><h2 class="section-title">Jogos apitados · '+rows.length+'</h2><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Campeonato</th><th>Mandante</th><th>Placar</th><th>Visitante</th><th>Faltas</th><th>Amarelos</th><th>Vermelhos</th></tr></thead><tbody>'+
+    (rows.map(g=>{const sum=(a,b)=>g[a]!=null&&g[b]!=null?Number(g[a])+Number(g[b]):null;return '<tr><td>'+safeText(String(g.data||'').slice(0,10))+'</td><td>'+safeText(g.campeonato)+'</td><td>'+safeText(g.casa)+'</td><td><a href="/jogo/'+g.id+'">'+displayNum(g.gols_casa)+' × '+displayNum(g.gols_fora)+'</a></td><td>'+safeText(g.fora)+'</td><td>'+displayNum(sum('faltas_casa','faltas_fora'))+'</td><td>'+displayNum(sum('amarelos_casa','amarelos_fora'))+'</td><td>'+displayNum(sum('vermelhos_casa','vermelhos_fora'))+'</td></tr>'}).join('')||
+    '<tr><td colspan="8">Sem jogos registrados.</td></tr>')+
+    '</tbody></table></div></section>';
 }
 async function render(){
  const e=state.data.entidade||{};
  const title=tipo==='jogador'?'Jogador':tipo==='tecnico'?'Técnico':'Árbitro';
  document.title=e.nome||title;
- const tabs=tipo==='arbitro'?[['geral','Geral'],['estatisticas','Estatísticas']]:[['geral','Geral'],['estatisticas','Estatísticas']];
+ const tabs=tipo==='arbitro'?[['geral','Geral'],['estatisticas','Estatísticas'],['jogos','Jogos']]:[['geral','Geral'],['estatisticas','Estatísticas']];
  if(!tabs.some(([k])=>k===state.aba))state.aba='geral';
  const header=`<div class="entity-header"><div class="entity-photo-wrap">${img(e.foto,'entity-photo')}${pencilBtn('on-photo')}</div><div><div class="entity-name-row"><h1 class="page-title entity-title">${e.nome||title}</h1>${pencilBtn('on-name')}</div><p class="muted">${e.posicao||''}${e.nacionalidade?` · ${e.nacionalidade}`:''}${e.pais?` · ${e.pais}`:''}</p></div><label class="entity-temp season-select">Temporada<select id="ent-temp">${(state.data.temporadas||[]).map(t=>`<option value="${t}" ${t===state.temporada?'selected':''}>${t}</option>`).join('')}${!(state.data.temporadas||[]).length?'<option value="">Todas as disponíveis</option>':''}</select></label></div>`;
  const bar=`<div class="tabs" id="df-entity-tabs">${tabs.map(([key,label])=>`<button type="button" class="tab ${state.aba===key?'active':''}" data-entity-tab="${key}">${label}</button>`).join('')}</div>`;
@@ -311,7 +311,7 @@ async function render(){
  }else if(tipo==='tecnico'){
   content=filterProfileHtml()+(state.aba==='geral'?`<section class="section"><h2 class="section-title">Temporada por campeonato e clube</h2>${tabelaTecnico()}</section><div id="df-profile-radar-slot"></div>`:`<section class="section"><h2 class="section-title">Indicadores de desempenho</h2>${coachStatsHtml()}</section>`);
  }else{
-  content=state.aba==='geral'?`<section class="section"><h2 class="section-title">Jogos por campeonato</h2>${refereeTable()}</section>`:`${refereeAdvancedHtml()}`;
+  content=state.aba==='geral'?`<section class="section"><h2 class="section-title">Temporada por campeonato</h2>${refereeTable()}</section>${refereeRadar()}`:state.aba==='estatisticas'?`<section class="section"><h2 class="section-title">Análise por mando de campo</h2>${refereeCards()}</section>`:refereeGames();
  }
  $('#conteudo').innerHTML=header+bar+content;
  setFavicon(e.foto);bindEdit();syncUrl();
@@ -323,7 +323,7 @@ async function render(){
   $('#jog-grupos')?.addEventListener('click',ev=>{const btn=ev.target.closest('[data-grupo]');if(!btn)return;state.grupo=btn.dataset.grupo;syncUrl();render();});
   document.querySelectorAll('[data-modo]').forEach(btn=>btn.addEventListener('click',()=>{state.modo=btn.dataset.modo;syncUrl();render();}));
  }
- if(tipo==='arbitro'&&state.aba==='estatisticas')$('#df-ref-analyze')?.addEventListener('click',analyzeReferee);
+
 }
 
 async function init() {
