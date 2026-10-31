@@ -1,24 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clubes</title>
-  <link rel="icon" type="image/png" href="/static/img/favicon.png" />
-  <link rel="apple-touch-icon" href="/static/img/favicon.png" />
-  <link rel="stylesheet" href="/static/css/app.css?v=28" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
+  <title>Clubes | Dados Futebol</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/app.css?v=28">
+  <link rel="stylesheet" href="/static/css/premium.css?v=premium-v1">
 </head>
-<body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="/"><img class="brand-logo" src="/static/img/logo.png" alt="Dados Futebol" /><span class="brand-text">DADOS<span>FUTEBOL</span></span></a>
-      <nav data-nav="clubes"></nav>
+<body data-page="clubes">
+  <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+  <div class="df-shell" id="df-shell">
+    <div id="df-sidebar-mount"></div>
+    <div class="df-stage">
+      <header id="df-topbar-mount"></header>
+      <main id="main-content" class="match-wrap df-common-page"><div id="conteudo"><div class="loading">Carregando clubes…</div></div></main>
     </div>
-  </header>
-  <main class="match-wrap">
-    <div id="conteudo"><div class="loading">Carregando clubes…</div></div>
-  </main>
-  <script src="/static/js/nav.js?v=26" type="module"></script>
-  <script src="/static/js/clubes.js?v=26" type="module"></script>
+  </div>
+  <div id="df-toast" role="status" aria-live="polite"></div>
+  <script src="/static/js/shell.js?v=premium-v1" defer></script>
+  <script src="/static/js/nav.js?v=28" type="module"></script>
+  <script src="/static/js/clubes.js?v=28" type="module"></script>
 </body>
 </html>
