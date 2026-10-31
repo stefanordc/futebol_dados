@@ -1,0 +1,25 @@
+/* Radar de perfis — tokens herdados de premium.css. */
+:root{--radar-grid:rgba(140,153,173,.28);--radar-fill:rgba(255,107,26,.19)}
+:root[data-theme="light"]{--radar-grid:rgba(69,83,106,.22);--radar-fill:rgba(255,107,26,.15)}
+.df-radar-section{margin:14px 0 24px;min-width:0}
+.df-radar-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.df-radar-heading .section-title{margin:0 0 6px;font-size:clamp(18px,2vw,23px)}
+.df-radar-heading p{margin:0;font-size:13px}
+.df-radar-tag{font-size:12px;border:1px solid var(--line);border-radius:30px;color:var(--muted);padding:8px 12px;white-space:nowrap}
+.df-radar-layout{display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,1fr);align-items:center;gap:12px}
+.df-profile-radar-svg{width:100%;max-width:475px;display:block;height:auto;margin:auto;overflow:visible}
+.df-radar-measures{display:grid;gap:12px;padding:12px 14px}
+.df-radar-metric-line{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px;color:var(--text)}
+.df-radar-metric-line strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.df-radar-track{height:7px;background:var(--bg-hover);border-radius:99px;overflow:hidden;margin:7px 0}
+.df-radar-track span{display:block;height:100%;background:var(--accent);border-radius:99px}
+.df-radar-metric small{display:block;font-size:12px;line-height:1.4;color:var(--muted)}
+.df-radar-method{margin:0;color:var(--muted);font-size:12px;line-height:1.6;border-top:1px solid var(--line);padding-top:12px}
+.df-radar-loading{padding:24px;text-align:center}
+.df-radar-warning{color:var(--muted);border-left:3px solid var(--accent);padding:10px 12px;margin:14px 0;background:var(--accent-soft);font-size:13px;line-height:1.5}
+.df-coach-style{margin:14px 0 4px;padding:16px;border:1px solid var(--line);background:var(--bg-card);border-radius:12px}
+.df-coach-style strong{font-size:18px;color:var(--text)}
+.df-coach-style p{font-size:13px;color:var(--muted);margin:7px 0 0;line-height:1.5}
+@media(max-width:900px){.df-radar-layout{grid-template-columns:1fr}.df-radar-measures{grid-template-columns:repeat(2,minmax(0,1fr))}.df-radar-section{padding:14px}}
+@media(max-width:520px){.df-radar-measures{grid-template-columns:1fr}.df-radar-tag{white-space:normal}.df-radar-layout{gap:0}.df-profile-radar-svg{max-width:380px}}
+@media(prefers-reduced-motion:reduce){.df-radar-track span{transition:none}}
