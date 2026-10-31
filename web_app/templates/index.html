@@ -1,50 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Análise de Jogos</title>
-  <link rel="icon" type="image/png" href="/static/img/favicon.png" />
-  <link rel="apple-touch-icon" href="/static/img/favicon.png" />
-  <link rel="stylesheet" href="/static/css/app.css?v=28" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
+  <title>Jogos | Dados Futebol</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/app.css?v=28">
+  <link rel="stylesheet" href="/static/css/premium.css?v=premium-v1">
 </head>
-<body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="/"><img class="brand-logo" src="/static/img/logo.png" alt="Dados Futebol" /><span class="brand-text">DADOS<span>FUTEBOL</span></span></a>
-      <label class="search">
-        <span>⌕</span>
-        <input id="busca" type="search" placeholder="Procurar clube ou liga" autocomplete="off" />
-      </label>
-      <nav data-nav="jogos"></nav>
-    </div>
-  </header>
-
-  <main class="layout">
-    <aside class="sidebar panel">
-      <div class="panel-title">Principais ligas</div>
-      <div id="lista-ligas">
-        <div class="loading">Carregando ligas…</div>
-      </div>
+<body data-page="index">
+  <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+  <div class="df-shell" id="df-shell">
+    <div id="df-sidebar-mount"></div>
+    <div class="df-stage">
+      <header id="df-topbar-mount"></header>
+      <main id="main-content" class="df-home">
+  <section class="df-intro">
+    <div><div class="df-eyebrow"><span class="df-live-indicator" aria-hidden="true"></span> CENTRAL DE PARTIDAS</div><h1>Seu futebol, em dados.</h1><p>Últimas rodadas disponíveis, resultados e análises em um só lugar.</p></div>
+    <div class="df-intro-tag" id="df-data-scope">Atualizando resultados…</div>
+  </section>
+  <section id="df-kpis" class="df-kpis" aria-label="Indicadores"><div class="df-kpi df-skeleton"></div><div class="df-kpi df-skeleton"></div><div class="df-kpi df-skeleton"></div><div class="df-kpi df-skeleton"></div></section>
+  <div class="df-workspace">
+    <aside class="df-leagues" aria-label="Ligas">
+      <div class="df-panel-heading"><div><div class="df-overline">COMPETIÇÕES</div><h2>Principais ligas</h2></div><span class="df-count" id="df-league-count">—</span></div>
+      <div id="lista-ligas" class="df-league-list"><div class="loading">Carregando ligas…</div></div>
     </aside>
-
-    <section>
-      <div class="page-heading hero-heading page-heading-center">
-        <h1 class="page-title">Jogos</h1>
-      </div>
-      <div class="feed-head">
-        <h2 class="feed-subtitle">Última rodada</h2>
-        <div class="chips">
-          <button class="chip active" data-filtro="todos" type="button">Todos</button>
+    <section class="df-games" aria-label="Resultados">
+      <div class="df-panel-heading df-games-heading"><div><div class="df-overline">RESULTADOS</div><h2>Últimas rodadas</h2></div><span class="df-count" id="df-games-count">—</span></div>
+      <div class="df-dates" id="df-date-tabs" aria-label="Datas disponíveis"><span class="df-muted">Carregando datas…</span></div>
+      <div class="df-toolbar">
+        <div class="df-filter-list" role="group" aria-label="Filtrar partidas" id="df-filters">
+          <button class="df-pill active" data-filter="todos" type="button" aria-pressed="true">Todos</button>
+          <button class="df-pill" data-filter="favoritos" type="button" aria-pressed="false">Favoritos</button>
+          <button class="df-pill" data-filter="encerrados" type="button" aria-pressed="false">Encerrados</button>
+          <button class="df-pill" type="button" disabled title="API atual não disponibiliza partidas ao vivo">Ao vivo</button>
+          <button class="df-pill" type="button" disabled title="API atual não disponibiliza partidas futuras">Próximos</button>
+        </div>
+        <div class="df-switch" role="group" aria-label="Agrupamento">
+          <button data-mode="liga" class="active" type="button" aria-pressed="true">Por liga</button><button data-mode="horario" type="button" aria-pressed="false">Por data</button>
         </div>
       </div>
-      <div id="feed">
-        <div class="loading">Carregando jogos…</div>
-      </div>
+      <div id="feed" aria-live="polite"><div class="loading">Carregando resultados…</div></div>
     </section>
-  </main>
-
-  <script src="/static/js/nav.js?v=26" type="module"></script>
-  <script src="/static/js/home.js" type="module"></script>
+    <aside class="df-detail" id="df-detail-panel" aria-label="Detalhes da partida"><div class="df-detail-empty"><div class="df-detail-graphic" aria-hidden="true">◈</div><h2>Escolha uma partida</h2><p>Selecione um resultado para acompanhar os principais dados sem sair desta página.</p></div></aside>
+  </div>
+</main>
+    </div>
+  </div>
+  <div id="df-toast" role="status" aria-live="polite"></div>
+  <script src="/static/js/shell.js?v=premium-v1" defer></script>
+  <script src="/static/js/home-premium.js?v=28" type="module"></script>
 </body>
 </html>

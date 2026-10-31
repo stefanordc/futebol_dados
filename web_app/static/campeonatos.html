@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
+  <title>Campeonatos | Dados Futebol</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/app.css?v=28">
+  <link rel="stylesheet" href="/static/css/premium.css?v=premium-v1">
+  <link rel="stylesheet" href="/static/css/campeonatos.css?v=campeonatos-v1">
+</head>
+<body data-page="campeonatos">
+  <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+  <div class="df-shell" id="df-shell">
+    <div id="df-sidebar-mount"></div>
+    <div class="df-stage">
+      <header id="df-topbar-mount"></header>
+      <main id="main-content" class="match-wrap df-common-page df-camp-page">
+        <section class="df-camp-hero" aria-labelledby="camp-title">
+          <div class="df-camp-hero-content">
+            <div class="df-eyebrow"><span class="df-live-indicator"></span> DIRETÓRIO DE COMPETIÇÕES</div>
+            <h1 id="camp-title">Campeonatos</h1>
+            <p>Explore as competições registradas no seu banco de dados.</p>
+          </div>
+          <span id="camp-total" class="df-camp-total" aria-live="polite">Carregando…</span>
+        </section>
+        <section class="df-camp-toolbar" aria-label="Filtros de campeonatos">
+          <label class="df-camp-search" for="camp-search">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="camp-search" type="search" placeholder="Buscar por campeonato ou país" autocomplete="off">
+          </label>
+          <div class="df-camp-tabs" role="group" aria-label="Exibir campeonatos">
+            <button class="df-pill active" id="camp-filter-all" type="button" aria-pressed="true">Todos</button>
+            <button class="df-pill" id="camp-filter-favs" type="button" aria-pressed="false">Favoritos</button>
+          </div>
+          <label class="df-camp-country-label" for="camp-country">País
+            <select id="camp-country" aria-label="Filtrar campeonatos por país">
+              <option value="">Todos os países</option>
+            </select>
+          </label>
+        </section>
+        <div class="df-camp-list-heading"><h2>Competições</h2><span id="camp-visible" aria-live="polite"></span></div>
+        <div id="camp-grid" class="df-camp-grid" aria-live="polite">
+          <div class="df-camp-skeleton" aria-hidden="true"></div>
+          <div class="df-camp-skeleton" aria-hidden="true"></div>
+          <div class="df-camp-skeleton" aria-hidden="true"></div>
+          <div class="df-camp-skeleton" aria-hidden="true"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="df-toast" role="status" aria-live="polite"></div>
+  <script src="/static/js/shell.js?v=campeonatos-v1" defer></script>
+  <script src="/static/js/campeonatos.js?v=campeonatos-v1" defer></script>
+</body>
+</html>

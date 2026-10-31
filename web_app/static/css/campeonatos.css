@@ -1,0 +1,38 @@
+/* Diretório de campeonatos — usa os tokens de premium.css. */
+.df-camp-page { max-width:1540px; }
+.df-camp-hero { display:flex; align-items:center; justify-content:space-between; gap:22px; min-height:162px; padding:28px 32px; border:1px solid var(--df-border); border-radius:var(--df-radius-l); background:radial-gradient(ellipse at 0 0,var(--df-accent-soft),transparent 65%),var(--df-surface); }
+.df-camp-hero-content { min-width:0; }
+.df-camp-hero h1 { font-size:clamp(27px,3vw,38px); font-weight:850; margin:9px 0 5px; }
+.df-camp-hero p { color:var(--df-muted);font-size:13px;margin:0; }
+.df-camp-total { flex:none; padding:9px 13px; border:1px solid var(--df-border); border-radius:999px; background:var(--df-raised); color:var(--df-secondary); font-weight:750; font-size:12px; }
+.df-camp-toolbar { display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center; gap:12px; margin:18px 0 23px; padding:15px; border:1px solid var(--df-border); border-radius:var(--df-radius-m); background:var(--df-surface); }
+.df-camp-search { flex:1 1 250px; max-width:500px; display:flex; align-items:center; gap:10px; border:1px solid var(--df-border); border-radius:9px; padding:0 12px; height:42px; background:var(--df-raised); color:var(--df-muted); }
+.df-camp-search:focus-within { border-color:var(--df-orange);box-shadow:0 0 0 3px var(--df-accent-soft); }
+.df-camp-search input { width:100%; height:100%; min-width:0; padding:0; border:0; outline:0; background:transparent; color:var(--df-text); font-size:13px; }
+.df-camp-tabs { display:flex; align-items:center; gap:7px; }
+.df-camp-country-label { display:flex; align-items:center; gap:8px; color:var(--df-muted); font-size:12px; font-weight:700; }
+.df-camp-country-label select { max-width:225px; height:40px; font-size:12px; background:var(--df-raised); }
+.df-camp-list-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 14px; }
+.df-camp-list-heading h2 { margin:0;font-size:17px;font-weight:800; }
+.df-camp-list-heading span { color:var(--df-muted);font-size:12px; }
+.df-camp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:13px; }
+.df-camp-card { display:flex; align-items:center; min-width:0; min-height:123px; border:1px solid var(--df-border); background:var(--df-surface); border-radius:var(--df-radius-m); box-shadow:var(--df-shadow); transition:transform .18s,border-color .18s,box-shadow .18s; }
+.df-camp-card:hover,.df-camp-card:focus-within { transform:translateY(-2px); border-color:var(--df-orange); }
+.df-camp-card-link { display:flex; align-items:center; flex:1; gap:13px; min-width:0; height:100%; padding:17px 4px 17px 17px; color:var(--df-text); }
+.df-camp-card-link:hover { color:var(--df-text); }
+.df-camp-logo { display:grid; place-items:center; flex:0 0 62px; width:62px;height:62px; border:1px solid var(--df-border); border-radius:14px; background:var(--df-raised); overflow:hidden; }
+.df-camp-logo img { width:55px; height:55px; object-fit:contain; }
+.df-camp-logo-fallback { display:grid;place-items:center;width:100%;height:100%;font-size:21px;font-weight:850;color:var(--df-orange); }
+.df-camp-card-text { min-width:0; flex:1; }
+.df-camp-card-text h3 { margin:0 0 5px; overflow-wrap:anywhere; font-size:14px; line-height:1.3; font-weight:800; }
+.df-camp-card-text p { margin:0;color:var(--df-secondary);font-size:12px; }
+.df-camp-card-text small { display:block;margin-top:6px; color:var(--df-muted);font-size:10px; }
+.df-camp-arrow { color:var(--df-muted);font-size:25px;font-weight:500;align-self:center; }
+.df-camp-star { align-self:flex-start; display:grid;place-items:center;flex:0 0 33px;width:33px;height:33px;margin:9px 9px 0 0; border:1px solid transparent; border-radius:8px;background:transparent;color:var(--df-muted);font-size:21px;line-height:1; }
+.df-camp-star:hover { background:var(--df-accent-soft);color:var(--df-orange); }
+.df-camp-star.active { color:#ebac42; }
+.df-camp-empty { grid-column:1/-1; }
+.df-camp-skeleton { height:124px;border-radius:12px;border:1px solid var(--df-border);background:linear-gradient(100deg,var(--df-surface),var(--df-raised),var(--df-surface));background-size:220% 100%;animation:df-shimmer 1.5s linear infinite; }
+@media(max-width:800px){.df-camp-toolbar{justify-content:flex-start}.df-camp-search{max-width:none;flex-basis:100%}.df-camp-country-label{margin-left:auto}.df-camp-hero{padding:23px}}
+@media(max-width:500px){.df-camp-hero{align-items:flex-start;flex-direction:column;gap:13px}.df-camp-toolbar{padding:12px}.df-camp-country-label{width:100%;justify-content:space-between;margin:0}.df-camp-country-label select{flex:1;max-width:250px}.df-camp-grid{grid-template-columns:1fr}.df-camp-card{min-height:111px}.df-camp-card-link{padding:13px 4px 13px 13px}.df-camp-logo{width:56px;height:56px;flex-basis:56px}}
+@media(prefers-reduced-motion:reduce){.df-camp-card,.df-camp-skeleton{animation:none;transition:none}}
