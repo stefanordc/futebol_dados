@@ -46,3 +46,10 @@
 @media(prefers-reduced-motion:reduce){.df-shots-loader{animation:none}#tbl-fin-clube .fin-row{transition:none}}
 
 #painel.df-shots-custom-active > :not(.filters-row):not(#df-stats-custom){display:none!important}
+
+/* Gols: somente filtro global acima; no modo Todos, ranking por clube. */
+.df-shots-scope-note {display:flex;flex-direction:column;gap:4px;padding:11px 16px;border:1px solid var(--line);border-radius:12px;background:var(--bg-card);color:var(--muted);font-size:13px;max-width:360px}
+.df-shots-scope-note strong {color:var(--text);font-size:15px}
+.df-shots-scope-note span {line-height:1.4}
+.df-shots-table td strong {font-variant-numeric:tabular-nums}
+@media(max-width:800px){.df-shots-scope-note{max-width:none;width:100%}}
