@@ -1,0 +1,17 @@
+/* Filtros e perfis — mantêm os tokens do design system. */
+.df-dir-filters,.df-person-profile-filters{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:12px 0 20px;}
+.df-dir-filters label,.df-person-profile-filters label{min-width:160px;flex:1 1 170px;display:grid;gap:7px;color:var(--muted, #9ca3af);font-size:12px;font-weight:700;}
+.df-dir-filters select,.df-person-profile-filters select{height:42px;border:1px solid var(--line, #374151);border-radius:10px;padding:0 12px;color:var(--text,#fafafa);background:var(--bg-card,#191f2a);width:100%;font:inherit;font-size:14px;}
+.df-dir-filters select:focus-visible,.df-person-profile-filters select:focus-visible{outline:2px solid var(--accent, #ff6b1a);outline-offset:2px;}
+.df-dir-filters select:disabled{opacity:.6;cursor:not-allowed;}
+.df-person-profile-filters .muted{flex-basis:100%;font-size:12px;}
+#df-entity-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0;}
+#df-profile-radar-slot{min-width:0;margin-top:18px;}
+#df-profile-radar-slot:empty{display:none;}
+.df-ref-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin:20px 0;}
+.df-ref-kpi{min-width:0;border:1px solid var(--line,#374151);background:var(--bg-card,#191f2a);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.df-ref-kpi span{color:var(--muted,#9ca3af);font-size:12px;line-height:1.4;}
+.df-ref-kpi strong{font-size:24px;color:var(--text,#fafafa);font-variant-numeric:tabular-nums;}
+#df-ref-analyze{margin-top:14px;}
+#df-ref-result .data-table{margin-top:15px;}
+@media(max-width:680px){.df-dir-filters label{min-width:140px;flex-basis:calc(50% - 6px);}.df-person-profile-filters label{flex-basis:calc(50% - 6px);}.df-ref-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}

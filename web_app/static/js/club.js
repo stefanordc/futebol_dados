@@ -265,7 +265,7 @@ function renderGeral() {
   const cell = (r, k) => {
     const v = r[k];
     if (k === "campeonato")
-      return r.campeonato_id ? `<a class="camp-link" href="/liga/${r.campeonato_id}">${v}</a>` : v;
+      return r.is_total || v === "Total temporada" ? "Total" : (r.campeonato_id ? `<a class="camp-link" href="/liga/${r.campeonato_id}">${v}</a>` : v);
     if (k.includes("media") || k === "aproveitamento") return n(v, 1);
     if (INT_METRICAS.has(k)) return fmtValor(k, v);
     return v ?? "—";

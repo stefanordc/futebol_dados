@@ -316,6 +316,8 @@
     const root=$('#conteudo'),header=root?.querySelector('.entity-header');
     if(!header)return;
     const clubPanel=kind==='clube'?$('#clube-painel'):null;
+    const personSlot=kind!=='clube'?$('#df-profile-radar-slot'):null;
+    if(kind!=='clube'&&!personSlot){const old=$('#df-profile-radar');if(old)old.remove();renderKey='';++sequence;return;}
     const onGeneral=kind!=='clube'||Boolean($('#clube-tabs [data-aba="geral"].active'));
     let node=$('#df-profile-radar');
     if(kind==='clube'&&(!onGeneral||!clubPanel)){
@@ -330,7 +332,7 @@
     if(!node){
       node=document.createElement('div');node.id='df-profile-radar';
       if(kind==='clube')clubPanel.prepend(node);
-      else header.insertAdjacentElement('afterend',node);
+      else personSlot.append(node);
     }
     if(kind==='clube'){
       node.className='df-radar-pair';
