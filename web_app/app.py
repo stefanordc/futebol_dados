@@ -14,6 +14,7 @@ import queries_clube
 import queries_entidade
 import queries_liga
 import queries_stats
+import queries_finalizacoes_sofridas
 import queries_performance
 
 DIR = Path(__file__).resolve().parent
@@ -288,6 +289,30 @@ def api_stats_finalizacoes(
         jogador_id=jogador_id,
         clube_id=clube_id,
         mando=mando,
+    )
+
+
+@app.get("/api/stats/finalizacoes-sofridas")
+def api_stats_finalizacoes_sofridas(
+    escopo: str = Query("clube", pattern="^(clube|mapa)$"),
+    temporada: str | None = None,
+    campeonato_id: int | None = None,
+    pais: str | None = None,
+    mando: str = "todos",
+    clube_id: int | None = None,
+    mapa_clube_id: int | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=5, le=100),
+    ordenar: str = "gols",
+    ordem: str = "desc",
+):
+    if escopo == "mapa" and not clube_id:
+        return {"mapa": []}
+    return queries_finalizacoes_sofridas.consultar(
+        escopo=escopo, temporada=temporada, campeonato_id=campeonato_id,
+        pais=pais, mando=mando, clube_id=clube_id,
+        mapa_clube_id=mapa_clube_id, page=page, page_size=page_size,
+        ordenar=ordenar, ordem=ordem,
     )
 
 

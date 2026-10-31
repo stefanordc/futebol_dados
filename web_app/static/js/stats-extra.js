@@ -20,7 +20,7 @@
   const teamCache = new Map();
   const detailCache = new Map();
   let mode = 'realizadas';
-  let customId = null;
+  const sofridasState={page:1,ordenar:'gols',ordem:'desc',selected:null};
   let seq = 0;
   let originalMapId = null;
   let originalMapShots = [];
@@ -51,14 +51,7 @@
     const opt = [...($('#sel-clube')?.options || [])].find(x => Number(x.value) === Number(id));
     return opt?.textContent?.trim() || `Clube #${id}`;
   }
-  function clubOptions(selected) {
-    const options = [...($('#sel-clube')?.options || [])].filter(o => positive(o.value));
-    return `<option value="">Selecione um clube</option>${options.map(o => `<option value="${esc(o.value)}" ${Number(o.value)===Number(selected)?'selected':''}>${esc(o.textContent.trim())}</option>`).join('')}`;
-  }
-  function getTeamId() {
-    const global = Number($('#sel-clube')?.value) || null;
-    return mode === 'gols' ? global : (customId || global);
-  }
+  function getTeamId() { return Number($('#sel-clube')?.value)||null; }
 
   function shotPosition(s) {
     if (Number.isFinite(Number(s.left)) && Number.isFinite(Number(s.top)) && s.left != null && s.top != null) {
@@ -141,7 +134,7 @@
     if (btn) {
       ev.preventDefault(); ev.stopPropagation();
       mode = btn.dataset.dfStatsTab;
-      if (mode === 'sofridas') customId = Number($('#sel-clube')?.value) || customId;
+      if (mode === 'sofridas') {sofridasState.page=1;sofridasState.selected=null;}
       ++seq;
       refreshTabs();
       if (mode !== 'realizadas') renderCustom();
@@ -181,12 +174,10 @@
 
   function header(title, description) {
     const id=getTeamId();
-    const selector = mode === 'gols'
-      ? `<div class="df-shots-scope-note" role="note">${id
-          ? `Clube: <strong>${esc(labelOfClub(id))}</strong>`
-          : '<strong>Todos os clubes</strong>'}<span>Use o filtro Clube acima para refinar esta análise.</span></div>`
-      : `<label class="df-shots-select-label">Clube analisado <select id="df-shots-club" aria-label="Clube para análise">${clubOptions(id)}</select></label>`;
-    return `<div class="df-shots-head"><div><h2>${esc(title)}</h2><p class="muted">${esc(description)}</p></div>${selector}</div>`;
+    const selector='<div class="df-shots-scope-note" role="note"><strong>'+(
+      id?'Clube: '+esc(labelOfClub(id)):'Todos os clubes'
+    )+'</strong><span>Use os filtros principais acima.</span></div>';
+    return '<div class="df-shots-head"><div><h2>'+esc(title)+'</h2><p class="muted">'+esc(description)+'</p></div>'+selector+'</div>';
   }
   const wait = (message) => `<div class="df-shots-loading" role="status"><div class="df-shots-loader" aria-hidden="true"></div><span>${esc(message)}</span></div>`;
   const blank = `<div class="df-shots-empty"><h3>Escolha um clube</h3><p>Selecione o clube para consultar as finalizações e gols de seus jogos registrados.</p></div>`;
@@ -358,6 +349,123 @@
     body.innerHTML=warning+renderGoals(goals,appearances,successful);
   }
 
+
+  function sufferedNumber(v, digits=0) {
+    return v==null ? '—' : Number(v).toLocaleString('pt-BR', {minimumFractionDigits:digits,maximumFractionDigits:digits});
+  }
+  function sufferedTable(data,selected) {
+    const showLeague=!$('#sel-liga')?.value;
+    const columns=[['clube','Clube'],['jogos','J'],['chutes','Chutes'],['certas','Certas'],
+      ['gols','Gols'],['dist_chute','Dist. chute (m)'],
+      ['dist_certa','Dist. certa (m)'],['dist_gol','Dist. gol (m)']];
+    const heading=([key,label])=>'<th scope="col"><button type="button" class="df-suffered-th" data-df-suffered-sort="'+key+'">'+esc(label)+(data.ordenar===key?(data.ordem==='asc'?' ↑':' ↓'):'')+'</button></th>';
+    const rows=(data.linhas||[]).map((item,i)=>{
+      const active=Number(item.clube_id)===selected;
+      const photo=item.logo&&/^https?:\/\//.test(item.logo)
+        ? '<img src="'+esc(item.logo)+'" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(\'—\'))">'
+        : '<span class="df-suffered-fallback" aria-hidden="true">'+esc(String(item.clube||'?').slice(0,1))+'</span>';
+      return '<tr class="df-suffered-row '+(active?'row-on':'')+'" tabindex="0" role="button" aria-pressed="'+active+'" data-df-suffered-club="'+item.clube_id+'">'+
+        '<td>'+((data.page-1)*data.page_size+i+1)+'</td>'+
+        '<td class="df-suffered-image">'+photo+'</td>'+
+        '<td class="df-suffered-name"><a href="/clube/'+item.clube_id+'">'+esc(item.clube)+'</a></td>'+
+        (showLeague?'<td>'+esc(item.campeonato||'—')+'</td>':'')+
+        '<td>'+sufferedNumber(item.jogos)+'</td>'+
+        '<td>'+sufferedNumber(item.chutes)+'</td>'+
+        '<td>'+sufferedNumber(item.certas)+'</td>'+
+        '<td><strong>'+sufferedNumber(item.gols)+'</strong></td>'+
+        '<td>'+sufferedNumber(item.dist_chute,1)+'</td>'+
+        '<td>'+sufferedNumber(item.dist_certa,1)+'</td>'+
+        '<td>'+sufferedNumber(item.dist_gol,1)+'</td></tr>';
+    }).join('')||'<tr><td colspan="'+(showLeague?11:10)+'">Sem registros neste filtro.</td></tr>';
+    return '<div class="table-wrap df-suffered-wrap"><table class="data-table df-suffered-table"><thead><tr>'+
+      '<th scope="col">#</th><th scope="col">IMG</th>'+heading(columns[0])+
+      (showLeague?'<th scope="col">Campeonato</th>':'')+columns.slice(1).map(heading).join('')+
+      '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  function sufferedPagination(data) {
+    if(Number(data.pages||1)<=1)return '';
+    return '<nav class="df-suffered-pagination" aria-label="Paginação de finalizações sofridas">'+
+      '<button type="button" data-df-suffered-page="'+(data.page-1)+'" '+(data.page<=1?'disabled':'')+'>Anterior</button>'+
+      '<span>Página '+data.page+' de '+data.pages+' · '+compact(data.total)+' registros</span>'+
+      '<button type="button" data-df-suffered-page="'+(data.page+1)+'" '+(data.page>=data.pages?'disabled':'')+'>Próxima</button></nav>';
+  }
+  async function renderSuffered(body,token) {
+    body.innerHTML=wait('Carregando finalizações sofridas por clube…');
+    try {
+      const selected=getTeamId();
+      const query=withScope({
+        escopo:'clube',page:sofridasState.page,page_size:20,
+        ordenar:sofridasState.ordenar,ordem:sofridasState.ordem,
+        ...(selected?{clube_id:selected}:{})
+      });
+      const data=await json('/api/stats/finalizacoes-sofridas?'+query.toString());
+      if(token!==seq||!body.isConnected||mode!=='sofridas')return;
+      sofridasState.page=Number(data.page)||1;
+      const ids=(data.linhas||[]).map(row=>Number(row.clube_id));
+      const target=selected || (ids.includes(sofridasState.selected)?
+        sofridasState.selected:(Number(data.mapa_clube_id)||ids[0]||null));
+      sofridasState.selected=target;
+      window.__dfShotsCustom=data.mapa||[];
+      const mapTitle=labelOfClub(target)+' — finalizações sofridas';
+      body.innerHTML='<div class="fin-layout df-suffered-layout"><div>'+
+        sufferedTable(data,target)+sufferedPagination(data)+
+        '<p class="fin-hint">'+(selected?'Mapa do clube escolhido no filtro principal.':'Clique em uma linha para atualizar o mapa.')+
+        '</p></div><div id="df-suffered-map">'+pitch(data.mapa||[],mapTitle,'todos','sofridas')+'</div></div>';
+      if(target&&Number(data.mapa_clube_id)!==target)await chooseSufferedClub(target,body);
+    }catch(e){
+      if(token===seq&&body.isConnected)body.innerHTML='<div class="error">Falha ao carregar finalizações sofridas: '+esc(e.message)+'</div>';
+    }
+  }
+  async function chooseSufferedClub(id,body) {
+    if(!id||mode!=='sofridas'||!body)return;
+    const token=++seq;
+    sofridasState.selected=id;
+    body.querySelectorAll('.df-suffered-row').forEach(row=>{
+      const active=Number(row.dataset.dfSufferedClub)===id;
+      row.classList.toggle('row-on',active);
+      row.setAttribute('aria-pressed',String(active));
+    });
+    const map=$('#df-suffered-map',body);
+    if(map)map.innerHTML=wait('Atualizando mapa…');
+    try {
+      const q=withScope({escopo:'mapa',clube_id:id});
+      const response=await json('/api/stats/finalizacoes-sofridas?'+q.toString());
+      if(token!==seq||!map?.isConnected||mode!=='sofridas')return;
+      window.__dfShotsCustom=response.mapa||[];
+      map.innerHTML=pitch(response.mapa||[],labelOfClub(id)+' — finalizações sofridas','todos','sofridas');
+    }catch(e){
+      if(token===seq&&map?.isConnected)map.innerHTML='<div class="error">'+esc(e.message)+'</div>';
+    }
+  }
+  document.addEventListener('click',ev=>{
+    if(mode!=='sofridas')return;
+    const sort=ev.target.closest('[data-df-suffered-sort]');
+    if(sort){
+      ev.preventDefault();
+      const col=sort.dataset.dfSufferedSort;
+      sofridasState.ordem=sofridasState.ordenar===col&&sofridasState.ordem==='desc'?'asc':'desc';
+      sofridasState.ordenar=col;sofridasState.page=1;sofridasState.selected=null;
+      renderCustom();return;
+    }
+    const page=ev.target.closest('[data-df-suffered-page]');
+    if(page){
+      ev.preventDefault();if(page.disabled)return;
+      sofridasState.page=Number(page.dataset.dfSufferedPage)||1;
+      sofridasState.selected=null;renderCustom();return;
+    }
+    const row=ev.target.closest('.df-suffered-row');
+    if(row&&!ev.target.closest('a,button')){
+      ev.preventDefault();
+      chooseSufferedClub(Number(row.dataset.dfSufferedClub),$('#df-stats-custom .df-shots-result'));
+    }
+  });
+  document.addEventListener('keydown',ev=>{
+    if(mode!=='sofridas'||!['Enter',' '].includes(ev.key))return;
+    const row=ev.target.closest('.df-suffered-row');
+    if(!row)return;
+    ev.preventDefault();
+    chooseSufferedClub(Number(row.dataset.dfSufferedClub),$('#df-stats-custom .df-shots-result'));
+  });
   async function renderCustom() {
     if(mode==='realizadas') return;
     const panel=$('#painel'), group=$('#tabs-grupo');
@@ -375,9 +483,11 @@
     root.innerHTML=header(title,description);
     const body=document.createElement('div');body.className='df-shots-result';root.appendChild(body);
     const id=getTeamId();
-    const select=$('#df-shots-club');
-    select?.addEventListener('change',(ev)=> {customId=Number(ev.target.value)||null;renderCustom();});
     const token=++seq;
+    if (mode==='sofridas') {
+      await renderSuffered(body,token);
+      return;
+    }
     if (mode==='gols' && !id) {
       await renderAllGoals(body,token);
       return;
