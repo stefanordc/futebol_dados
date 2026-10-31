@@ -106,7 +106,7 @@
 
   const PLAYER_LABELS=['Finalização','Criação','Drible','Desarme','Interceptação','Duelos'];
   const PLAYER_NOTES=[
-    'Gols, chutes no alvo e xG por 90 minutos',
+    'Precisão de chutes: chutes no alvo divididos pelo total de chutes. Valor 100 apenas quando todas as finalizações foram no alvo.',
     'Assistências, chances criadas e xA por 90 minutos',
     'Dribles certos por 90 minutos e taxa de sucesso',
     'Desarmes e ações defensivas por 90 minutos',
@@ -122,6 +122,9 @@
     const sum=(k)=>vals[k] ? number(vals[k].soma):null;
     const per90=(k)=>divide(sum(k),units);
     const pGoals=per90('gols'),shots=per90('chutes_certos'),xg=per90('xg');
+    const attempts=sum('chutes_total'),onTarget=sum('chutes_certos');
+    // Precisão real: 100 somente se todas as tentativas registradas foram no alvo.
+    const finishing=attempts!=null&&attempts>0&&onTarget!=null ? Math.round(clamp(100*onTarget/attempts)) : null;
     const pAs=per90('assistencias'), chances=per90('chances_criadas'), xa=per90('xa');
     const dr=per90('dribles_certos'), att=per90('dribles');
     const tackles=per90('desarmes'),defActions=per90('acoes_defensivas');
@@ -131,7 +134,7 @@
     const won=(sum('disputas_chao_ganhas')||0)+(sum('disputas_aereas_ganhas')||0);
     const ratio=attempted>0?won/attempted:null;
     const scores=[
-      combine(score(pGoals,0.9),score(shots,2.1),score(xg,0.95)),
+      finishing,
       combine(score(pAs,0.5),score(chances,3.5),score(xa,0.65)),
       combine(score(dr,5.5),score(divide(dr,att),0.75)),
       combine(score(tackles,4.8),score(defActions,10)),
@@ -331,7 +334,7 @@
     const token=++sequence;
     if(!node){
       node=document.createElement('div');node.id='df-profile-radar';
-      if(kind==='clube')clubPanel.prepend(node);
+      if(kind==='clube')clubPanel.append(node);
       else personSlot.append(node);
     }
     if(kind==='clube'){
