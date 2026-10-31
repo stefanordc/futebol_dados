@@ -237,7 +237,7 @@ function filterProfileHtml(){
   const leagues=[...new Map(rows.map(r=>[r.campeonato_id,r.campeonato])).entries()].filter(([id])=>id);
   const clubs=[...new Map(rows.map(r=>[r.clube_id,r.clube])).entries()].filter(([id])=>id);
   const opt=(pairs,selected,first)=>`<option value="">${first}</option>`+pairs.map(([id,label])=>`<option value="${id}" ${String(id)===String(selected)?'selected':''}>${label}</option>`).join('');
-  return `<div class="df-person-profile-filters"><label>Campeonato<select id="df-profile-camp">${opt(leagues,state.campeonatoFiltro,'Todos')}</select></label><label>Clube<select id="df-profile-club">${opt(clubs,state.clubeFiltro,'Todos')}</select></label><span class="muted">Filtros aplicados à tabela. O radar considera todos os jogos sob comando do técnico na temporada.</span></div>`;
+  return `<div class="df-person-profile-filters"><label>Campeonato<select id="df-profile-camp">${opt(leagues,state.campeonatoFiltro,'Todos')}</select></label><label>Clube<select id="df-profile-club">${opt(clubs,state.clubeFiltro,'Todos')}</select></label><span class="muted">Filtros aplicados à tabela e ao radar do técnico.</span></div>`;
 }
 function coachStatsHtml(){
   const rows=rowsInScope();const games=rows.reduce((a,r)=>a+Number(r.jogos||0),0);
