@@ -122,6 +122,7 @@ function tabelaClassificacao(rows) {
   const list = [...rows];
   const rev = classifSort.ordem === "desc";
   const key = classifSort.key;
+  list.forEach(r => { const j=Number(r.j||0);r.aproveitamento=j>0?100*(3*Number(r.v||0)+Number(r.e||0))/(3*j):null; });
   list.sort((a, b) => {
     if (key === "clube") {
       const va = (a.clube || "").toLowerCase();
@@ -142,7 +143,7 @@ function tabelaClassificacao(rows) {
         <thead>
           <tr>
             <th>#</th>${th("clube", "Clube")}${th("pts", "Pts")}${th("j", "J")}${th("v", "V")}${th("e", "E")}${th("d", "D")}
-            ${th("gp", "GP")}${th("gc", "GC")}${th("sg", "SG")}
+            ${th("gp", "GP")}${th("gc", "GC")}${th("sg", "SG")}${th("aproveitamento", "Aprov. %")}
             ${th("clean_sheets", "CS")}${th("clean_goals", "CG")}
           </tr>
         </thead>
@@ -154,7 +155,7 @@ function tabelaClassificacao(rows) {
               ${cellEntity(logo(r.logo, 18), r.clube, r.clube_id ? `/clube/${r.clube_id}` : null)}
               <td><strong>${r.pts}</strong></td>
               <td>${r.j}</td><td>${r.v}</td><td>${r.e}</td><td>${r.d}</td>
-              <td>${r.gp}</td><td>${r.gc}</td><td>${r.sg}</td>
+              <td>${r.gp}</td><td>${r.gc}</td><td>${r.sg}</td><td>${r.aproveitamento == null ? "—" : r.aproveitamento.toLocaleString("pt-BR", {minimumFractionDigits:1,maximumFractionDigits:1}) + "%"}</td>
               <td title="Clean sheets">${r.clean_sheets ?? 0}</td>
               <td title="Clean goals">${r.clean_goals ?? 0}</td>
             </tr>`
