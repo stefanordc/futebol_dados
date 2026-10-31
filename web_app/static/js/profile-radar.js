@@ -162,13 +162,16 @@
   }
   async function coachRadar(progress,token){
     const profile=await get(api('tecnico'));
-    const lines=profile.linhas||[];
+    const selectedLeague=$('#df-profile-camp')?.value||'';
+    const selectedClub=$('#df-profile-club')?.value||'';
+    const lines=(profile.linhas||[]).filter(l=>(!selectedLeague||String(l.campeonato_id)===selectedLeague)&&(!selectedClub||String(l.clube_id)===selectedClub));
     const clubs=[...new Map(lines.map(l=>[l.clube_id,l])).values()];
     if(!clubs.length)return {title:'Estilo de jogo do técnico',subtitle:'Sem jogos na temporada',labels:CLUB_LABELS,values:Array(6).fill(null),notes:CLUB_NOTES,warning:'Não há partidas registradas para o técnico.'};
     const matchDates=new Map();
     const clubJobs=clubs.map(async line=>{
       const q=new URLSearchParams({aba:'jogos'});
       if(profile.temporada)q.set('temporada',profile.temporada);
+      if(selectedLeague)q.set('campeonato_id',selectedLeague);
       const data=await get(`/api/clube/${line.clube_id}?${q}`);
       for(const m of data.jogos?.linhas||[])matchDates.set(Number(m.id),String(m.data||''));
     });
