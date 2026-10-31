@@ -57,7 +57,7 @@
   }
   function getTeamId() {
     const global = Number($('#sel-clube')?.value) || null;
-    return customId || global;
+    return mode === 'gols' ? global : (customId || global);
   }
 
   function shotPosition(s) {
@@ -141,7 +141,7 @@
     if (btn) {
       ev.preventDefault(); ev.stopPropagation();
       mode = btn.dataset.dfStatsTab;
-      if (mode !== 'realizadas') customId = Number($('#sel-clube')?.value) || customId;
+      if (mode === 'sofridas') customId = Number($('#sel-clube')?.value) || customId;
       ++seq;
       refreshTabs();
       if (mode !== 'realizadas') renderCustom();
@@ -181,7 +181,12 @@
 
   function header(title, description) {
     const id=getTeamId();
-    return `<div class="df-shots-head"><div><h2>${esc(title)}</h2><p class="muted">${esc(description)}</p></div><label class="df-shots-select-label">Clube analisado <select id="df-shots-club" aria-label="Clube para análise">${clubOptions(id)}</select></label></div>`;
+    const selector = mode === 'gols'
+      ? `<div class="df-shots-scope-note" role="note">${id
+          ? `Clube: <strong>${esc(labelOfClub(id))}</strong>`
+          : '<strong>Todos os clubes</strong>'}<span>Use o filtro Clube acima para refinar esta análise.</span></div>`
+      : `<label class="df-shots-select-label">Clube analisado <select id="df-shots-club" aria-label="Clube para análise">${clubOptions(id)}</select></label>`;
+    return `<div class="df-shots-head"><div><h2>${esc(title)}</h2><p class="muted">${esc(description)}</p></div>${selector}</div>`;
   }
   const wait = (message) => `<div class="df-shots-loading" role="status"><div class="df-shots-loader" aria-hidden="true"></div><span>${esc(message)}</span></div>`;
   const blank = `<div class="df-shots-empty"><h3>Escolha um clube</h3><p>Selecione o clube para consultar as finalizações e gols de seus jogos registrados.</p></div>`;
@@ -268,7 +273,7 @@
     if (/centro|central|center|middle/.test(origem)) tags.push('origemCentro');
     return tags;
   }
-  function renderGoals(goals, games) {
+  function renderGoals(goals, games, clubs = []) {
     const numbers = Object.fromEntries(CATEGORIES.map(([k])=>[k,0]));
     let unclassified=0, contra=0;
     for(const goal of goals) {
@@ -277,24 +282,80 @@
       if(!tags.length) unclassified++;
       tags.forEach(k=>numbers[k]++);
     }
+    const isAll = clubs.length > 0;
     const scorers = new Map();
     for (const goal of goals) {
       const name = goalAgainst(goal) ? 'Gol contra do adversário' : (goal.jogador || 'Jogador não informado');
-      const n = scorers.get(name) || 0;
-      scorers.set(name,n + 1);
+      const club = goal._clubName || '—';
+      const key = isAll ? `${club}|${name}` : name;
+      const item = scorers.get(key) || {name, club, count:0};
+      item.count++;
+      scorers.set(key,item);
     }
-    const scorerRows = [...scorers].sort((a,b) => b[1]-a[1]);
-    const scorersTable = `<h3>Gols por jogador</h3><div class="table-wrap"><table class="data-table df-shots-table"><thead><tr><th>Jogador</th><th>Gols</th></tr></thead><tbody>${scorerRows.map(([name,count])=>`<tr><td>${esc(name)}</td><td>${compact(count)}</td></tr>`).join('') || '<tr><td colspan="2">Sem gols no período.</td></tr>'}</tbody></table></div>`;
+    const scorerRows = [...scorers.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'pt-BR'));
+    const scorersTable = `<h3>Gols por jogador</h3><div class="table-wrap"><table class="data-table df-shots-table"><thead><tr><th>Jogador</th>${isAll?'<th>Clube</th>':''}<th>Gols</th></tr></thead><tbody>${scorerRows.map(item=>`<tr><td>${esc(item.name)}</td>${isAll?`<td>${esc(item.club)}</td>`:''}<td>${compact(item.count)}</td></tr>`).join('') || `<tr><td colspan="${isAll?3:2}">Sem gols no período.</td></tr>`}</tbody></table></div>`;
+    const ranking = isAll ? `<h3>Gols por clube</h3><p class="muted df-shots-explain">Todos os clubes do filtro principal, inclusive os que não marcaram no período.</p><div class="table-wrap"><table class="data-table df-shots-table"><thead><tr><th>Clube</th><th>Jogos</th><th>Gols</th><th>Gols/jogo</th></tr></thead><tbody>${clubs.slice().sort((a,b)=>b.goals-a.goals || a.name.localeCompare(b.name,'pt-BR')).map(c=>`<tr><td>${esc(c.name)}</td><td>${compact(c.games)}</td><td><strong>${compact(c.goals)}</strong></td><td>${c.games?(c.goals/c.games).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td></tr>`).join('')}</tbody></table></div>` : '';
     const kindCards=CATEGORIES.map(([key,name])=>`<article class="df-goal-type"><span>${name}</span><strong>${compact(numbers[key])}</strong><small>${pct(numbers[key],goals.length)}</small></article>`).join('');
     const rows = goals.slice().sort((a,b)=>String(b._date||'').localeCompare(String(a._date||''))).slice(0,100);
     return `<div class="df-shots-kpis"><article class="df-shot-kpi"><span>Gols marcados</span><strong>${compact(goals.length)}</strong><small>${games ? (goals.length/games).toLocaleString('pt-BR',{maximumFractionDigits:2}) : '—'} por jogo</small></article><article class="df-shot-kpi"><span>Com classificação disponível</span><strong>${compact(goals.length-unclassified)}</strong><small>${compact(unclassified)} sem categoria identificável</small></article><article class="df-shot-kpi"><span>Gols contra a favor</span><strong>${compact(contra)}</strong><small>Incluídos no total de gols</small></article></div>
     <h3>Tipos de gol</h3><p class="muted df-shots-explain">As categorias podem se sobrepor (ex.: pênalti + pé direito + bola parada). Nenhuma categoria é presumida quando o campo não está preenchido.</p>
     <div class="df-goal-types">${kindCards}</div>
+    ${ranking}
     ${scorersTable}
-    <h3>Últimos gols</h3><div class="table-wrap"><table class="data-table df-shots-table"><thead><tr><th>Data</th><th>Jogador</th><th>Tipo identificado</th><th>Min.</th></tr></thead><tbody>${rows.map(g=>{
+    <h3>Últimos gols</h3><div class="table-wrap"><table class="data-table df-shots-table"><thead><tr><th>Data</th>${isAll?'<th>Clube</th>':''}<th>Jogador</th><th>Tipo identificado</th><th>Min.</th></tr></thead><tbody>${rows.map(g=>{
       const tags=goalTags(g).map(k=>CATEGORIES.find(c=>c[0]===k)?.[1]).filter(Boolean);
-      return `<tr><td>${esc(g._date?.slice(0,10)||'—')}</td><td>${esc(goalAgainst(g)?'Gol contra a favor':g.jogador||'—')}</td><td>${esc(tags.join(' · ')||'Não informado')}</td><td>${esc(g.minuto??'—')}</td></tr>`;
-    }).join('')||'<tr><td colspan="4">Sem gols no período.</td></tr>'}</tbody></table></div>`;
+      return `<tr><td>${esc(g._date?.slice(0,10)||'—')}</td>${isAll?`<td>${esc(g._clubName||'—')}</td>`:''}<td>${esc(goalAgainst(g)?'Gol contra a favor':g.jogador||'—')}</td><td>${esc(tags.join(' · ')||'Não informado')}</td><td>${esc(g.minuto??'—')}</td></tr>`;
+    }).join('')||`<tr><td colspan="${isAll?5:4}">Sem gols no período.</td></tr>`}</tbody></table></div>`;
+  }
+
+  async function renderAllGoals(body, token) {
+    const options = [...($('#sel-clube')?.options || [])]
+      .filter(o => positive(o.value));
+    const ids = [...new Map(options.map(o => [Number(o.value), o.textContent.trim()])).entries()];
+    if (!ids.length) {
+      body.innerHTML = '<div class="df-shots-empty"><h3>Nenhum clube no filtro atual</h3><p>Escolha outro campeonato, país ou temporada nos filtros acima.</p></div>';
+      return;
+    }
+    body.innerHTML = wait(`Consultando 0 de ${ids.length} clubes…`);
+    const clubs = new Array(ids.length);
+    const goalsByClub = new Array(ids.length);
+    let cursor=0, completed=0, failedMatches=0, failedClubs=0;
+    const workers=Array.from({length:Math.min(3,ids.length)}, async ()=>{
+      while (cursor < ids.length && token === seq) {
+        const index=cursor++;
+        const [id,name]=ids[index];
+        try {
+          const data = await loadTeam(id, null, token);
+          if (token!==seq || !data) return;
+          const valid=data.detail.filter(d=>!d._failed);
+          failedMatches+=data.detail.length-valid.length;
+          const goals=valid.flatMap(game=>{
+            const date=game.data || data.matches.find(m=>Number(m.id)===Number(game.id))?.data || '';
+            return (Array.isArray(game.finalizacoes)?game.finalizacoes:[])
+              .filter(shot=>goalForTeam(shot,id))
+              .map(shot=>({...shot,_date:date,_clubName:name,_clubId:id}));
+          });
+          clubs[index]={id,name,games:valid.length,goals:goals.length};
+          goalsByClub[index]=goals;
+        } catch(e) {
+          failedClubs++;
+          clubs[index]={id,name,games:0,goals:0,failed:true};
+          goalsByClub[index]=[];
+        }
+        completed++;
+        if (token===seq && body.isConnected) {
+          const status=$('.df-shots-loading span',body);
+          if (status) status.textContent=`Consultando clubes: ${completed} de ${ids.length}`;
+        }
+      }
+    });
+    await Promise.all(workers);
+    if (token!==seq || !body.isConnected) return;
+    const successful=clubs.filter(c=>c && !c.failed);
+    const goals=goalsByClub.flatMap(list=>list || []);
+    const appearances=successful.reduce((sum,c)=>sum+c.games,0);
+    const warning=(failedClubs||failedMatches) ? `<p class="df-shots-warning" role="alert">Resultado parcial: ${compact(failedClubs)} clube(s) e ${compact(failedMatches)} partida(s) não puderam ser consultados. Esses clubes não entram no ranking.</p>` : '';
+    body.innerHTML=warning+renderGoals(goals,appearances,successful);
   }
 
   async function renderCustom() {
@@ -316,8 +377,12 @@
     const id=getTeamId();
     const select=$('#df-shots-club');
     select?.addEventListener('change',(ev)=> {customId=Number(ev.target.value)||null;renderCustom();});
-    if(!id){body.innerHTML=blank;return;}
     const token=++seq;
+    if (mode==='gols' && !id) {
+      await renderAllGoals(body,token);
+      return;
+    }
+    if(!id){body.innerHTML=blank;return;}
     body.innerHTML=wait('Consultando jogos de '+labelOfClub(id)+'…');
     try {
       const data=await loadTeam(id,(done,total)=>{
