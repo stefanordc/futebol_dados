@@ -378,7 +378,33 @@ function renderComportamento(est) {
 
 function renderEstatisticas() {
   const est = state.data.estatisticas || {};
-  const mets = est.metricas || [];
+  const allMets = est.metricas || [];
+  const groups = {
+    ataque: [
+      ['xg','xG',['xg','xg_jogada_normal','xg_jogada_ensaiada','xg_sem_penalti','xgot']],
+      ['finalizacoes','Finalizações',['total_chutes','chutes_certos','chutes_fora','chutes_bloqueados','chutes_trave','chutes_dentro_area','chutes_fora_area']],
+      ['criacao','Criação de jogadas',['grandes_chances','grandes_chances_perdidas','toques_area_adversaria']]
+    ],
+    passes: [
+      ['posse','Posse',['posse_bola','passes','passes_certos','passes_campo_defesa','passes_campo_ataque']],
+      ['construcao','Construção',['passes_longos','passes_longos_certos','cruzamentos','cruzamentos_certos']],
+      ['outros','Outros',['escanteios','laterais','impedimentos']]
+    ],
+    defesa: [
+      ['acoes','Ações defensivas',['desarmes','interceptacoes','bloqueios','bolas_afastadas','defesas_goleiro']],
+      ['duelos','Duelos',['disputas_ganhas','disputas_chao','disputas_chao_ganhas','disputas_aereas','disputas_aereas_ganhas']]
+    ]
+  };
+  const subgroups = groups[state.grupo] || [];
+  const activeSub = subgroups.some(g => g[0] === window.dfClubSub) ? window.dfClubSub : subgroups[0]?.[0];
+  const selectedKeys = subgroups.find(g=>g[0]===activeSub)?.[2];
+  const mets = selectedKeys ? allMets.filter(m=>selectedKeys.includes(m.chave)) : allMets;
+  const extraMets = selectedKeys ? allMets.filter(m=>!subgroups.some(g=>g[2].includes(m.chave))) : [];
+  if(extraMets.length && activeSub===subgroups[0]?.[0]) mets.push(...extraMets);
+  const subtabsHtml = subgroups.length
+    ? '<div class="tabs subtabs df-club-subtabs" id="df-club-subtabs">'+subgroups.map(([key,label])=>'<button type="button" class="tab '+(activeSub===key?'active':'')+'" data-subgroup="'+key+'">'+label+'</button>').join('')+'</div>'
+    : '';
+
   const grupos = est.grupos || state.data.grupos || {};
   const media = state.modo === "media";
   const isMin = state.grupo === "minutos";
@@ -461,7 +487,8 @@ function renderEstatisticas() {
       </div>
     </div>
     <section class="section stats-clube-section">
-      ${corpo}
+      ${subtabsHtml}
+      <div class="df-club-stat-scroll">${corpo}</div>
     </section>`;
 }
 
@@ -529,6 +556,12 @@ async function render() {
     if (!btn) return;
     state.grupo = btn.dataset.grupo;
     await load();
+    await render();
+  });
+  $("#df-club-subtabs")?.addEventListener("click", async ev => {
+    const btn=ev.target.closest("[data-subgroup]");
+    if(!btn)return;
+    window.dfClubSub=btn.dataset.subgroup;
     await render();
   });
   $("#cmp-clube")?.addEventListener("change", async (ev) => {
