@@ -105,6 +105,66 @@ class TestNostradamus(TestCase):
         rows=[{**r,"home_xg":None} for r in self.rows]
         self.assertEqual(ns.testar(config(self.cutoff),rows=rows)["entradas"],0)
 
+    def test_visitante_gols_sofridos_superior_a_15(self):
+        # Nenhum nome de estratégia é necessário para executar o backtest.
+        c={"lado":"visitante","metrica":"gols_sofridos","comparador":"gt",
+           "referencia":"valor","metrica_ref":"gols_sofridos","valor":1.5}
+        result=ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)
+        self.assertEqual(result["entradas"],5)
+        item=result["resultados"][0]["jogos"][0]["condicoes"][0]
+        self.assertEqual(item["lado"],"visitante")
+        self.assertEqual(item["observado"],2.0)
+        self.assertEqual(item["comparado"],1.5)
+        self.assertEqual(item["referencia"],"valor")
+
+    def test_valor_fixo_para_mandante_independente_do_visitante(self):
+        c={"lado":"mandante","metrica":"gols_feitos","comparador":"gt",
+           "referencia":"valor","valor":1.8}
+        self.assertEqual(ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)["entradas"],5)
+        c["valor"]=2.0
+        self.assertEqual(ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)["entradas"],0)
+
+    def test_comparar_equipes_com_indicadores_distintos(self):
+        c={"lado":"mandante","metrica":"chutes","comparador":"gt",
+           "referencia":"visitante","metrica_ref":"chutes_certos","valor":4.0}
+        data=ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)
+        self.assertEqual(data["entradas"],5)  # 12 > 2 + 4
+        c["valor"]=10
+        self.assertEqual(ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)["entradas"],0)
+
+    def test_visitante_contra_indicador_do_mandante(self):
+        c={"lado":"visitante","metrica":"gols_sofridos","comparador":"gt",
+           "referencia":"mandante","metrica_ref":"gols_sofridos","valor":0}
+        data=ns.testar(config(self.cutoff,conditions=[c]),rows=self.rows)
+        self.assertEqual(data["entradas"],5)  # visitante sofreu 2, mandante sofreu 0
+
+    def test_compativel_com_estrategias_salvas_antigas(self):
+        old=ns._valid_conditions([{"metrica":"xg","comparador":"gt","margem":0.4}])[0]
+        self.assertEqual(old["lado"],"mandante")
+        self.assertEqual(old["referencia"],"visitante")
+        self.assertEqual(old["metrica_ref"],"xg")
+        self.assertEqual(old["valor"],0.4)
+        result=ns.testar(config(self.cutoff,conditions=[rule("xg","gt",0.4)]),rows=self.rows)
+        self.assertEqual(result["entradas"],5)  # 1.5 > 0.7 + 0.4
+
+    def test_validacao_das_novas_referencias(self):
+        base={"lado":"visitante","metrica":"gols_sofridos","comparador":"gt",
+              "referencia":"valor","valor":1.5}
+        for update in ({"lado":"inexistente"},{"referencia":"SQL"},
+                       {"valor":None},{"valor":""},{"valor":float("nan")},
+                       {"metrica_ref":"inexistente"}):
+            with self.subTest(update=update),self.assertRaises(ValueError):
+                ns._valid_conditions([{**base,**update}])
+        self.assertEqual(ns._valid_conditions([base])[0]["valor"],1.5)
+
+    def test_mesmo_dia_nao_vaza_em_comparacao_de_valor(self):
+        rows=[game(i,self.start+timedelta(days=i),gf=0,ga=0) for i in range(5)]
+        same_day=self.start+timedelta(days=5)
+        rows.extend([game(100,same_day,gf=4,ga=0),game(101,same_day,gf=6,ga=0)])
+        c={"lado":"mandante","metrica":"gols_feitos","comparador":"gt",
+           "referencia":"valor","valor":1.5}
+        self.assertEqual(ns.testar(config(self.cutoff,conditions=[c]),rows=rows)["entradas"],0)
+
     def test_mercados_e_limites_lay(self):
         self.assertTrue(ns._settle("over_25",2,1))
         self.assertFalse(ns._settle("lay_goleada_mandante",3,0))

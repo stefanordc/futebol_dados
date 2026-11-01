@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-1">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-conditions-v2">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -23,12 +23,12 @@
 <label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5</option><option value="10">Últimos 10</option><option value="20" selected>Últimos 20</option><option value="temporada">Temporada inteira até cada entrada</option></select></label>
 <label>Campeonato<select id="ns-campeonato"><option value="">Todos os campeonatos</option></select></label>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
-<label>Nome da estratégia<input id="ns-nome" maxlength="80" required placeholder="Ex.: Mandante com xG superior"></label>
+<label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Mandante com xG superior"></label>
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%)<input id="ns-comissao" type="number" inputmode="decimal" min="0" max="30" step="0.1" value="2"></label>
 </div>
 <div class="ns-info">Odd opcional: usada somente para simulação, não é uma cotação histórica. Sem odd anterior comprovada, o lucro em unidades fica indisponível. Lay usa 1 unidade de responsabilidade; back usa 1 unidade de stake.</div>
-<div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">A comparação é sempre <strong>métrica do mandante</strong> contra <strong>métrica do visitante + margem</strong>. Todos os critérios precisam ser satisfeitos. Máximo de 10 condições.</p></div></div>
+<div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>mandante ou visitante</strong> para cada condição. Compare seu indicador com <strong>um valor fixo</strong> (ex.: gols sofridos do visitante &gt; 1,5) ou com um indicador de outra equipe. Use até 10 condições, todas obrigatórias para a entrada.</p></div></div>
 <div id="ns-conditions" class="ns-conditions"></div>
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
@@ -40,5 +40,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-1" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-conditions-v2" defer></script>
 </body></html>

@@ -1,7 +1,7 @@
 """Nostradamus: backtest cronológico sem vazamento de jogos futuros.
 
 Só usa dados de partidas CONCLUÍDAS antes da data de cada entrada.
-As condições sempre comparam mandante à equipe visitante.
+As condições permitem selecionar mandante ou visitante e comparar com valor fixo ou indicador de outra equipe.
 Odds registradas após o início (data do jogo) nunca são consideradas históricas.
 """
 from __future__ import annotations
@@ -131,17 +131,61 @@ def _stats(history,amount):
     return out
 
 def _valid_conditions(conditions):
+    """Normaliza condições novas e antigas, sem execução dinâmica de expressões.
+
+    Novo formato: lado, metrica, comparador, referencia, metrica_ref, valor.
+      - referencia='valor': compara a métrica com valor fixo.
+      - referencia='mandante'/'visitante': compara com outra métrica + valor (ajuste).
+    Formato legado: metrica, comparador, margem => mandante x visitante + margem.
+    """
     if not isinstance(conditions,list) or not 1<=len(conditions)<=10:
         raise ValueError("Escolha entre 1 e 10 condições.")
     parsed=[]
     for c in conditions:
         if not isinstance(c,dict) or c.get("metrica") not in METRICAS or c.get("comparador") not in COMPARADORES:
             raise ValueError("Métrica ou comparador inválido.")
-        margin=_n(c.get("margem",0))
-        if margin is None or not -10000<=margin<=10000:
-            raise ValueError("Margem inválida.")
-        parsed.append((c["metrica"],c["comparador"],margin))
+        lado=c.get("lado","mandante")
+        referencia=c.get("referencia","visitante")
+        metrica_ref=c.get("metrica_ref",c["metrica"])
+        if lado not in ("mandante","visitante"):
+            raise ValueError("Equipe analisada inválida.")
+        if referencia not in ("valor","mandante","visitante"):
+            raise ValueError("Referência de comparação inválida.")
+        if metrica_ref not in METRICAS:
+            raise ValueError("Indicador de referência inválido.")
+        # Nunca transformar valores ausentes em 0 silenciosamente.
+        raw_value=c.get("valor",c.get("margem",0) if referencia!="valor" else None)
+        if isinstance(raw_value,bool) or raw_value in ("",None):
+            raise ValueError("Informe um valor numérico válido para a condição.")
+        valor=_n(raw_value)
+        if valor is None or not -10000<=valor<=10000:
+            raise ValueError("Valor de comparação inválido.")
+        parsed.append({
+            "lado":lado,"metrica":c["metrica"],"comparador":c["comparador"],
+            "referencia":referencia,"metrica_ref":metrica_ref,"valor":valor
+        })
     return parsed
+
+
+def _evaluate_condition(cond,home_stats,away_stats):
+    teams={"mandante":home_stats,"visitante":away_stats}
+    observed=teams[cond["lado"]].get(cond["metrica"])
+    if cond["referencia"]=="valor":
+        reference=cond["valor"]
+        ref_name="Valor fixo"
+    else:
+        ref_value=teams[cond["referencia"]].get(cond["metrica_ref"])
+        reference=ref_value+cond["valor"] if ref_value is not None else None
+        ref_name=METRICAS[cond["metrica_ref"]]
+    if not _compare(observed,reference,cond["comparador"]):
+        return None
+    return {
+        "lado":cond["lado"],"metrica":cond["metrica"],
+        "nome":METRICAS[cond["metrica"]],"comparador":COMPARADORES[cond["comparador"]],
+        "observado":round(observed,3),"comparado":round(reference,3),
+        "referencia":cond["referencia"],"nome_ref":ref_name,
+        "metrica_ref":cond["metrica_ref"],"valor":cond["valor"],
+    }
 
 def _compare(left,right,op):
     if left is None or right is None:return False
@@ -257,12 +301,11 @@ def testar(payload,rows=None):
             a=_stats(histories[akey],length)
             if h is None or a is None:continue
             details=[]
-            for key,op,margin in conditions:
-                x,y=h.get(key),a.get(key)
-                if not _compare(x, y+margin if y is not None else None,op):
+            for condition in conditions:
+                evaluated=_evaluate_condition(condition,h,a)
+                if evaluated is None:
                     break
-                details.append({"metrica":key,"nome":METRICAS[key],"comparador":COMPARADORES[op],
-                                "mandante":round(x,3),"visitante":round(y,3),"margem":margin})
+                details.append(evaluated)
             else:
                 matched_total+=1
                 name=g["campeonato"];rec=leagues[name]

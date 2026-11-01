@@ -41,3 +41,25 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 @media(max-width:710px){.ns-fields{grid-template-columns:1fr}.ns-condition{grid-template-columns:1fr 1fr}.ns-condition label:first-child{grid-column:span 2}
 .ns-saved-item{align-items:flex-start;flex-direction:column}.ns-panel{padding:16px}}
 @media(max-width:390px){.ns-condition{grid-template-columns:1fr}.ns-condition label:first-child{grid-column:span 1}}
+
+/* Condições independentes: equipe analisada, referência fixa ou outra equipe. */
+.ns-condition{
+  grid-template-columns:minmax(130px,1fr) minmax(200px,1.8fr) minmax(125px,.85fr) auto;
+  gap:12px 15px;
+}
+.ns-condition [hidden]{display:none!important}
+.ns-condition .ns-refmetric-wrap[hidden] + .ns-value-wrap{grid-column:2/4}
+.ns-condition .ns-remove{grid-column:4;grid-row:1}
+.ns-condition .ns-reference{font-weight:750}
+.ns-condition .ns-value-wrap{min-width:0}
+.ns-condition .ns-side{font-weight:750}
+@media(max-width:900px){
+  .ns-condition{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ns-condition .ns-remove{grid-row:auto;grid-column:auto}
+  .ns-condition .ns-refmetric-wrap[hidden] + .ns-value-wrap{grid-column:auto}
+  .ns-condition label:first-child{grid-column:auto}
+}
+@media(max-width:500px){
+  .ns-condition{grid-template-columns:1fr}
+  .ns-condition label:first-child,.ns-condition .ns-refmetric-wrap[hidden] + .ns-value-wrap{grid-column:auto}
+}
