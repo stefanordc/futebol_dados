@@ -1,0 +1,28 @@
+name: Teste comportamento - abertura do adversário
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_clube.py'
+      - 'web_app/tests/test_comportamento_adversario.py'
+      - '.github/workflows/test-comportamento-adversario.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_clube.py'
+      - 'web_app/tests/test_comportamento_adversario.py'
+      - '.github/workflows/test-comportamento-adversario.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Compilar módulo Python
+        run: python -m compileall -q web_app/queries_clube.py
+      - name: Testar abertura de placar do adversário
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_comportamento_adversario.py' -v
