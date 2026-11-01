@@ -107,8 +107,9 @@
       }
       window.X1Dados?.set(described.status==="fulfilled"?described.value:null,
         described.status==="rejected"?described.reason.message:null);
+      window.X1Favoritometro?.set(described.status==="fulfilled"?described.value:null,data);
       $("#x1-tabs").querySelectorAll("[data-tab]").forEach(button=>{
-        button.disabled=!data&&button.dataset.tab!=="visao";
+        button.disabled=!data&&!["visao","favoritometro"].includes(button.dataset.tab);
         button.title=button.disabled?"Projeção indisponível para esta amostra":"";
       });
       results.hidden=false;

@@ -18,6 +18,7 @@ import queries_finalizacoes_sofridas
 import queries_performance
 import queries_x1
 import queries_x1_analise
+import queries_x1_texto
 import queries_tecnico_avancadas
 
 DIR = Path(__file__).resolve().parent
@@ -64,6 +65,18 @@ def pagina_diretorio():
 @app.get("/apostas/x1")
 def pagina_apostas_x1():
     return FileResponse(TEMPLATES / "bets_x1.html")
+
+
+@app.post("/api/apostas/x1/favoritometro/texto")
+def api_favoritometro_texto(fatos: dict):
+    # IA opcional: a chave de acesso permanece exclusivamente no servidor.
+    try:
+        return {"texto": queries_x1_texto.gerar_texto(fatos)}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        status = 503 if "Configure OPENAI_API_KEY" in str(exc) else 502
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 @app.get("/api/apostas/x1/analise")

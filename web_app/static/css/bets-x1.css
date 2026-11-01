@@ -133,3 +133,90 @@
 .x1-tabs button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:920px){.x1-analysis-header{align-items:stretch;flex-direction:column}.x1-view-mode{align-self:flex-start}.x1-side-by-side{grid-template-columns:1fr}}
 @media(max-width:580px){.x1-data-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.x1-compare-table th,.x1-compare-table td{padding:10px 9px}}
+
+/* Alinhamento de todas as colunas das tabelas descritivas do x1. */
+.x1-compare-table table th,
+.x1-compare-table table td,
+.x1-compare-table thead th,
+.x1-compare-table tbody th,
+.x1-compare-table tbody td {
+  text-align:center!important;
+  vertical-align:middle;
+}
+.x1-compare-table .x1-metric-name {
+  justify-content:center;
+  text-align:center;
+  align-items:center;
+  width:100%;
+}
+.x1-compare-table td small {text-align:center}
+.x1-compare-table table{font-variant-numeric:tabular-nums}
+.x1-compare-table thead th{position:sticky;top:0}
+
+/* Favoritômetro: barra proporcional e indicadores, na paleta existente. */
+.x1-fav-hero{
+  min-width:0;overflow:hidden;padding:clamp(18px,2.5vw,35px);
+  border:1px solid var(--df-border);border-radius:16px;
+  background:var(--df-surface);margin-bottom:16px;
+}
+.x1-fav-hero h2{font-size:clamp(23px,3vw,33px);font-weight:900;margin:8px 0}
+.x1-fav-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,1.6fr) minmax(150px,1fr);
+  gap:20px;align-items:center;margin:28px 0 22px}
+.x1-fav-team{display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center;min-width:0}
+.x1-fav-team>strong{font-size:clamp(14px,1.8vw,20px);overflow-wrap:anywhere}
+.x1-fav-monogram{
+  display:grid;place-items:center;width:76px;height:76px;font-size:20px;font-weight:900;
+  border:2px solid var(--df-border);border-radius:18px;
+  background:var(--df-raised);color:var(--df-text)
+}
+.x1-fav-monogram.mandante{border-color:var(--df-orange);color:var(--df-orange)}
+.x1-fav-monogram.visitante{border-color:#52a4ff;color:#52a4ff}
+.x1-fav-percent{font-size:clamp(30px,4vw,52px);line-height:1.1;font-weight:900;font-variant-numeric:tabular-nums}
+.x1-fav-team:first-child .x1-fav-percent{color:var(--df-orange)}
+.x1-fav-team:last-child .x1-fav-percent{color:#52a4ff}
+.x1-fav-team small,.x1-fav-super{font-size:11px;font-weight:900;letter-spacing:.12em;color:var(--df-secondary)}
+.x1-fav-center{display:grid;gap:15px;justify-items:center;min-width:0}
+.x1-fav-bar{display:flex;width:100%;height:64px;border-radius:12px;overflow:hidden;
+ border:1px solid var(--df-border);background:var(--df-raised)}
+.x1-fav-bar-home{background:linear-gradient(180deg,#ff954e,var(--df-orange));height:100%}
+.x1-fav-bar-away{background:linear-gradient(180deg,#86c4ff,#4389d6);height:100%}
+.x1-fav-x{font-size:23px;color:var(--df-secondary)}
+.x1-fav-winner{font-weight:850;text-align:center;font-size:17px;color:var(--df-text)}
+.x1-fav-hero>.x1-help:last-child{margin-top:17px;text-align:center}
+.x1-fav-probs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:10px 0}
+.x1-fav-probs>div{border:1px solid var(--df-border);border-radius:12px;padding:14px;
+  display:flex;flex-direction:column;gap:8px;background:var(--df-raised);text-align:center}
+.x1-fav-probs small{color:var(--df-secondary);font-weight:700}
+.x1-fav-probs strong{font-size:clamp(20px,2vw,29px);font-variant-numeric:tabular-nums}
+.x1-fav-factors{display:grid;gap:13px}
+.x1-fav-factor{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(130px,1fr) 85px;
+  align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--df-border-soft)}
+.x1-fav-factor:last-child{border-bottom:0}
+.x1-fav-factor>div:first-child{display:grid;gap:5px;min-width:0}
+.x1-fav-factor strong{font-size:13px}
+.x1-fav-factor small{font-size:11px;color:var(--df-secondary);line-height:1.4}
+.x1-fav-factor>span{font-size:12px;color:var(--df-secondary);text-align:right}
+.x1-fav-factor-track{position:relative;height:9px;background:var(--df-border);border-radius:100px}
+.x1-fav-factor-track:before{content:"";width:2px;height:17px;position:absolute;top:-4px;left:50%;background:var(--df-secondary);opacity:.65}
+.x1-fav-factor-track span{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;
+  border:2px solid var(--df-surface);transform:translate(-50%,-50%);background:var(--df-orange);box-shadow:0 0 0 1px var(--df-border)}
+.x1-fav-report-title{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.x1-fav-ai-btn{cursor:pointer;border:1px solid var(--df-orange);border-radius:9px;
+ background:var(--df-accent-soft);color:var(--df-orange);font-weight:800;padding:10px 15px}
+.x1-fav-ai-btn:focus-visible{outline:2px solid var(--df-orange);outline-offset:3px}
+.x1-fav-ai-btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:800px){
+  .x1-fav-row{grid-template-columns:1fr 1fr;gap:13px}
+  .x1-fav-center{grid-row:2;grid-column:span 2}
+  .x1-fav-monogram{width:56px;height:56px}
+  .x1-fav-factor{grid-template-columns:1fr 1fr 62px;gap:8px}
+}
+@media(max-width:480px){
+  .x1-fav-probs{gap:5px}
+  .x1-fav-probs>div{padding:9px 4px}
+  .x1-fav-factor{grid-template-columns:1fr}
+  .x1-fav-factor>span{text-align:left}
+  .x1-fav-row{margin:20px 0}
+}
+
+.x1-fav-monogram img{width:80%;height:80%;object-fit:contain;display:block}
