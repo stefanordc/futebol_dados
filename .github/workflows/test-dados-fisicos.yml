@@ -1,0 +1,30 @@
+name: Teste de origem dos dados físicos
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_dados_fisicos.py'
+      - 'web_app/queries_x1.py'
+      - 'web_app/tests/test_dados_fisicos.py'
+      - '.github/workflows/test-dados-fisicos.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_dados_fisicos.py'
+      - 'web_app/queries_x1.py'
+      - 'web_app/tests/test_dados_fisicos.py'
+      - '.github/workflows/test-dados-fisicos.yml'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Validar sintaxe
+        run: python -m compileall -q web_app/queries_dados_fisicos.py web_app/queries_x1.py
+      - name: Testes sem acesso ao banco
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_dados_fisicos.py' -v
