@@ -373,6 +373,9 @@ function renderComportamento(est) {
       <h2 class="section-title">Abertura de placar</h2>
       <p class="muted pct-bars-meta">${c.jogos || 0} jogo${(c.jogos || 0) === 1 ? "" : "s"} no filtro</p>
       ${comportamentoCardsHtml(c.cards)}
+      <h2 class="section-title df-opponent-score-title">Quando o adversário abriu o placar</h2>
+      <p class="muted pct-bars-meta">Percentuais sobre os mesmos ${c.jogos || 0} jogos do filtro</p>
+      ${comportamentoCardsHtml(c.adversario_cards)}
     </section>
     ${pctBarsHtml(c.barras, { title: "Mercados e momentos", meta: "" })}`;
 }

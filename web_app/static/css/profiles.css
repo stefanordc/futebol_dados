@@ -97,3 +97,6 @@ body[data-page="league"] #painel-stats .modo-toggle .chip-btn:focus-visible,body
 #df-coach-retry{border:1px solid var(--df-orange,var(--accent,#ff6b1a));padding:7px 12px;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 @media(max-width:1000px){.df-coach-goal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.df-coach-goal-grid{grid-template-columns:1fr}.df-coach-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Distância visual entre os indicadores de abertura do clube e do adversário. */
+.df-opponent-score-title { margin-top: 1.75rem; }

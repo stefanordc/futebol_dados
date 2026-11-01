@@ -478,6 +478,8 @@ def comportamento_clube(
 
     n = len(jogos)
     abriu = ampliou = abriu_venceu = abriu_empatou = abriu_perdeu = 0
+    adversario_abriu = adversario_ampliou = adversario_venceu = 0
+    adversario_empatou = adversario_perdeu = 0
     over05_ht = over05_ft = over15 = over25 = over35 = under35 = 0
     btts = goleada_apl = goleada_sof = venceu_ht = vencia_10_60 = perdia_10_60 = 0
 
@@ -545,6 +547,27 @@ def comportamento_clube(
                 abriu_empatou += 1
             else:
                 abriu_perdeu += 1
+        else:
+            # O primeiro gol beneficiou o adversário: espelho da análise
+            # existente, mantendo como denominador todos os jogos filtrados.
+            adversario_abriu += 1
+            eu = eles = 0
+            ampliou_adversario = False
+            for _, delta in eventos:
+                if delta < 0:
+                    eles += 1
+                    if eles >= 2 and eles > eu:
+                        ampliou_adversario = True
+                else:
+                    eu += 1
+            if ampliou_adversario:
+                adversario_ampliou += 1
+            if gs > gm:
+                adversario_venceu += 1
+            elif gs == gm:
+                adversario_empatou += 1
+            else:
+                adversario_perdeu += 1
 
     cards = [
         {"chave": "abriu", "label": "Jogos que o clube abriu o placar", "pct": _pct(abriu, n), "n": abriu},
@@ -571,6 +594,38 @@ def comportamento_clube(
             "label": "Jogos que o clube abriu o placar e perdeu",
             "pct": _pct(abriu_perdeu, n),
             "n": abriu_perdeu,
+        },
+    ]
+    adversario_cards = [
+        {
+            "chave": "adversario_abriu",
+            "label": "Jogos em que o adversário abriu o placar",
+            "pct": _pct(adversario_abriu, n),
+            "n": adversario_abriu,
+        },
+        {
+            "chave": "adversario_ampliou",
+            "label": "Jogos que o adversário abriu o placar e ampliou",
+            "pct": _pct(adversario_ampliou, n),
+            "n": adversario_ampliou,
+        },
+        {
+            "chave": "adversario_venceu",
+            "label": "Jogos que o adversário abriu o placar e venceu",
+            "pct": _pct(adversario_venceu, n),
+            "n": adversario_venceu,
+        },
+        {
+            "chave": "adversario_empatou",
+            "label": "Jogos que o adversário abriu o placar e sofreu o empate",
+            "pct": _pct(adversario_empatou, n),
+            "n": adversario_empatou,
+        },
+        {
+            "chave": "adversario_perdeu",
+            "label": "Jogos que o adversário abriu o placar e perdeu",
+            "pct": _pct(adversario_perdeu, n),
+            "n": adversario_perdeu,
         },
     ]
     barras = [
@@ -607,7 +662,7 @@ def comportamento_clube(
             "n": perdia_10_60,
         },
     ]
-    return {"jogos": n, "cards": cards, "barras": barras}
+    return {"jogos": n, "cards": cards, "adversario_cards": adversario_cards, "barras": barras}
 
 
 def jogos_clube(
