@@ -1,4 +1,5 @@
 const $ = (sel, el = document) => el.querySelector(sel);
+const esc = v => String(v ?? '').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 
 function ligaId() {
   const m = location.pathname.match(/\/liga\/(\d+)/);
@@ -55,7 +56,14 @@ function jogosLista(jogos) {
         <div>${feito ? j.gols_casa : ""}</div>
         <div>${feito ? j.gols_fora : ""}</div>
       </div>`;
-      // Futuros: só o confronto (sem link de detalhe / sem placar).
+      // Partidas sem placar: comparação no x1, com liga, temporada e clubes já selecionados.
+      if (!feito && j.campeonato_id && j.casa_id && j.fora_id) {
+        const query = new URLSearchParams({
+          campeonato_id: String(j.campeonato_id), temporada: j.temporada || "",
+          mandante_id: String(j.casa_id), visitante_id: String(j.fora_id)
+        });
+        return `<a class="jogo-row jogo-row-futuro" href="/apostas/x1?${query.toString()}" aria-label="Analisar ${esc(j.casa)} contra ${esc(j.fora)} no x1">${corpo}</a>`;
+      }
       if (!feito) return `<div class="jogo-row jogo-row-futuro">${corpo}</div>`;
       return `<a class="jogo-row" href="/jogo/${j.id}">${corpo}</a>`;
     })

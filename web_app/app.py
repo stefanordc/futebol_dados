@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -19,6 +19,7 @@ import queries_performance
 import queries_x1
 import queries_x1_analise
 import queries_x1_texto
+import queries_nostradamus
 import queries_tecnico_avancadas
 
 DIR = Path(__file__).resolve().parent
@@ -57,9 +58,36 @@ def pagina_clubes():
 @app.get("/jogadores")
 @app.get("/tecnicos")
 @app.get("/arbitros")
-@app.get("/apostas")
 def pagina_diretorio():
     return FileResponse(TEMPLATES / "directory.html")
+
+
+@app.get("/apostas")
+def pagina_apostas():
+    return RedirectResponse(url="/apostas/x1",status_code=307)
+
+
+@app.get("/apostas/nostradamus")
+def pagina_nostradamus():
+    return FileResponse(TEMPLATES / "nostradamus.html")
+
+
+@app.get("/api/apostas/nostradamus/metadata")
+def nostradamus_metadata():
+    return {
+       "metricas":queries_nostradamus.METRICAS,
+       "comparadores":queries_nostradamus.COMPARADORES,
+       "objetivos":queries_nostradamus.MERCADOS,
+       "ligas":queries_nostradamus.ligas_disponiveis(),
+    }
+
+
+@app.post("/api/apostas/nostradamus/testar")
+def nostradamus_testar(payload: dict):
+    try:
+        return queries_nostradamus.testar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
 @app.get("/apostas/x1")

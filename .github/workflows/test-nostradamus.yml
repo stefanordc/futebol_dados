@@ -1,0 +1,36 @@
+name: Nostradamus — backtest sem vazamento temporal
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_nostradamus.py'
+      - 'web_app/tests/test_nostradamus.py'
+      - 'web_app/static/js/nostradamus.js'
+      - 'web_app/static/js/league.js'
+      - '.github/workflows/test-nostradamus.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_nostradamus.py'
+      - 'web_app/tests/test_nostradamus.py'
+      - 'web_app/static/js/nostradamus.js'
+      - '.github/workflows/test-nostradamus.yml'
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências do servidor
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Verificar sintaxe Python
+        run: python -m compileall -q web_app/app.py web_app/queries_nostradamus.py
+      - name: Verificar sintaxe JavaScript
+        run: |
+          node --check web_app/static/js/nostradamus.js
+          node --check web_app/static/js/league.js
+          node --check web_app/static/js/bets-x1.js
+      - name: Backtest — testes determinísticos
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_nostradamus.py' -v

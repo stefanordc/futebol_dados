@@ -73,6 +73,28 @@
       const arr=(result.ligas||[]).filter(x=>x.id);
       setOptions(league,arr,"Escolha o campeonato",r=>opt(r.id,(r.pais?r.pais+" · ":"")+r.nome));
       feedback.textContent="";
+      // Link direto de uma partida futura na página de campeonato.
+      const preset=new URLSearchParams(location.search);
+      const id=preset.get("campeonato_id"),selectedSeason=preset.get("temporada");
+      const selectedHome=preset.get("mandante_id"),selectedAway=preset.get("visitante_id");
+      if(id&&arr.some(c=>String(c.id)===id)){
+        league.value=id;
+        if(selectedSeason){
+          const meta=await get("/api/clubes/meta?"+new URLSearchParams({
+            campeonato_id:id,temporada:selectedSeason
+          }));
+          clubs=meta.clubes||[];
+          setOptions(season,meta.temporadas||[],"Escolha a temporada",v=>opt(v,v));
+          season.value=meta.temporada||"";
+          renderClubs();
+          if(selectedHome&&selectedAway&&selectedHome!==selectedAway&&
+            clubs.some(c=>String(c.id)===selectedHome)&&
+            clubs.some(c=>String(c.id)===selectedAway)){
+            home.value=selectedHome;away.value=selectedAway;
+            $("#x1-form").requestSubmit();
+          }
+        }else{await loadMeta();}
+      }
     }catch(e){message(e.message,"error");}
   }
   league.addEventListener("change",()=>{season.value="";loadMeta();});
