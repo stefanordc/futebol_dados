@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101218">
+<script>(function(){try{let t=localStorage.getItem("df_theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","dark")}})()</script>
+<title>Galileu · Validação | Dados Futebol</title>
+<link rel="stylesheet" href="/static/css/app.css?v=28">
+<link rel="stylesheet" href="/static/css/premium.css?v=galileu-v1">
+<link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-v1">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-v1">
+</head>
+<body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+<div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
+<header id="df-topbar-mount"></header>
+<main id="main-content" class="match-wrap df-common-page x1-main">
+<section class="x1-hero">
+ <div class="df-eyebrow">LABORATÓRIO · VALIDAÇÃO PRÉ-JOGO</div>
+ <h1>Galileu</h1>
+ <p>Selecione a próxima rodada, confira seus métodos do Nostradamus e registre entradas na banca virtual.</p>
+ <nav class="x1-nav" aria-label="Apostas"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus · Backtesting</a><a href="/apostas/galileu" aria-current="page">Galileu · Validação</a></nav>
+</section>
+<section class="gl-panel">
+ <div class="gl-section-title"><div><div class="df-eyebrow">BANCA VIRTUAL</div><h2>Acompanhamento</h2></div><a class="gl-link" href="/apostas/galileu/relatorio">Abrir relatório completo</a></div>
+ <div id="gl-bank" class="gl-kpis" aria-live="polite">
+ <div><span>Banca inicial</span><strong>100 u</strong></div><div><span>Banca atual</span><strong id="gl-balance">100 u</strong></div>
+ <div><span>Entradas confirmadas</span><strong id="gl-entries">0</strong></div>
+ <div><span>Pendentes</span><strong id="gl-pending">0</strong></div>
+ </div>
+ <p class="gl-note">Simulação virtual: cada green vale +1 unidade e cada red vale −1. Entradas sem placar final ficam pendentes e não alteram o saldo.</p>
+</section>
+<section class="gl-panel">
+ <div class="gl-section-title"><div><div class="df-eyebrow">JOGOS FUTUROS</div><h2>Próxima rodada por campeonato</h2></div><div id="gl-method-count" class="gl-count"></div></div>
+ <form id="gl-filter" class="gl-filter">
+   <label>Data de referência<input type="date" id="gl-date" required></label>
+   <button type="submit" class="gl-primary">Buscar jogos elegíveis</button>
+ </form>
+ <p class="gl-note">Mostramos somente jogos sem placar cadastrados para as próximas rodadas a partir da data escolhida. Como o banco não informa o horário de início, a confirmação de entradas só é permitida a partir de amanhã. Todos os indicadores são calculados usando até 20 jogos anteriores ao confronto (mínimo cinco), sem considerar resultados posteriores.</p>
+ <div id="gl-notice" role="status" aria-live="polite"></div>
+ <div id="gl-content"></div>
+ <div class="gl-actions" id="gl-actions" hidden>
+  <div id="gl-selection-count">0 jogos marcados</div>
+  <button type="button" class="gl-primary" id="gl-confirm" disabled>Confirmar entradas selecionadas</button>
+ </div>
+</section>
+<p class="x1-disclaimer">Galileu é um diário de estratégias e banca simulada, não executa apostas reais. Registros confirmados são permanentes na aplicação, sem botão para editar, cancelar ou excluir. Resultados futuros não são previsões garantidas. 18+.</p>
+</main></div></div>
+<div id="df-toast" role="status" aria-live="polite"></div>
+<script src="/static/js/shell.js?v=galileu-v1" defer></script>
+<script src="/static/js/galileu.js?v=galileu-v1" defer></script>
+</body></html>

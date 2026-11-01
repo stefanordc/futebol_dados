@@ -20,6 +20,7 @@ import queries_x1
 import queries_x1_analise
 import queries_x1_texto
 import queries_nostradamus
+import queries_galileu
 import queries_tecnico_avancadas
 
 DIR = Path(__file__).resolve().parent
@@ -88,6 +89,37 @@ def nostradamus_testar(payload: dict):
         return queries_nostradamus.testar(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.get("/apostas/galileu")
+def pagina_galileu():
+    return FileResponse(TEMPLATES / "galileu.html")
+
+
+@app.get("/apostas/galileu/relatorio")
+def pagina_galileu_relatorio():
+    return FileResponse(TEMPLATES / "galileu_report.html")
+
+
+@app.post("/api/apostas/galileu/sinais")
+def api_galileu_sinais(payload: dict):
+    try:
+        return queries_galileu.sinais(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/confirmar")
+def api_galileu_confirmar(payload: dict):
+    try:
+        return queries_galileu.confirmar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.get("/api/apostas/galileu/relatorio")
+def api_galileu_relatorio():
+    return queries_galileu.relatorio()
 
 
 @app.get("/apostas/x1")
