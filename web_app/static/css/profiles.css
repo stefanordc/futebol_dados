@@ -70,3 +70,30 @@ body[data-page="league"] #painel-stats .stats-table .name-cell,body[data-page="l
 body[data-page="league"] #painel-stats .modo-toggle{display:flex;flex-shrink:0;gap:8px;align-items:center}
 body[data-page="league"] #painel-stats .modo-toggle .chip-btn:focus-visible,body[data-page="league"] .liga-stat-subtabs .tab:focus-visible{outline:2px solid var(--df-orange,var(--accent));outline-offset:3px}
 @media(max-width:900px){body[data-page="league"] #painel-stats .filters-row{align-items:flex-start;flex-wrap:wrap}body[data-page="league"] .liga-stat-subtabs{gap:6px}}
+
+/* Técnico — estatísticas avançadas por categoria */
+.df-coach-extra{min-width:0;max-width:100%;overflow:hidden}
+.df-coach-extra .section-title{margin-bottom:18px}
+.df-coach-nav{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px}
+.df-coach-nav .tab:focus-visible,#df-coach-retry:focus-visible{outline:2px solid var(--df-orange,var(--accent,#ff6b1a));outline-offset:2px}
+.df-coach-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:12px;margin:10px 0 22px}
+.df-coach-kpi{display:flex;flex-direction:column;gap:8px;min-width:0;padding:16px;border:1px solid var(--df-border,var(--line,#374151));border-radius:12px;background:var(--df-raised,var(--bg-card,#191f2a))}
+.df-coach-kpi span{font-size:12px;color:var(--df-secondary,var(--muted,#9ca3af));line-height:1.4}
+.df-coach-kpi strong{font-size:clamp(18px,2.4vw,26px);color:var(--df-text,var(--text,#fff));line-height:1.15;font-variant-numeric:tabular-nums}
+.df-coach-kpi small{font-size:11px;line-height:1.5;color:var(--df-muted,var(--muted,#9ca3af))}
+.df-coach-table{width:100%;min-width:0;overflow-x:auto;max-width:100%}
+.df-coach-table table{width:100%;min-width:680px}
+.df-coach-table th,.df-coach-table td{white-space:nowrap}
+.df-coach-footnote{font-size:12px;color:var(--df-muted,var(--muted,#9ca3af));line-height:1.6;margin-top:14px}
+.df-coach-loading{padding:25px 20px;border:1px solid var(--df-border,var(--line,#374151));border-radius:12px;color:var(--df-secondary,var(--muted,#9ca3af));background:var(--df-raised,var(--bg-card,#191f2a))}
+.df-coach-goal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.df-coach-goal-card{padding:16px;border-radius:12px;background:var(--df-raised,var(--bg-card,#191f2a));border:1px solid var(--df-border,var(--line,#374151));min-width:0}
+.df-coach-goal-card>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.df-coach-goal-card span{color:var(--df-secondary,var(--muted,#9ca3af));font-size:13px;overflow-wrap:anywhere}
+.df-coach-goal-card strong{font-size:22px;font-variant-numeric:tabular-nums;color:var(--df-text,var(--text,#fff))}
+.df-coach-goal-track{height:8px;border-radius:999px;background:var(--df-border,var(--line,#374151));margin:12px 0 8px;overflow:hidden}
+.df-coach-goal-track span{display:block;height:100%;border-radius:inherit;background:var(--df-orange,var(--accent,#ff6b1a))}
+.df-coach-goal-card small{color:var(--df-muted,var(--muted,#9ca3af));font-size:11px}
+#df-coach-retry{border:1px solid var(--df-orange,var(--accent,#ff6b1a));padding:7px 12px;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+@media(max-width:1000px){.df-coach-goal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:580px){.df-coach-goal-grid{grid-template-columns:1fr}.df-coach-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
