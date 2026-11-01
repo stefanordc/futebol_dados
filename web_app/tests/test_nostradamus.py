@@ -244,8 +244,10 @@ class TestNostradamus(TestCase):
           {"lado":"visitante","metrica":"gols_sofridos","comparador":"ge",
            "referencia":"valor","valor":0.8}
         ]
-        result=ns.testar(config(cutoff,goal="lay_visitante",
-                               window="20",conditions=rules),rows=data)
+        payload=config(cutoff,goal="lay_visitante",
+                       window="20",conditions=rules)
+        payload["campeonato_id"]=None  # Todos os campeonatos.
+        result=ns.testar(payload,rows=data)
         grouped={r["campeonato"]:r for r in result["resultados"]}
         self.assertEqual(set(grouped),set(name for name,*_ in leagues))
         for name,_,games_count,_ in leagues:
