@@ -165,6 +165,59 @@ class TestNostradamus(TestCase):
            "referencia":"valor","valor":1.5}
         self.assertEqual(ns.testar(config(self.cutoff,conditions=[c]),rows=rows)["entradas"],0)
 
+    def test_mesmo_indicador_adversario_mandante(self):
+        condition={"lado":"mandante","metrica":"xg",
+                   "comparador":"gt","referencia":"adversario"}
+        normalized=ns._valid_conditions([condition])[0]
+        self.assertEqual(normalized["valor"],0)
+        self.assertEqual(normalized["metrica_ref"],"xg")
+        output=ns.testar(config(self.cutoff,conditions=[condition]),rows=self.rows)
+        self.assertEqual(output["entradas"],5)
+        detail=output["resultados"][0]["jogos"][0]["condicoes"][0]
+        self.assertEqual(detail["observado"],1.5)
+        self.assertEqual(detail["comparado"],0.7)
+        self.assertEqual(detail["referencia"],"adversario")
+
+    def test_mesmo_indicador_adversario_visitante(self):
+        condition={"lado":"visitante","metrica":"gols_sofridos",
+                   "comparador":"ge","referencia":"adversario"}
+        output=ns.testar(config(self.cutoff,conditions=[condition]),rows=self.rows)
+        self.assertEqual(output["entradas"],5)
+        detail=output["resultados"][0]["jogos"][0]["condicoes"][0]
+        self.assertEqual(detail["observado"],2.0)
+        self.assertEqual(detail["comparado"],0.0)
+
+    def test_valor_absoluto_igual_maior_e_igual(self):
+        base={"lado":"visitante","metrica":"gols_sofridos","referencia":"valor"}
+        for op,number,expected in (("gt",1.5,5),("ge",2,5),
+                                  ("eq",2,5),("gt",2,0),("eq",1.5,0)):
+            with self.subTest(op=op,value=number):
+                cond={**base,"comparador":op,"valor":number}
+                self.assertEqual(
+                    ns.testar(config(self.cutoff,conditions=[cond]),rows=self.rows)["entradas"],
+                    expected,
+                )
+
+    def test_adversario_sem_margem_nem_metricas_diferentes(self):
+        base={"lado":"mandante","metrica":"xg","comparador":"gt",
+              "referencia":"adversario"}
+        for update in ({"valor":1},{"margem":0.5},
+                       {"metrica_ref":"xgot"},{"referencia":"invalido"}):
+            with self.subTest(update=update),self.assertRaises(ValueError):
+                ns._valid_conditions([{**base,**update}])
+        self.assertEqual(ns._valid_conditions([{**base,"valor":0}])[0]["valor"],0)
+
+    def test_mesmo_indicador_adversario_sem_vazamento_do_mesmo_dia(self):
+        rows=[game(i,self.start+timedelta(days=i)) for i in range(5)]
+        for item in rows:
+            item["home_xg"]=1
+            item["away_xg"]=1
+        day=self.start+timedelta(days=5)
+        rows.extend([game(40,day),game(41,day)])
+        condition={"lado":"mandante","metrica":"xg","comparador":"gt",
+                   "referencia":"adversario"}
+        self.assertEqual(ns.testar(config(self.cutoff,conditions=[condition]),rows=rows)["entradas"],0)
+
     def test_mercados_e_limites_lay(self):
         self.assertTrue(ns._settle("over_25",2,1))
         self.assertFalse(ns._settle("lay_goleada_mandante",3,0))

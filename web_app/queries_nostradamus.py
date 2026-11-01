@@ -135,7 +135,7 @@ def _valid_conditions(conditions):
 
     Novo formato: lado, metrica, comparador, referencia, metrica_ref, valor.
       - referencia='valor': compara a métrica com valor fixo.
-      - referencia='mandante'/'visitante': compara com outra métrica + valor (ajuste).
+      - referencia='adversario': compara mesmo indicador do time oposto, sem ajuste.\n      - referencia='mandante'/'visitante': legado, outra métrica + ajuste.
     Formato legado: metrica, comparador, margem => mandante x visitante + margem.
     """
     if not isinstance(conditions,list) or not 1<=len(conditions)<=10:
@@ -149,17 +149,26 @@ def _valid_conditions(conditions):
         metrica_ref=c.get("metrica_ref",c["metrica"])
         if lado not in ("mandante","visitante"):
             raise ValueError("Equipe analisada inválida.")
-        if referencia not in ("valor","mandante","visitante"):
+        if referencia not in ("valor","adversario","mandante","visitante"):
             raise ValueError("Referência de comparação inválida.")
         if metrica_ref not in METRICAS:
             raise ValueError("Indicador de referência inválido.")
-        # Nunca transformar valores ausentes em 0 silenciosamente.
-        raw_value=c.get("valor",c.get("margem",0) if referencia!="valor" else None)
-        if isinstance(raw_value,bool) or raw_value in ("",None):
-            raise ValueError("Informe um valor numérico válido para a condição.")
-        valor=_n(raw_value)
-        if valor is None or not -10000<=valor<=10000:
-            raise ValueError("Valor de comparação inválido.")
+        if referencia=="adversario":
+            # A opção simplificada compara o MESMO indicador, sem margem
+            # e do time oposto ao escolhido (nunca de si próprio).
+            if c.get("metrica_ref",c["metrica"])!=c["metrica"]:
+                raise ValueError("O adversário deve usar o mesmo indicador.")
+            if c.get("valor") not in (None,0,0.0,"0","0.0") or c.get("margem") not in (None,0,0.0,"0","0.0"):
+                raise ValueError("A comparação com o adversário não aceita margem.")
+            valor=0.0
+        else:
+            # Nunca transformar valores ausentes em 0 silenciosamente.
+            raw_value=c.get("valor",c.get("margem",0) if referencia!="valor" else None)
+            if isinstance(raw_value,bool) or raw_value in ("",None):
+                raise ValueError("Informe um valor numérico válido para a condição.")
+            valor=_n(raw_value)
+            if valor is None or not -10000<=valor<=10000:
+                raise ValueError("Valor de comparação inválido.")
         parsed.append({
             "lado":lado,"metrica":c["metrica"],"comparador":c["comparador"],
             "referencia":referencia,"metrica_ref":metrica_ref,"valor":valor
@@ -173,6 +182,10 @@ def _evaluate_condition(cond,home_stats,away_stats):
     if cond["referencia"]=="valor":
         reference=cond["valor"]
         ref_name="Valor fixo"
+    elif cond["referencia"]=="adversario":
+        side="visitante" if cond["lado"]=="mandante" else "mandante"
+        reference=teams[side].get(cond["metrica"])
+        ref_name=METRICAS[cond["metrica"]]+" do "+side
     else:
         ref_value=teams[cond["referencia"]].get(cond["metrica_ref"])
         reference=ref_value+cond["valor"] if ref_value is not None else None

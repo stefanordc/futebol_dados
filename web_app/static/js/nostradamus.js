@@ -13,32 +13,62 @@ $("#ns-corte").value=[prior.getFullYear(),String(prior.getMonth()+1).padStart(2,
 const say=(s,error=false)=>{status.innerHTML='<div class="x1-message '+(error?"error":"info")+'">'+esc(s)+'</div>';};
 const opts=(data,value)=>Object.entries(data).map(([id,n])=>'<option value="'+esc(id)+'" '+(value===id?'selected':'')+'>'+esc(n)+'</option>').join("");
 function normalizeCondition(item={}){
-  // Estratégias antigas guardavam somente "margem": mandante > visitante + margem.
-  return {
-    lado:item.lado||"mandante",
-    metrica:item.metrica||"xg",
-    comparador:item.comparador||"gt",
-    referencia:item.referencia||(Object.prototype.hasOwnProperty.call(item,"metrica")?"visitante":"valor"),
-    metrica_ref:item.metrica_ref||item.metrica||"xg",
-    valor:item.valor??item.margem??(Object.keys(item).length?0:"")
-  };
+  // Regras antigas com "margem" continuam interpretadas exatamente como eram.
+  const lado=item.lado==="visitante"?"visitante":"mandante";
+  const metrica=item.metrica||"xg";
+  const referencia=item.referencia||(Object.hasOwn(item,"metrica")?"visitante":"valor");
+  const metricaRef=item.metrica_ref||metrica;
+  const valor=item.valor??item.margem??(Object.keys(item).length?0:"");
+  const opponent=lado==="mandante"?"visitante":"mandante";
+  let modo;
+  if(referencia==="valor")modo="valor";
+  else if(referencia==="adversario"||
+    (referencia===opponent&&metricaRef===metrica&&Number(valor)===0)){
+    modo="adversario";
+  }else modo="legado";
+  return {lado,metrica,comparador:item.comparador||"gt",modo,
+    referencia:modo==="legado"?referencia:opponent,metrica_ref:metricaRef,valor};
 }
 function updateConditionRow(row){
-  const fixed=row.querySelector(".ns-reference").value==="valor";
-  const ref=row.querySelector(".ns-reference-metric");
-  row.querySelector(".ns-refmetric-wrap").hidden=fixed;
-  ref.disabled=fixed;
+  const mode=row.querySelector(".ns-reference").value;
+  const fixed=mode==="valor",legacy=mode==="legado";
+  const valueWrap=row.querySelector(".ns-value-wrap");
+  const legacyMetric=row.querySelector(".ns-refmetric-wrap");
+  const legacySide=row.querySelector(".ns-legacy-side-wrap");
   const value=row.querySelector(".ns-value");
-  if(!fixed && value.value==="")value.value="0";
-  const label=row.querySelector(".ns-value-label");
-  label.textContent=fixed?"Valor desejado":"Ajuste na referência";
+  valueWrap.hidden=!fixed&&!legacy;
+  legacyMetric.hidden=!legacy;
+  legacySide.hidden=!legacy;
+  for(const el of legacyMetric.querySelectorAll("select"))el.disabled=!legacy;
+  for(const el of legacySide.querySelectorAll("select"))el.disabled=!legacy;
+  value.disabled=!fixed&&!legacy;
+  value.required=fixed||legacy;
+  if(legacy&&value.value==="")value.value="0";
+  row.querySelector(".ns-value-label").textContent=legacy?"Ajuste da regra antiga":"Valor absoluto";
   value.placeholder=fixed?"Ex.: 1,5":"Ex.: 0";
-  value.setAttribute("aria-label",label.textContent);
+  value.setAttribute("aria-label",legacy?"Ajuste da regra antiga":"Valor absoluto");
+  const side=row.querySelector(".ns-side").selectedOptions[0]?.textContent||"Mandante";
+  const metric=row.querySelector(".ns-metric").selectedOptions[0]?.textContent||"Indicador";
+  const comparison=row.querySelector(".ns-comparison").selectedOptions[0]?.textContent||">";
+  const opponent=side==="Mandante"?"visitante":"mandante";
+  const preview=row.querySelector(".ns-rule-preview");
+  if(fixed){
+    preview.textContent=side+" · "+metric+" "+comparison+" "+(value.value||"valor informado");
+  }else if(legacy){
+    preview.textContent="Regra salva: "+side+" · "+metric+" "+comparison+" "+
+      row.querySelector(".ns-legacy-side").selectedOptions[0]?.textContent+" · "+
+      row.querySelector(".ns-reference-metric").selectedOptions[0]?.textContent+
+      (Number(value.value)?(" + "+value.value):"");
+  }else{
+    preview.textContent=side+" · "+metric+" "+comparison+" mesmo indicador do "+opponent;
+  }
 }
 function conditionLine(item={}){
   const data=normalizeCondition(item);
   const id=String(Date.now())+"-"+Math.random().toString(36).slice(2,9);
   const div=document.createElement("div");div.className="ns-condition";div.dataset.row=id;
+  const modes={valor:"Valor absoluto",adversario:"Mesmo indicador do adversário"};
+  if(data.modo==="legado")modes.legado="Regra personalizada (salva anteriormente)";
   div.innerHTML=
     '<label>Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
       opts({mandante:"Mandante",visitante:"Visitante"},data.lado)+'</select></label>'+
@@ -47,13 +77,16 @@ function conditionLine(item={}){
     '<label>Comparador<select class="ns-comparison" aria-label="Comparador">'+
       opts(meta.comparadores,data.comparador)+'</select></label>'+
     '<button type="button" class="ns-remove" aria-label="Remover condição">Remover</button>'+
-    '<label>Comparar com<select class="ns-reference" aria-label="Comparar com">'+
-      opts({valor:"Valor fixo",mandante:"Indicador do mandante",visitante:"Indicador do visitante"},data.referencia)+'</select></label>'+
-    '<label class="ns-refmetric-wrap">Indicador da referência<select class="ns-reference-metric" aria-label="Indicador da referência">'+
+    '<label class="ns-reference-wrap">Comparar com<select class="ns-reference" aria-label="Comparar com">'+
+      opts(modes,data.modo)+'</select></label>'+
+    '<label class="ns-value-wrap"><span class="ns-value-label">Valor absoluto</span>'+
+      '<input class="ns-value" type="number" inputmode="decimal" min="-10000" max="10000" step="any" value="'+
+      esc(data.modo==="valor"?data.valor:data.modo==="legado"?data.valor:"")+'"></label>'+
+    '<label class="ns-legacy-side-wrap" hidden>Referência original<select class="ns-legacy-side" aria-label="Referência original">'+
+      opts({mandante:"Mandante",visitante:"Visitante"},data.referencia)+'</select></label>'+
+    '<label class="ns-refmetric-wrap" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
       opts(meta.metricas,data.metrica_ref)+'</select></label>'+
-    '<label class="ns-value-wrap"><span class="ns-value-label">Valor desejado</span>'+
-      '<input class="ns-value" type="number" inputmode="decimal" min="-10000" max="10000" step="any" required value="'+
-      esc(data.valor)+'"></label>';
+    '<p class="ns-rule-preview" aria-live="polite"></p>';
   $("#ns-conditions").appendChild(div);
   updateConditionRow(div);
   drawCount();
@@ -69,14 +102,20 @@ const values=()=>({
   objetivo:$("#ns-objetivo").value,
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
   comissao_pct:Number($("#ns-comissao").value),
-  condicoes:[...$("#ns-conditions").children].map(row=>({
-    lado:row.querySelector(".ns-side").value,
-    metrica:row.querySelector(".ns-metric").value,
-    comparador:row.querySelector(".ns-comparison").value,
-    referencia:row.querySelector(".ns-reference").value,
-    metrica_ref:row.querySelector(".ns-reference-metric").value,
-    valor:row.querySelector(".ns-value").value===""?null:Number(row.querySelector(".ns-value").value)
-  }))
+  condicoes:[...$("#ns-conditions").children].map(row=>{
+    const mode=row.querySelector(".ns-reference").value;
+    const base={
+      lado:row.querySelector(".ns-side").value,
+      metrica:row.querySelector(".ns-metric").value,
+      comparador:row.querySelector(".ns-comparison").value
+    };
+    if(mode==="adversario")return {...base,referencia:"adversario"};
+    const raw=row.querySelector(".ns-value").value.trim();
+    const valor=raw===""?null:Number(raw);
+    if(mode==="valor")return {...base,referencia:"valor",valor};
+    return {...base,referencia:row.querySelector(".ns-legacy-side").value,
+      metrica_ref:row.querySelector(".ns-reference-metric").value,valor};
+  })
 });
 function restore(saved){
   $("#ns-nome").value=saved.nome||"";
@@ -106,15 +145,11 @@ $("#ns-saved-list").addEventListener("click",e=>{
 $("#ns-add").addEventListener("click",()=>{if($("#ns-conditions").children.length<10)conditionLine();});
 $("#ns-conditions").addEventListener("change",e=>{
   const row=e.target.closest(".ns-condition");
-  if(!row)return;
-  if(e.target.matches(".ns-reference"))updateConditionRow(row);
-  if(e.target.matches(".ns-metric")){
-    const reference=row.querySelector(".ns-reference-metric");
-    if(row.dataset.previousMetric===undefined||reference.value===row.dataset.previousMetric){
-      reference.value=e.target.value;
-    }
-    row.dataset.previousMetric=e.target.value;
-  }
+  if(row)updateConditionRow(row);
+});
+$("#ns-conditions").addEventListener("input",e=>{
+  const row=e.target.closest(".ns-condition");
+  if(row&&e.target.matches(".ns-value"))updateConditionRow(row);
 });
 $("#ns-conditions").addEventListener("click",e=>{
   const btn=e.target.closest(".ns-remove");
@@ -139,7 +174,8 @@ function details(rows){
       '<div><b>'+esc(c.lado==="visitante"?"Visitante":"Mandante")+'</b> · '+esc(c.nome)+
       ': <b>'+fmt(c.observado,2)+'</b> '+esc(c.comparador)+
       ' <b>'+fmt(c.comparado,2)+'</b> ('+
-      (c.referencia==="valor"?"valor fixo":esc(c.referencia)+" · "+esc(c.nome_ref)+
+      (c.referencia==="valor"?"valor absoluto":c.referencia==="adversario"?
+      "mesmo indicador do adversário":esc(c.referencia)+" · "+esc(c.nome_ref)+
       (Number(c.valor)?" + ajuste "+fmt(c.valor,2):""))+')</div>').join("")+'</div></td>'+
     '<td>'+esc(r.placar)+'</td><td class="'+(r.green?"ns-green":"ns-red")+'">'+(r.green?"Green":"Red")+'</td>'+
     '<td>'+fmt(r.odd,2)+(r.tipo_odd==="hipotetica"?' (hip.)':"")+'</td><td>'+fmt(r.unidades,2)+'</td></tr>').join("")+

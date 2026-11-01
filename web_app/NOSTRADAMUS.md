@@ -25,3 +25,12 @@
 - Testes unitários cronológicos cobrem vazamento temporal, empate do mesmo dia, mercados, odds pós-jogo, cobertura ausente, limites de condições e unidades back/lay.
 - Dados brutos usam os jogos e `estatisticas` do Supabase, em consulta SQL somente leitura. Limite de processamento 20.000 partidas para controlar a memória; conjuntos acima desse tamanho necessitariam paginação ou pré-agregação.
 - O modelo não faz previsão de jogos futuros; serve apenas para simular estratégias em amostras históricas, sujeitas a viés de seleção e sobreajuste.
+
+## Construtor simplificado (novembro/2026)
+
+- Ao criar uma condição, selecione **equipe analisada**, **indicador** e **comparador** (>, >=, <, <=, =, !=).
+- **Comparar com → Valor absoluto:** informe o limite numérico, como visitante · gols sofridos/jogo > 1,5.
+- **Comparar com → Mesmo indicador do adversário:** compara automaticamente o indicador selecionado com o mesmo indicador da outra equipe, sem valor numérico e sem margem. Ex.: mandante · xG > xG visitante, ou visitante · gols sofridos <= gols sofridos mandante.
+- Os critérios são avaliados só com histórico disponível **antes da partida**. Dados ausentes nunca são presumidos iguais a 0.
+- Estratégias antigas com comparação personalizada e margem continuam carregando na modalidade **Regra personalizada (salva anteriormente)**, que exibe referência original, indicador original e ajuste. Novas condições oferecem só as duas opções simples.
+- O nome segue opcional para simular e obrigatório somente ao salvar.

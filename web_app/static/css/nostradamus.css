@@ -63,3 +63,26 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   .ns-condition{grid-template-columns:1fr}
   .ns-condition label:first-child,.ns-condition .ns-refmetric-wrap[hidden] + .ns-value-wrap{grid-column:auto}
 }
+
+/* Novo construtor: duas modalidades simples e resumo da regra. */
+.ns-condition .ns-reference-wrap{grid-column:1/3}
+.ns-condition .ns-value-wrap{grid-column:3/4}
+.ns-condition .ns-rule-preview{
+  grid-column:1/-1; margin:2px 0 0; padding:10px 12px;
+  border-left:3px solid var(--df-orange);background:var(--df-surface);
+  border-radius:6px;color:var(--df-secondary);font-size:12px;line-height:1.5;
+}
+.ns-condition .ns-legacy-side-wrap,
+.ns-condition .ns-refmetric-wrap{grid-column:auto}
+.ns-condition .ns-value-wrap[hidden],
+.ns-condition .ns-legacy-side-wrap[hidden],
+.ns-condition .ns-refmetric-wrap[hidden]{display:none!important}
+@media(max-width:900px){
+  .ns-condition .ns-reference-wrap{grid-column:1/-1}
+  .ns-condition .ns-value-wrap{grid-column:1/-1}
+}
+@media(max-width:500px){
+  .ns-condition .ns-reference-wrap,
+  .ns-condition .ns-value-wrap,
+  .ns-condition .ns-rule-preview{grid-column:1}
+}
