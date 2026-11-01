@@ -34,3 +34,11 @@ REVOKE ALL ON FUNCTION public.galileu_bloquear_mutacao() FROM PUBLIC, anon, auth
 DROP TRIGGER IF EXISTS trg_galileu_imutavel ON public.galileu_apostas;
 CREATE TRIGGER trg_galileu_imutavel BEFORE UPDATE OR DELETE
 ON public.galileu_apostas FOR EACH ROW EXECUTE FUNCTION public.galileu_bloquear_mutacao();
+
+-- TRUNCATE contorna triggers de linha. Impedir também esse comando.
+-- service_role não precisa ter acesso direto a estes registros.
+REVOKE ALL ON TABLE public.galileu_apostas FROM service_role;
+REVOKE ALL ON SEQUENCE public.galileu_apostas_id_seq FROM service_role;
+DROP TRIGGER IF EXISTS trg_galileu_bloquear_truncate ON public.galileu_apostas;
+CREATE TRIGGER trg_galileu_bloquear_truncate BEFORE TRUNCATE
+ON public.galileu_apostas FOR EACH STATEMENT EXECUTE FUNCTION public.galileu_bloquear_mutacao();
