@@ -3,7 +3,11 @@
 ## Interface
 - Página `/apostas` redireciona para `/apostas/x1`. As duas páginas acessíveis na navegação são **x1** e **Nostradamus**, em `/apostas/nostradamus`; todas as sub-abas existentes do x1 permanecem.
 - Liga → Rodadas: jogos sem placar têm link para `/apostas/x1?campeonato_id=...&temporada=...&mandante_id=...&visitante_id=...`, que preenche os filtros e inicia a análise.
-- Nostradamus: data de corte, recorte 5/10/20 jogos ou temporada até a data, uma das ligas ou todas, objetivo back/lay, nome e até 10 condições **AND** de mandante contra visitante + margem.
+- Nostradamus: data de corte, recorte 5/10/20 jogos ou temporada até a data, uma das ligas ou todas, objetivo back/lay e até 10 condições **AND** de mandante ou visitante contra valor fixo ou outro indicador. O nome é opcional para simular e obrigatório somente para salvar.
+- Cada condição contém equipe analisada (mandante/visitante), indicador, comparador, referência (valor fixo, indicador do mandante ou indicador do visitante), indicador de referência quando aplicável, e valor desejado (ou ajuste somado à métrica de referência).
+- Exemplo independente: **Visitante → Gols sofridos por jogo → > → Valor fixo → 1,5**.
+- Exemplo comparativo: **Mandante → xG por jogo → > → Indicador do visitante → xG por jogo → ajuste 0**.
+- Estratégias anteriores com os campos `metrica`, `comparador`, `margem` são interpretadas como mandante x visitante + margem, sem mudar resultados; elas são migradas ao serem carregadas no formulário.
 - Configurações salvas no `localStorage` do próprio navegador (não sincronizadas com o Supabase). Limite de 50 estratégias, carregar/excluir disponíveis.
 - Tabela por campeonato com entradas, green, red, win rate, cotadas e unidades. Expansão '+' revela até 400 partidas por liga com as métricas que atenderam os critérios.
 
