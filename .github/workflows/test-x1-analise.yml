@@ -1,0 +1,28 @@
+name: Testar análise x1 de dados e variância
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_x1_analise.py'
+      - 'web_app/tests/test_x1_analise.py'
+      - '.github/workflows/test-x1-analise.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_x1_analise.py'
+      - 'web_app/tests/test_x1_analise.py'
+      - '.github/workflows/test-x1-analise.yml'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependências
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Compilar Python
+        run: python -m compileall -q web_app/queries_x1_analise.py
+      - name: Testar cálculos e filtros
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_x1_analise.py' -v

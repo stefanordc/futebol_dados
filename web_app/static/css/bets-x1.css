@@ -7,7 +7,7 @@
 .x1-nav{display:flex;gap:8px;flex-wrap:wrap}
 .x1-nav a{border:1px solid var(--df-border);background:var(--df-raised);border-radius:999px;color:var(--df-secondary);padding:8px 14px;font-weight:700;text-decoration:none}
 .x1-nav a[aria-current="page"]{color:var(--df-orange);border-color:var(--df-orange);background:var(--df-accent-soft)}
-.x1-filter{display:grid;grid-template-columns:minmax(160px,1.2fr) repeat(3,minmax(130px,1fr)) auto;align-items:end;gap:13px;background:var(--df-surface);border:1px solid var(--df-border);border-radius:16px;padding:20px;margin-bottom:10px}
+.x1-filter{display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(4,minmax(120px,1fr)) auto;align-items:end;gap:13px;background:var(--df-surface);border:1px solid var(--df-border);border-radius:16px;padding:20px;margin-bottom:10px}
 .x1-filter label{display:grid;gap:7px;min-width:0;color:var(--df-secondary);font-size:12px;font-weight:700}
 .x1-filter select{min-width:0;max-width:100%;height:42px;border:1px solid var(--df-border);border-radius:10px;background:var(--df-raised);color:var(--df-text);padding:0 10px;font-size:13px}
 .x1-submit{min-height:42px;background:var(--df-orange);border:0;border-radius:10px;padding:0 15px;color:var(--df-orange-text,#0c0c0c);font-weight:850;white-space:nowrap;cursor:pointer}
@@ -81,3 +81,55 @@
 @media(max-width:850px){.x1-radars{grid-template-columns:1fr}.x1-prob-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.x1-score-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.x1-keyrates{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:550px){.x1-hero,.x1-card{padding:16px}.x1-filter{grid-template-columns:1fr}.x1-filter .x1-submit{grid-column:1}.x1-headline{padding:12px;gap:8px}.x1-team-identity img{width:32px;height:32px;flex-basis:32px}.x1-team-identity{gap:5px}.x1-versus span{font-size:16px}.x1-score-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.x1-prob-grid{grid-template-columns:1fr}.x1-keyrates{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.x1-bar span{transition:none}}
+
+/* X1 — análise descritiva por janela de jogos */
+.x1-analysis-header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:21px 23px;border-radius:14px;border:1px solid var(--df-border);background:var(--df-surface);margin-bottom:16px}
+.x1-analysis-header h2{font-size:clamp(18px,2.2vw,24px);margin:6px 0;color:var(--df-text)}
+.x1-analysis-header p{margin:0}
+.x1-view-mode{display:flex;gap:5px;background:var(--df-raised);padding:4px;border:1px solid var(--df-border);border-radius:10px}
+.x1-view-mode button{padding:10px 13px;background:transparent;border:1px solid transparent;border-radius:8px;
+  font-weight:800;color:var(--df-secondary);cursor:pointer;white-space:nowrap}
+.x1-view-mode button.active{background:var(--df-accent-soft);border-color:var(--df-orange);color:var(--df-orange)}
+.x1-analysis-tabs{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:19px}
+.x1-analysis-tabs button{background:var(--df-raised);border:1px solid var(--df-border);color:var(--df-secondary);
+  font-size:12px;font-weight:750;border-radius:999px;padding:10px 13px;cursor:pointer}
+.x1-analysis-tabs button.active{border-color:var(--df-orange);color:var(--df-orange);background:var(--df-accent-soft)}
+.x1-analysis-tabs button:focus-visible,.x1-view-mode button:focus-visible{outline:2px solid var(--df-orange);outline-offset:3px}
+.x1-side-by-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.x1-side-by-side>div{min-width:0}
+.x1-team-summary{background:var(--df-surface);border:1px solid var(--df-border);border-radius:14px;padding:20px;min-width:0}
+.x1-team-summary h3{font-size:19px;margin:0 0 4px}
+.x1-note{font-size:12px;color:var(--df-muted)}
+.x1-data-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:15px}
+.x1-data-kpi{display:grid;gap:9px;min-width:0;border:1px solid var(--df-border-soft);border-radius:10px;
+  background:var(--df-raised);padding:14px}
+.x1-data-kpi span{font-size:12px;color:var(--df-secondary);overflow-wrap:anywhere}
+.x1-data-kpi strong{font-size:clamp(19px,2.3vw,28px);font-variant-numeric:tabular-nums;color:var(--df-text)}
+.x1-compare-table{overflow-x:auto;max-width:100%;border:1px solid var(--df-border);border-radius:12px;margin-top:12px}
+.x1-compare-table table{border-collapse:collapse;width:100%;table-layout:fixed;min-width:510px}
+.x1-compare-table th,.x1-compare-table td{border-bottom:1px solid var(--df-border-soft);
+  padding:13px 14px;vertical-align:middle;font-size:13px}
+.x1-compare-table tr:last-child th,.x1-compare-table tr:last-child td{border-bottom:0}
+.x1-compare-table thead th{font-size:11px;font-weight:850;text-transform:uppercase;
+  background:var(--df-raised);color:var(--df-secondary);position:sticky;top:0}
+.x1-compare-table tbody th{text-align:left;font-weight:680;color:var(--df-text);width:48%;overflow-wrap:anywhere}
+.x1-compare-table tbody td{text-align:right;color:var(--df-text);font-weight:800;font-variant-numeric:tabular-nums}
+.x1-compare-table td small{display:block;font-size:10px;color:var(--df-muted);font-weight:400;margin-top:4px}
+.x1-compare-table tbody tr:hover{background:var(--df-accent-soft)}
+.x1-metric-name{display:flex;align-items:center;gap:8px}
+.x1-tip{display:inline-block;position:relative;flex-shrink:0}
+.x1-tip summary{list-style:none;display:grid;place-items:center;width:19px;height:19px;
+  border:1px solid var(--df-border);border-radius:50%;cursor:help;color:var(--df-secondary);
+  background:var(--df-raised);font-size:11px;font-weight:900}
+.x1-tip summary::-webkit-details-marker{display:none}
+.x1-tip[open] summary{border-color:var(--df-orange);color:var(--df-orange)}
+.x1-tip p{position:absolute;top:25px;left:-15px;width:min(280px,70vw);z-index:30;background:var(--df-raised);
+  border:1px solid var(--df-border);box-shadow:0 8px 18px #0004;border-radius:10px;
+  padding:12px;color:var(--df-text);font-size:12px;line-height:1.5;font-weight:500;text-align:left}
+.x1-chart{background:var(--df-surface);border:1px solid var(--df-border);border-radius:14px;padding:16px;min-width:0}
+.x1-chart svg{display:block;width:100%;max-width:640px;height:auto}
+.x1-headline-fallback{width:100%;display:flex;justify-content:space-around;gap:12px;align-items:center;font-size:clamp(16px,2vw,24px)}
+.x1-tabs button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:920px){.x1-analysis-header{align-items:stretch;flex-direction:column}.x1-view-mode{align-self:flex-start}.x1-side-by-side{grid-template-columns:1fr}}
+@media(max-width:580px){.x1-data-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.x1-compare-table th,.x1-compare-table td{padding:10px 9px}}

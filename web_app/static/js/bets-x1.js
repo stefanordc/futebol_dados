@@ -91,17 +91,44 @@
     submit.disabled=true;submit.textContent="Calculando probabilidades…";results.hidden=true;
     message("Treinando modelo de gols com as partidas registradas…");
     try{
-      data=await get("/api/apostas/x1?"+params);
-      render();
-      feedback.textContent="";
+      const analysisParams=new URLSearchParams(params);
+      analysisParams.set("jogos",$("#x1-jogos").value||"20");
+      const [predicted,described]=await Promise.allSettled([
+        get("/api/apostas/x1?"+params),
+        get("/api/apostas/x1/analise?"+analysisParams)
+      ]);
+      data=predicted.status==="fulfilled"?predicted.value:null;
+      if(data)render();
+      else {
+        $("#x1-headline").innerHTML='<div class="x1-headline-fallback"><strong>'+
+          esc(clubs.find(c=>String(c.id)===home.value)?.clube||"Mandante")+
+          '</strong> <span>×</span> <strong>'+
+          esc(clubs.find(c=>String(c.id)===away.value)?.clube||"Visitante")+'</strong></div>';
+      }
+      window.X1Dados?.set(described.status==="fulfilled"?described.value:null,
+        described.status==="rejected"?described.reason.message:null);
+      $("#x1-tabs").querySelectorAll("[data-tab]").forEach(button=>{
+        button.disabled=!data&&button.dataset.tab!=="visao";
+        button.title=button.disabled?"Projeção indisponível para esta amostra":"";
+      });
       results.hidden=false;
       showTab("visao");
+      if(described.status==="rejected"&&predicted.status==="rejected"){
+        message("Não foi possível carregar análise e projeção: "+described.reason.message+
+          " · "+predicted.reason.message,"error");
+      } else if(described.status==="rejected") {
+        message("A projeção carregou, mas a análise de dados falhou: "+described.reason.message,"error");
+      } else if(predicted.status==="rejected") {
+        message("Análise descritiva carregada. Previsão indisponível: "+predicted.reason.message,"error");
+      } else {
+        feedback.textContent="";
+      }
     }catch(e){message(e.message,"error");}
     finally{submit.disabled=false;submit.textContent="Analisar confronto";}
   });
   $("#x1-tabs").addEventListener("click",ev=>{
     const button=ev.target.closest("[data-tab]");
-    if(button)showTab(button.dataset.tab);
+    if(button&&!button.disabled)showTab(button.dataset.tab);
   });
   function showTab(tab){
     $("#x1-tabs").querySelectorAll("[data-tab]").forEach(btn=>{
