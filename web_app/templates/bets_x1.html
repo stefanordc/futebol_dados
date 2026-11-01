@@ -9,7 +9,7 @@
   <link rel="icon" href="/static/img/favicon.png" type="image/png">
   <link rel="stylesheet" href="/static/css/app.css?v=28">
   <link rel="stylesheet" href="/static/css/premium.css?v=x1-20261031">
-  <link rel="stylesheet" href="/static/css/bets-x1.css?v=x1-20261031">
+  <link rel="stylesheet" href="/static/css/bets-x1.css?v=x1-analysis-20261101">
 </head>
 <body data-page="bet-x1">
 <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
@@ -25,13 +25,19 @@
     <label>Temporada <select id="x1-temporada" required disabled><option value="">Escolha a temporada</option></select></label>
     <label>Mandante <select id="x1-mandante" required disabled><option value="">Selecione o mandante</option></select></label>
     <label>Visitante <select id="x1-visitante" required disabled><option value="">Selecione o visitante</option></select></label>
+    <label>Jogos analisados <select id="x1-jogos" name="jogos">
+      <option value="5">Últimos 5 jogos</option>
+      <option value="10">Últimos 10 jogos</option>
+      <option value="20" selected>Últimos 20 jogos</option>
+      <option value="temporada">Temporada inteira</option>
+    </select></label>
     <button class="x1-submit" type="submit">Analisar confronto</button>
   </form>
   <div id="x1-feedback" role="status" aria-live="polite"></div>
   <div id="x1-resultados" hidden>
     <section id="x1-headline" class="x1-headline"></section>
     <nav id="x1-tabs" class="x1-tabs" aria-label="Áreas do relatório">
-      <button type="button" data-tab="visao" class="active" aria-selected="true">Visão geral</button>
+      <button type="button" data-tab="visao" class="active" aria-selected="true">Análise de dados</button>
       <button type="button" data-tab="radar" aria-selected="false">Forças dos clubes</button>
       <button type="button" data-tab="probabilidades" aria-selected="false">Mercados</button>
       <button type="button" data-tab="placares" aria-selected="false">Mapa de placares</button>
@@ -52,5 +58,6 @@
 </div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=x1-20261031" defer></script>
-<script src="/static/js/bets-x1.js?v=x1-fisicos-20261101" defer></script>
+<script src="/static/js/bets-x1.js?v=x1-analysis-20261101" defer></script>
+<script src="/static/js/bets-x1-analise.js?v=x1-analysis-20261101" defer></script>
 </body></html>
