@@ -47,21 +47,11 @@ function updateConditionRow(row){
   row.querySelector(".ns-value-label").textContent=legacy?"Ajuste da regra antiga":"Valor absoluto";
   value.placeholder=fixed?"Ex.: 1,5":"Ex.: 0";
   value.setAttribute("aria-label",legacy?"Ajuste da regra antiga":"Valor absoluto");
-  const side=row.querySelector(".ns-side").selectedOptions[0]?.textContent||"Mandante";
-  const metric=row.querySelector(".ns-metric").selectedOptions[0]?.textContent||"Indicador";
-  const comparison=row.querySelector(".ns-comparison").selectedOptions[0]?.textContent||">";
-  const opponent=side==="Mandante"?"visitante":"mandante";
-  const preview=row.querySelector(".ns-rule-preview");
-  if(fixed){
-    preview.textContent=side+" · "+metric+" "+comparison+" "+(value.value||"valor informado");
-  }else if(legacy){
-    preview.textContent="Regra salva: "+side+" · "+metric+" "+comparison+" "+
-      row.querySelector(".ns-legacy-side").selectedOptions[0]?.textContent+" · "+
-      row.querySelector(".ns-reference-metric").selectedOptions[0]?.textContent+
-      (Number(value.value)?(" + "+value.value):"");
-  }else{
-    preview.textContent=side+" · "+metric+" "+comparison+" mesmo indicador do "+opponent;
-  }
+}
+function missingConditionValue(condition){
+  // "Mesmo indicador do adversário" não tem, nem precisa ter, valor numérico.
+  return condition.referencia!=="adversario" &&
+    (condition.valor==null||!Number.isFinite(condition.valor));
 }
 function conditionLine(item={}){
   const data=normalizeCondition(item);
@@ -85,8 +75,7 @@ function conditionLine(item={}){
     '<label class="ns-legacy-side-wrap" hidden>Referência original<select class="ns-legacy-side" aria-label="Referência original">'+
       opts({mandante:"Mandante",visitante:"Visitante"},data.referencia)+'</select></label>'+
     '<label class="ns-refmetric-wrap" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
-      opts(meta.metricas,data.metrica_ref)+'</select></label>'+
-    '<p class="ns-rule-preview" aria-live="polite"></p>';
+      opts(meta.metricas,data.metrica_ref)+'</select></label>';
   $("#ns-conditions").appendChild(div);
   updateConditionRow(div);
   drawCount();
@@ -147,10 +136,6 @@ $("#ns-conditions").addEventListener("change",e=>{
   const row=e.target.closest(".ns-condition");
   if(row)updateConditionRow(row);
 });
-$("#ns-conditions").addEventListener("input",e=>{
-  const row=e.target.closest(".ns-condition");
-  if(row&&e.target.matches(".ns-value"))updateConditionRow(row);
-});
 $("#ns-conditions").addEventListener("click",e=>{
   const btn=e.target.closest(".ns-remove");
   if(btn&&$("#ns-conditions").children.length>1){btn.closest(".ns-condition").remove();drawCount();}
@@ -158,8 +143,8 @@ $("#ns-conditions").addEventListener("click",e=>{
 $("#ns-save").addEventListener("click",()=>{
   if(!meta)return;
   const v=values();if(!v.nome){say("Informe um nome apenas para salvar a estratégia.",true);$("#ns-nome").focus();return;}
-  if(!v.corte||!v.condicoes.length||v.condicoes.some(c=>c.valor==null||!Number.isFinite(c.valor))){
-    say("Preencha a data e todos os valores das condições antes de salvar.",true);return;
+  if(!v.corte||!v.condicoes.length||v.condicoes.some(missingConditionValue)){
+    say("Preencha a data e os valores das condições que usam Valor absoluto.",true);return;
   }
   if(stored.length>=50){say("Limite de 50 estratégias locais.",true);return;}
   stored.push(v);
@@ -211,8 +196,8 @@ $("#ns-form").addEventListener("submit",async e=>{
   e.preventDefault();
   const config=values();
   if(config.condicoes.length>10||!config.condicoes.length){say("Adicione de 1 a 10 condições.",true);return;}
-  if(config.condicoes.some(c=>c.valor==null||!Number.isFinite(c.valor))){
-    say("Informe o valor desejado em todas as condições.",true);return;
+  if(config.condicoes.some(missingConditionValue)){
+    say("Informe um número válido apenas nas condições com Valor absoluto.",true);return;
   }
   const button=$("#ns-form button[type=submit]");button.disabled=true;button.textContent="Processando histórico…";
   $("#ns-results").hidden=true;say("Calculando as condições em ordem cronológica, sem dados futuros…");
