@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
+  <title>x1 · Análise de partidas | Dados Futebol</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/static/css/app.css?v=28">
+  <link rel="stylesheet" href="/static/css/premium.css?v=x1-20261031">
+  <link rel="stylesheet" href="/static/css/bets-x1.css?v=x1-20261031">
+</head>
+<body data-page="bet-x1">
+<a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+<div class="df-shell" id="df-shell">
+<div id="df-sidebar-mount"></div>
+<div class="df-stage">
+<header id="df-topbar-mount"></header>
+<main id="main-content" class="match-wrap df-common-page x1-main">
+  <section class="x1-hero"><div class="df-eyebrow">LABORATÓRIO DE PARTIDAS · X1</div><h1>Comparador de confrontos</h1><p>Probabilidades calculadas com histórico do campeonato. Análise estatística, não recomendação de aposta.</p>
+    <div class="x1-nav"><a href="/apostas">Partidas e odds históricas</a><a href="/apostas/x1" aria-current="page">x1 · Projeção</a></div></section>
+  <form id="x1-form" class="x1-filter" autocomplete="off">
+    <label>Campeonato <select id="x1-campeonato" required><option value="">Escolha o campeonato</option></select></label>
+    <label>Temporada <select id="x1-temporada" required disabled><option value="">Escolha a temporada</option></select></label>
+    <label>Mandante <select id="x1-mandante" required disabled><option value="">Selecione o mandante</option></select></label>
+    <label>Visitante <select id="x1-visitante" required disabled><option value="">Selecione o visitante</option></select></label>
+    <button class="x1-submit" type="submit">Analisar confronto</button>
+  </form>
+  <div id="x1-feedback" role="status" aria-live="polite"></div>
+  <div id="x1-resultados" hidden>
+    <section id="x1-headline" class="x1-headline"></section>
+    <nav id="x1-tabs" class="x1-tabs" aria-label="Áreas do relatório">
+      <button type="button" data-tab="visao" class="active" aria-selected="true">Visão geral</button>
+      <button type="button" data-tab="radar" aria-selected="false">Forças dos clubes</button>
+      <button type="button" data-tab="probabilidades" aria-selected="false">Mercados</button>
+      <button type="button" data-tab="placares" aria-selected="false">Mapa de placares</button>
+      <button type="button" data-tab="odds" aria-selected="false">Odds e EV</button>
+      <button type="button" data-tab="relatorio" aria-selected="false">Relatório</button>
+    </nav>
+    <div id="x1-panels">
+      <section id="x1-visao" data-panel="visao"></section>
+      <section id="x1-radar" data-panel="radar" hidden></section>
+      <section id="x1-probabilidades" data-panel="probabilidades" hidden></section>
+      <section id="x1-placares" data-panel="placares" hidden></section>
+      <section id="x1-odds" data-panel="odds" hidden></section>
+      <section id="x1-relatorio" data-panel="relatorio" hidden></section>
+    </div>
+    <p id="x1-disclaimer" class="x1-disclaimer">Projeções condicionadas aos dados disponíveis. Odds justas não têm EV positivo por definição; o EV depende da odd negociada, comissão e precisão do modelo. Sem garantia de lucro. 18+.</p>
+  </div>
+</main>
+</div></div>
+<div id="df-toast" role="status" aria-live="polite"></div>
+<script src="/static/js/shell.js?v=x1-20261031" defer></script>
+<script src="/static/js/bets-x1.js?v=x1-20261031" defer></script>
+</body></html>

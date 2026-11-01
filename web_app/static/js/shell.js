@@ -48,7 +48,8 @@
     path.startsWith('/clube/') ? '/clubes' :
     path.startsWith('/jogador/') ? '/jogadores' :
     path.startsWith('/tecnico/') ? '/tecnicos' :
-    path.startsWith('/arbitro/') ? '/arbitros' : links.find(x => x[1] === path)?.[1] || '/';
+    path.startsWith('/arbitro/') ? '/arbitros' :
+    path.startsWith('/apostas/') ? '/apostas' : links.find(x => x[1] === path)?.[1] || '/';
   const activeTitle = links.find(x => x[1] === active)?.[0] || 'Jogos';
   const sideMount = document.getElementById('df-sidebar-mount');
   const topMount = document.getElementById('df-topbar-mount');
@@ -154,7 +155,7 @@
       root.appendChild(item); setTimeout(()=>item.remove(),4000);
     }
   };
-  if (path === '/apostas') {
+  if (path === '/apostas' || path.startsWith('/apostas/')) {
     const footer = document.createElement('footer');footer.className='df-responsible';footer.textContent='Apostas envolvem riscos financeiros. Defina limites e aposte com responsabilidade. Proibido para menores de 18 anos.';
     document.querySelector('main')?.appendChild(footer);
   }
