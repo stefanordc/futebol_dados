@@ -38,3 +38,13 @@ assert.equal(js.split(".some(missingConditionValue)").length-1,2,
 assert.ok(!js.includes("ns-rule-preview")&&!css.includes("ns-rule-preview"),
   "Não pode renderizar o resumo redundante sob cada condição");
 console.log("Validação de backtest e interface sem resumos: OK.");
+
+const html=fs.readFileSync("templates/nostradamus.html","utf8");
+const src=fs.readFileSync("static/js/nostradamus.js","utf8");
+assert.ok(!html.includes("<th>Entradas cotadas</th>"),"Remover coluna Entradas cotadas");
+assert.ok(!html.includes("<th>Resultado (u)</th>"),"Remover coluna Resultado (u)");
+assert.ok(!src.includes("fmt(r.cotadas,0)"),"Remover valores de Entradas cotadas");
+const summaryRender=src.slice(src.indexOf("function show(response){"),src.indexOf('$("#ns-summary").addEventListener("click"'));
+assert.ok(!summaryRender.includes("fmt(r.unidades,2)"),"Remover resultado financeiro da tabela resumo");
+assert.ok(src.includes('fmt(r.historico_mandante,0)') && src.includes('fmt(r.historico_visitante,0)'),
+  "Detalhamento informa quantos jogos entraram no histórico");

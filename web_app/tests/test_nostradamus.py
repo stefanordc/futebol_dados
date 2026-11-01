@@ -218,6 +218,63 @@ class TestNostradamus(TestCase):
                    "referencia":"adversario"}
         self.assertEqual(ns.testar(config(self.cutoff,conditions=[condition]),rows=rows)["entradas"],0)
 
+    def test_ate_20_jogos_disponiveis_inclui_ligas_europeias(self):
+        # Cenário 01/01/2025: Europa tem 15-19 jogos por equipe.
+        # A seleção "20" não pode excluí-las por não terem 20 jogos completos.
+        cutoff=date(2025,1,1)
+        first=date(2024,8,15)
+        data=[]
+        leagues=[("Brasileiro",6,38,"2024"),
+                 ("Bundesliga",8,15,"2024/2025"),
+                 ("LaLiga",1,19,"2024/2025"),
+                 ("Premier League",5,19,"2024/2025"),
+                 ("Serie A",3,18,"2024/2025")]
+        game_id=1000
+        for liga,liga_id,count,season in leagues:
+            for i in range(count):
+                game_id+=1
+                start=(date(2024,4,1) if liga=="Brasileiro" else first)
+                item=game(game_id,start+timedelta(days=i*7),
+                          gf=2,ga=0,comp=liga_id,season=season)
+                item["campeonato"]=liga
+                data.append(item)
+        rules=[
+          {"lado":"mandante","metrica":"xg","comparador":"gt",
+           "referencia":"adversario"},
+          {"lado":"visitante","metrica":"gols_sofridos","comparador":"ge",
+           "referencia":"valor","valor":0.8}
+        ]
+        result=ns.testar(config(cutoff,goal="lay_visitante",
+                               window="20",conditions=rules),rows=data)
+        grouped={r["campeonato"]:r for r in result["resultados"]}
+        self.assertEqual(set(grouped),set(name for name,*_ in leagues))
+        for name,_,games_count,_ in leagues:
+            expected=games_count-5
+            self.assertEqual(grouped[name]["entradas"],expected,name)
+            self.assertEqual(grouped[name]["greens"],expected,name)
+            self.assertEqual(grouped[name]["reds"],0,name)
+            self.assertEqual(grouped[name]["jogos"][0]["historico_mandante"],5)
+            self.assertEqual(grouped[name]["jogos"][0]["historico_visitante"],5)
+            self.assertLessEqual(grouped[name]["jogos"][-1]["historico_mandante"],20)
+
+    def test_janela_10_e_20_exigem_cinco_jogos_e_nunca_utilizam_hoje(self):
+        d=self.start
+        data=[game(i,d+timedelta(days=i)) for i in range(8)]
+        data.append(game(99,date.today()))
+        data.append(game(100,date.today()+timedelta(days=1)))
+        for window in ("5","10","20","temporada"):
+            with self.subTest(window=window):
+                result=ns.testar(config(self.cutoff,window=window),rows=data)
+                self.assertEqual(result["entradas"],3)
+                self.assertEqual(result["resultados"][0]["jogos"][0]["historico_mandante"],5)
+                self.assertEqual(result["resultados"][0]["jogos"][0]["historico_visitante"],5)
+
+    def test_sem_amostra_minima_ainda_exclui_partida(self):
+        data=[game(i,self.start+timedelta(days=i)) for i in range(5)]
+        for window in ("5","10","20","temporada"):
+            result=ns.testar(config(self.cutoff,window=window),rows=data)
+            self.assertEqual(result["entradas"],0)
+
     def test_mercados_e_limites_lay(self):
         self.assertTrue(ns._settle("over_25",2,1))
         self.assertFalse(ns._settle("lay_goleada_mandante",3,0))

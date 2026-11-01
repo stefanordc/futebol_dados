@@ -97,8 +97,12 @@ def _safe_div(a,b):
     return a/b if a is not None and b is not None and b>0 else None
 
 def _stats(history,amount):
+    # O recorte 10/20 indica um LIMITE máximo, não uma obrigação de ter
+    # exatamente N jogos já concluídos naquela temporada. Isso permite
+    # ligas de início em agosto também serem avaliadas em janeiro.
+    # Exige no mínimo 5 partidas anteriores para evitar amostra minúscula.
     selected=history[-amount:] if amount is not None else history
-    if len(selected)<(amount or 5):
+    if len(selected)<5:
         return None
     n=len(selected)
     goals=[x["gf"] for x in selected]
@@ -337,6 +341,8 @@ def testar(payload,rows=None):
                       "visitante":g["visitante"],"placar":str(g["gols_casa"])+"x"+str(g["gols_fora"]),
                       "green":hit,"odd":odd,"tipo_odd":origin,
                       "unidades":round(units,3) if units is not None else None,
+                      "historico_mandante":min(len(histories[hkey]),length) if length is not None else len(histories[hkey]),
+                      "historico_visitante":min(len(histories[akey]),length) if length is not None else len(histories[akey]),
                       "condicoes":details,
                     })
         for g in games:
@@ -356,7 +362,13 @@ def testar(payload,rows=None):
         rec["win_rate"]=round(100*rec["greens"]/rec["entradas"],2) if rec["entradas"] else 0
         rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
         summary.append(rec)
+    recorte_descrito=("até os últimos "+window+" jogos disponíveis" if window!="temporada"
+                     else "todos os jogos disponíveis da temporada")
     return {"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "resultados":summary,"entradas":matched_total,
             "limite_detalhes":400,"odd_hipotetica":manual,
-            "aviso":"Somente jogos concluídos anteriores a hoje e até a data de corte. Para cada entrada, as condições usam exclusivamente jogos anteriores à data dela, dentro da mesma liga e temporada. Sem odd comprovadamente anterior ao jogo (ou odd hipotética explícita), unidades indisponíveis. Odds hipotéticas não representam preços executáveis. Back usa risco de 1u; lay, responsabilidade de 1u (comissão sobre greens). Sem garantia de ganhos."}
+            "aviso":"A data de corte limita as partidas analisadas. Para cada entrada, usamos "
+                    +recorte_descrito+" anteriores à data do confronto, na mesma liga e temporada, "
+                    "com mínimo de 5 jogos. Partidas futuras, da própria entrada ou da mesma data "
+                    "não entram nos indicadores. Win rate = greens / entradas. "
+                    "O resultado histórico não garante desempenho futuro."}

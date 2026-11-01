@@ -155,6 +155,7 @@ function details(rows){
   if(!rows.length)return '<p class="x1-help">Nenhuma partida passou pelas condições.</p>';
   return '<div class="ns-scroll"><table class="ns-table"><thead><tr><th>Data</th><th>Jogo</th><th>Placar</th><th>Resultado</th><th>Odd</th><th>Unidades</th></tr></thead><tbody>'+
   rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td><strong>'+esc(r.mandante)+' × '+esc(r.visitante)+'</strong>'+
+    '<div class="ns-history-size">Histórico anterior: '+fmt(r.historico_mandante,0)+' jogos do mandante · '+fmt(r.historico_visitante,0)+' do visitante</div>'+
     '<div class="ns-match-conditions">'+(r.condicoes||[]).map(c=>
       '<div><b>'+esc(c.lado==="visitante"?"Visitante":"Mandante")+'</b> · '+esc(c.nome)+
       ': <b>'+fmt(c.observado,2)+'</b> '+esc(c.comparador)+
@@ -175,11 +176,10 @@ function show(response){
     '<tr><td><button class="ns-expand" type="button" data-expand="'+i+'" aria-expanded="false" aria-label="Exibir jogos da liga '+esc(r.campeonato)+'">+</button></td>'+
     '<td>'+esc(r.campeonato)+'</td><td>'+fmt(r.entradas,0)+'</td>'+
     '<td class="ns-green">'+fmt(r.greens,0)+'</td><td class="ns-red">'+fmt(r.reds,0)+'</td>'+
-    '<td>'+fmt(r.win_rate,1)+'%</td><td>'+fmt(r.cotadas,0)+'</td>'+
-    '<td class="'+(r.unidades>=0?"ns-green":"ns-red")+'">'+fmt(r.unidades,2)+'</td></tr>').join(""):
-    '<tr><td colspan="8">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
+    '<td>'+fmt(r.win_rate,1)+'%</td></tr>').join(""):
+    '<tr><td colspan="6">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
   $("#ns-details").innerHTML="";
-  say("Análise concluída: "+response.entradas+" entradas históricas. Confira a cobertura das odds.");
+  say("Análise concluída: "+response.entradas+" entradas históricas em "+response.resultados.length+" campeonato(s). Expanda uma liga para conferir as condições e o histórico de cada jogo.");
 }
 $("#ns-summary").addEventListener("click",e=>{
   const btn=e.target.closest("[data-expand]");if(!btn||!loaded)return;

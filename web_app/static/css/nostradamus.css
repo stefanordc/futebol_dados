@@ -80,3 +80,6 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   .ns-condition .ns-reference-wrap,
   .ns-condition .ns-value-wrap{grid-column:1}
 }
+
+/* Quantidade de partidas anteriores utilizada nas métricas de cada entrada. */
+.ns-history-size{margin:6px 0 8px;font-size:11px;color:var(--df-secondary);line-height:1.5}
