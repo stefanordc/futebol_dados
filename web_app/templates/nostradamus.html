@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101218">
+<script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
+<title>Nostradamus | Dados Futebol</title>
+<link rel="icon" href="/static/img/favicon.png" type="image/png">
+<link rel="stylesheet" href="/static/css/app.css?v=28">
+<link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
+<link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-1">
+</head>
+<body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+<div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
+<header id="df-topbar-mount"></header><main id="main-content" class="match-wrap df-common-page x1-main">
+<section class="x1-hero"><div class="df-eyebrow">LABORATÓRIO · ANÁLISE HISTÓRICA</div>
+<h1>Nostradamus</h1><p>Teste regras sobre partidas históricas utilizando somente informações disponíveis antes de cada jogo.</p>
+<div class="x1-nav"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus" aria-current="page">Nostradamus · Backtesting</a></div></section>
+<form id="ns-form" class="ns-panel">
+<div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período e objetivo</h2></div></div>
+<div class="ns-fields">
+<label>Data de corte (inclusive)<input type="date" id="ns-corte" required></label>
+<label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5</option><option value="10">Últimos 10</option><option value="20" selected>Últimos 20</option><option value="temporada">Temporada inteira até cada entrada</option></select></label>
+<label>Campeonato<select id="ns-campeonato"><option value="">Todos os campeonatos</option></select></label>
+<label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
+<label>Nome da estratégia<input id="ns-nome" maxlength="80" required placeholder="Ex.: Mandante com xG superior"></label>
+<label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
+<label>Comissão de lay (%)<input id="ns-comissao" type="number" inputmode="decimal" min="0" max="30" step="0.1" value="2"></label>
+</div>
+<div class="ns-info">Odd opcional: usada somente para simulação, não é uma cotação histórica. Sem odd anterior comprovada, o lucro em unidades fica indisponível. Lay usa 1 unidade de responsabilidade; back usa 1 unidade de stake.</div>
+<div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">A comparação é sempre <strong>métrica do mandante</strong> contra <strong>métrica do visitante + margem</strong>. Todos os critérios precisam ser satisfeitos. Máximo de 10 condições.</p></div></div>
+<div id="ns-conditions" class="ns-conditions"></div>
+<div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
+<div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
+</form>
+<div id="ns-feedback" role="status" aria-live="polite"></div>
+<section id="ns-saved" class="ns-panel"><h2>Minhas estratégias</h2><p class="x1-help">Salvas apenas neste navegador. Para compartilhar ou recuperar em outro computador é necessário exportar ou copiar as condições.</p><div id="ns-saved-list"></div></section>
+<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Entradas cotadas</th><th>Resultado (u)</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+<p class="x1-disclaimer">Simulação histórica, não recomendação de aposta. A execução retrospectiva não demonstra lucratividade futura; dados ausentes, preço de entrada, liquidez, comissão e seleção de estratégias podem enviesar resultados. 18+.</p>
+</main></div></div>
+<div id="df-toast" role="status" aria-live="polite"></div>
+<script src="/static/js/shell.js?v=nostradamus-1" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-1" defer></script>
+</body></html>

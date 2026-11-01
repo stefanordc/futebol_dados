@@ -1,0 +1,43 @@
+/* Nostradamus — usa a paleta do design system existente. */
+.ns-panel{border:1px solid var(--df-border);background:var(--df-surface);border-radius:16px;padding:24px;margin:18px 0;min-width:0}
+.ns-panel h2{font-size:21px;margin:4px 0 12px}
+.ns-heading{margin:12px 0 20px}
+.ns-heading p{margin:8px 0}
+.ns-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ns-fields label,.ns-condition label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--df-secondary);font-weight:700;min-width:0}
+.ns-fields input,.ns-fields select,.ns-condition select,.ns-condition input{
+  min-width:0;width:100%;background:var(--df-raised);border:1px solid var(--df-border);border-radius:10px;
+  color:var(--df-text);font:inherit;font-size:13px;padding:12px;min-height:45px}
+.ns-fields :is(input,select):focus-visible,.ns-condition :is(input,select):focus-visible{
+  outline:2px solid var(--df-orange);outline-offset:2px}
+.ns-info{font-size:12px;color:var(--df-muted);border-left:3px solid var(--df-orange);padding:10px 15px;margin:18px 0 26px;line-height:1.6}
+.ns-condition{display:grid;grid-template-columns:minmax(185px,2fr) minmax(135px,1fr) minmax(115px,1fr) auto;
+  gap:12px;align-items:end;margin-bottom:12px;border:1px solid var(--df-border);border-radius:12px;background:var(--df-raised);padding:13px}
+.ns-condition select,.ns-condition input{background:var(--df-surface)}
+.ns-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:17px 0}
+.ns-button,.ns-remove,.ns-saved-item button,.ns-expand{border:1px solid var(--df-border);border-radius:10px;
+  background:var(--df-raised);color:var(--df-text);font-weight:750;font-size:13px;padding:11px 14px;cursor:pointer}
+.ns-button.primary{background:var(--df-orange);color:#111;border-color:var(--df-orange)}
+.ns-button:disabled,.ns-remove:disabled{opacity:.55;cursor:not-allowed}
+.ns-remove{color:var(--df-secondary)}
+.ns-panel button:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+.ns-saved-item{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--df-border);
+padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
+.ns-saved-item>div:first-child{display:grid;gap:4px}.ns-saved-item small{color:var(--df-secondary);font-size:11px}
+.ns-saved-item .ns-actions{margin:0}
+.ns-scroll{overflow-x:auto;max-width:100%}
+.ns-table{border-collapse:collapse;width:100%;min-width:740px;margin:12px 0}
+.ns-table th,.ns-table td{padding:14px 12px;border-bottom:1px solid var(--df-border);text-align:center;font-variant-numeric:tabular-nums}
+.ns-table thead th{font-size:11px;position:sticky;top:0;background:var(--df-raised);color:var(--df-secondary);text-transform:uppercase}
+.ns-table tbody tr:hover{background:var(--df-accent-soft)}
+.ns-table th:nth-child(2),.ns-table td:nth-child(2){text-align:left}
+.ns-green{color:#35c993;font-weight:800}.ns-red{color:#f18a85;font-weight:800}
+.ns-expand{min-width:38px;padding:7px;font-size:18px}
+.ns-match-conditions{font-weight:400;display:grid;gap:4px;color:var(--df-secondary);font-size:11px;text-align:left;margin-top:10px}
+.ns-match-conditions b{color:var(--df-text)}
+#ns-details{margin-top:18px;border-top:1px solid var(--df-border);padding-top:10px}
+#ns-details h3{font-size:16px}
+@media(max-width:1050px){.ns-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:710px){.ns-fields{grid-template-columns:1fr}.ns-condition{grid-template-columns:1fr 1fr}.ns-condition label:first-child{grid-column:span 2}
+.ns-saved-item{align-items:flex-start;flex-direction:column}.ns-panel{padding:16px}}
+@media(max-width:390px){.ns-condition{grid-template-columns:1fr}.ns-condition label:first-child{grid-column:span 1}}

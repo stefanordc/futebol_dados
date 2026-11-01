@@ -222,6 +222,7 @@ def _jogos_rodada(campeonato_id: int, temporada: str, n_rodada: int) -> list[dic
     rows = fetch_all(
         """
         SELECT j.id, j.data, j.rodada, j.gols_casa, j.gols_fora,
+               j.campeonato_id, j.temporada, j.casa_id, j.fora_id,
                ca.clube AS casa, fa.clube AS fora,
                cf_casa.id_externo AS casa_id_fotmob,
                cf_fora.id_externo AS fora_id_fotmob
