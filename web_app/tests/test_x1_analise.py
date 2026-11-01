@@ -65,10 +65,10 @@ class TestAnalysis(unittest.TestCase):
     @patch.object(q,"_team_report")
     @patch.object(q,"_get_match_rows")
     def test_recortes_independentes_por_clube(self, rows, report, source):
-        rows.side_effect=[[],[]]
-        report.side_effect=[{"jogos":4},{"jogos":6}]
         for selection,limit in [("5",5),("10",10),("20",20),("temporada",None)]:
             rows.reset_mock()
+            rows.side_effect=[[],[]]
+            report.side_effect=[{"jogos":4},{"jogos":6}]
             data=q.analisar(1,"2026/2027",19,20,selection)
             self.assertEqual(data["recorte"],selection)
             self.assertEqual(rows.call_args_list[0].args,(1,"2026/2027",19,limit))
