@@ -1,0 +1,35 @@
+name: Galileu — validação e livro de entradas
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_galileu.py'
+      - 'web_app/templates/galileu*.html'
+      - 'web_app/static/js/galileu*.js'
+      - 'web_app/static/css/galileu.css'
+      - 'web_app/tests/test_galileu.py'
+      - '.github/workflows/test-galileu.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_galileu.py'
+      - 'web_app/tests/test_galileu.py'
+      - '.github/workflows/test-galileu.yml'
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependências
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Sintaxe Python
+        run: python -m compileall -q web_app/app.py web_app/queries_galileu.py
+      - name: Sintaxe JavaScript
+        run: |
+          node --check web_app/static/js/galileu.js
+          node --check web_app/static/js/galileu-report.js
+      - name: Sem vazamento e apuração de banca
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_galileu.py' -v

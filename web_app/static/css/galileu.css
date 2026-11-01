@@ -1,0 +1,63 @@
+/* Galileu — regras visuais integradas aos temas do Dados Futebol. */
+.gl-panel{margin:18px 0;padding:26px;border:1px solid var(--df-border);border-radius:16px;background:var(--df-surface);min-width:0}
+.gl-panel h2{margin:4px 0 14px;font-size:22px;line-height:1.3;color:var(--df-text)}
+.gl-section-title{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.gl-link{display:inline-block;padding:10px 14px;color:var(--df-orange);text-decoration:none;font-size:13px;font-weight:700;border:1px solid var(--df-border);border-radius:10px}
+.gl-link:hover,.gl-link:focus-visible{border-color:var(--df-orange)}
+.gl-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.gl-kpis>div{border:1px solid var(--df-border);background:var(--df-raised);border-radius:12px;padding:18px;display:grid;gap:8px;min-width:0}
+.gl-kpis span{color:var(--df-secondary);font-size:12px}
+.gl-kpis strong{font-size:27px;color:var(--df-text);font-weight:800;font-variant-numeric:tabular-nums}
+.gl-note{color:var(--df-secondary);line-height:1.7;font-size:13px;margin:14px 0}
+.gl-count{background:var(--df-raised);padding:7px 11px;border-radius:18px;border:1px solid var(--df-border);color:var(--df-secondary);font-size:12px}
+.gl-filter{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:16px 0}
+.gl-filter label,.gl-match-form label{display:grid;gap:8px;color:var(--df-secondary);font-size:12px;font-weight:700;min-width:0}
+.gl-filter input,.gl-match-form select{background:var(--df-raised);color:var(--df-text);border:1px solid var(--df-border);border-radius:10px;padding:12px;min-height:44px;font:inherit;width:100%;max-width:100%}
+.gl-filter input{min-width:210px}
+.gl-primary{padding:13px 18px;border:1px solid var(--df-orange);border-radius:10px;background:var(--df-orange);color:#131416;font-size:13px;font-weight:800;cursor:pointer}
+.gl-primary:hover{filter:brightness(1.07)}
+.gl-primary:disabled{opacity:.5;cursor:wait}
+.gl-alert{border-left:3px solid var(--df-orange);color:var(--df-secondary);font-size:13px;background:var(--df-raised);border-radius:6px;padding:12px;margin:12px 0;line-height:1.5}
+.gl-alert.gl-error{border-color:#ff5959;color:#e99292}
+.gl-empty{padding:36px 18px;text-align:center;background:var(--df-raised);color:var(--df-secondary);border-radius:12px;font-size:14px}
+.gl-league{border:1px solid var(--df-border);border-radius:14px;margin:14px 0;overflow:hidden}
+.gl-league h3{background:var(--df-raised);padding:14px 18px;margin:0;border-bottom:1px solid var(--df-border);font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gl-league h3 span{font-size:12px;color:var(--df-secondary);font-weight:500}
+.gl-game{padding:16px 18px;border-bottom:1px solid var(--df-border);background:var(--df-surface)}
+.gl-game:last-child{border-bottom:0}
+.gl-game:hover{background:var(--df-raised)}
+.gl-game-main{display:flex;align-items:start;gap:16px}
+.gl-checkbox{padding:9px 0;flex:0 0 auto}
+.gl-check{width:20px;height:20px;accent-color:var(--df-orange);cursor:pointer}
+.gl-game-body{flex:1;min-width:0}
+.gl-meta{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;color:var(--df-secondary);font-size:12px;margin-bottom:7px;font-variant-numeric:tabular-nums}
+.gl-teams{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:17px;color:var(--df-text);font-weight:750;line-height:1.5}
+.gl-teams span{font-size:12px;color:var(--df-secondary)}
+.gl-stat-detail>summary::marker,.gl-method-detail>summary::marker{color:var(--df-orange)}
+.gl-stat-detail[open]{padding-bottom:10px}
+.gl-stat-detail[open]>.gl-scroll{margin:12px 0}
+.gl-method-detail>summary{cursor:pointer;color:var(--df-orange);font-size:12px;margin-top:10px}
+.gl-match-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.gl-rule-grid{display:grid;gap:10px;margin:12px 0}
+.gl-rule-grid>div{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--df-secondary);border-bottom:1px solid var(--df-border);padding:8px}
+.gl-rule-grid b{color:var(--df-text)}
+.gl-rule-grid span{font-variant-numeric:tabular-nums;white-space:nowrap}
+.gl-actions{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid var(--df-border);padding-top:18px;margin-top:18px;color:var(--df-secondary);font-size:13px}
+.gl-actions[hidden]{display:none}
+.gl-scroll{width:100%;max-width:100%;overflow-x:auto}
+.gl-table{width:100%;border-collapse:collapse;min-width:660px;font-variant-numeric:tabular-nums}
+.gl-table th,.gl-table td{padding:14px 12px;border-bottom:1px solid var(--df-border);text-align:center;white-space:normal;font-size:13px;color:var(--df-text)}
+.gl-table th{font-size:11px;background:var(--df-raised);color:var(--df-secondary);text-transform:uppercase}
+.gl-table td:first-child,.gl-table th:first-child{text-align:left}
+.gl-table tbody tr:hover{background:var(--df-raised)}
+.gl-stat-table{min-width:480px}
+.gl-win{color:#40d0a1!important;font-weight:750}.gl-loss{color:#ff8e8e!important;font-weight:750}
+.gl-status{display:inline-flex;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:800}
+.gl-green{background:rgba(50,210,151,.12);color:#3acb9a}
+.gl-red{background:rgba(255,100,100,.12);color:#ff8b8b}
+.gl-pendente{background:var(--df-raised);color:var(--df-secondary)}
+.gl-empty-row{text-align:center!important;color:var(--df-secondary)!important}
+.gl-game :is(button,select,input,summary):focus-visible,.gl-panel :is(a,button,select,input):focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+@media(max-width:950px){.gl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.gl-panel{padding:16px}.gl-match-form{grid-template-columns:1fr}.gl-kpis strong{font-size:23px}.gl-teams{font-size:15px}.gl-game{padding:12px}.gl-game-main{gap:10px}}
+@media(prefers-reduced-motion:reduce){.gl-primary,.gl-link{transition:none!important}}
