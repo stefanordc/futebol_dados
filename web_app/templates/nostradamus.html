@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-fix-value-v4">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-historico-v5">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -20,7 +20,7 @@
 <div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período e objetivo</h2></div></div>
 <div class="ns-fields">
 <label>Data de corte (inclusive)<input type="date" id="ns-corte" required></label>
-<label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5</option><option value="10">Últimos 10</option><option value="20" selected>Últimos 20</option><option value="temporada">Temporada inteira até cada entrada</option></select></label>
+<label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5 jogos</option><option value="10">Até 10 jogos (mín. 5)</option><option value="20" selected>Até 20 jogos (mín. 5)</option><option value="temporada">Temporada inteira (mín. 5)</option></select></label>
 <label>Campeonato<select id="ns-campeonato"><option value="">Todos os campeonatos</option></select></label>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
 <label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Mandante com xG superior"></label>
@@ -35,10 +35,10 @@
 </form>
 <div id="ns-feedback" role="status" aria-live="polite"></div>
 <section id="ns-saved" class="ns-panel"><h2>Minhas estratégias</h2><p class="x1-help">Salvas apenas neste navegador. Para compartilhar ou recuperar em outro computador é necessário exportar ou copiar as condições.</p><div id="ns-saved-list"></div></section>
-<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Entradas cotadas</th><th>Resultado (u)</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
 <p class="x1-disclaimer">Simulação histórica, não recomendação de aposta. A execução retrospectiva não demonstra lucratividade futura; dados ausentes, preço de entrada, liquidez, comissão e seleção de estratégias podem enviesar resultados. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-fix-value-v4" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-historico-v5" defer></script>
 </body></html>
