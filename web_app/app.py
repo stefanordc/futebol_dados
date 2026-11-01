@@ -16,6 +16,7 @@ import queries_liga
 import queries_stats
 import queries_finalizacoes_sofridas
 import queries_performance
+import queries_x1
 
 DIR = Path(__file__).resolve().parent
 TEMPLATES = DIR / "templates"
@@ -56,6 +57,24 @@ def pagina_clubes():
 @app.get("/apostas")
 def pagina_diretorio():
     return FileResponse(TEMPLATES / "directory.html")
+
+
+@app.get("/apostas/x1")
+def pagina_apostas_x1():
+    return FileResponse(TEMPLATES / "bets_x1.html")
+
+
+@app.get("/api/apostas/x1")
+def api_apostas_x1(
+    campeonato_id: int = Query(..., ge=1),
+    mandante_id: int = Query(..., ge=1),
+    visitante_id: int = Query(..., ge=1),
+    temporada: str | None = None,
+):
+    try:
+        return queries_x1.avaliar(campeonato_id, mandante_id, visitante_id, temporada)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/clube/{clube_id}")

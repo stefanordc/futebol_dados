@@ -1,0 +1,83 @@
+
+/* x1 — UI isolada, usando tokens globais dos temas. */
+.x1-main{max-width:1800px;min-width:0}
+.x1-hero{padding:26px 28px;background:var(--df-surface);border:1px solid var(--df-border);border-radius:16px;margin-bottom:18px}
+.x1-hero h1{font-size:clamp(24px,3vw,34px);line-height:1.2;margin:8px 0}
+.x1-hero p{color:var(--df-secondary);margin:0 0 14px}
+.x1-nav{display:flex;gap:8px;flex-wrap:wrap}
+.x1-nav a{border:1px solid var(--df-border);background:var(--df-raised);border-radius:999px;color:var(--df-secondary);padding:8px 14px;font-weight:700;text-decoration:none}
+.x1-nav a[aria-current="page"]{color:var(--df-orange);border-color:var(--df-orange);background:var(--df-accent-soft)}
+.x1-filter{display:grid;grid-template-columns:minmax(160px,1.2fr) repeat(3,minmax(130px,1fr)) auto;align-items:end;gap:13px;background:var(--df-surface);border:1px solid var(--df-border);border-radius:16px;padding:20px;margin-bottom:10px}
+.x1-filter label{display:grid;gap:7px;min-width:0;color:var(--df-secondary);font-size:12px;font-weight:700}
+.x1-filter select{min-width:0;max-width:100%;height:42px;border:1px solid var(--df-border);border-radius:10px;background:var(--df-raised);color:var(--df-text);padding:0 10px;font-size:13px}
+.x1-submit{min-height:42px;background:var(--df-orange);border:0;border-radius:10px;padding:0 15px;color:var(--df-orange-text,#0c0c0c);font-weight:850;white-space:nowrap;cursor:pointer}
+.x1-submit:disabled{opacity:.6;cursor:progress}
+.x1-message{border:1px solid var(--df-border);background:var(--df-raised);border-radius:10px;padding:12px 15px;color:var(--df-secondary);margin:10px 0}
+.x1-message.error{color:#ff8181;border-color:#9c4141}
+.x1-headline{display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid var(--df-border);background:var(--df-surface);border-radius:16px;padding:20px;margin:16px 0}
+.x1-team-identity{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.x1-team-identity:last-child{flex-direction:row-reverse;text-align:right}
+.x1-team-identity img{width:54px;height:54px;object-fit:contain;flex:0 0 54px}
+.x1-team-identity strong{display:block;font-weight:850;font-size:clamp(14px,2vw,23px);overflow-wrap:anywhere}
+.x1-team-identity small{color:var(--df-muted);display:block;margin-top:4px}
+.x1-versus{text-align:center;display:grid;gap:3px;color:var(--df-orange);font-weight:900}
+.x1-versus span{font-size:27px}
+.x1-versus small{font-size:11px;color:var(--df-muted);font-weight:600}
+.x1-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.x1-tabs button{border:1px solid var(--df-border);border-radius:999px;background:var(--df-raised);color:var(--df-secondary);padding:10px 15px;font-weight:800;cursor:pointer;font-size:13px}
+.x1-tabs button.active{border-color:var(--df-orange);color:var(--df-orange);background:var(--df-accent-soft)}
+.x1-tabs button:focus-visible,.x1-filter select:focus-visible,.x1-submit:focus-visible{outline:2px solid var(--df-orange);outline-offset:3px}
+#x1-panels section[hidden]{display:none!important}
+.x1-card{min-width:0;background:var(--df-surface);border:1px solid var(--df-border);border-radius:16px;padding:22px;margin:0 0 16px}
+.x1-card h2{font-size:20px;font-weight:850;margin:0 0 14px}
+.x1-card h3{font-size:15px;margin:0 0 10px}
+.x1-card p{line-height:1.7}
+.x1-help{font-size:12px;color:var(--df-muted);line-height:1.65}
+.x1-keyrates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.x1-mini{background:var(--df-surface);border:1px solid var(--df-border);padding:18px;border-radius:14px;min-width:0}
+.x1-mini span{display:block;color:var(--df-secondary);font-size:12px;overflow-wrap:anywhere}
+.x1-mini strong{display:block;font-size:clamp(22px,3vw,31px);font-variant-numeric:tabular-nums;margin-top:6px}
+.x1-expected{display:flex;align-items:center;gap:16px;justify-content:space-around}
+.x1-expected>div{display:grid;gap:7px;text-align:center}
+.x1-expected>div>span{color:var(--df-secondary);font-weight:750}
+.x1-expected strong{font-size:clamp(32px,4vw,50px);line-height:1;color:var(--df-orange);font-variant-numeric:tabular-nums}
+.x1-divider{font-size:24px;color:var(--df-muted)}
+.x1-radars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.x1-radar-card{margin:0}
+.x1-radar-card svg{display:block;width:100%;height:auto;max-width:480px;margin:auto}
+.x1-legend{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px 16px;font-weight:750;margin-bottom:18px}
+.x1-home-dot,.x1-away-dot{width:13px;height:13px;display:inline-block;border-radius:50%;background:#ff7b32;margin-right:-6px}
+.x1-away-dot{background:#52a4ff}
+.x1-radar-table{overflow-x:auto}
+.x1-radar-table table{width:100%;border-collapse:collapse;font-size:12px}
+.x1-radar-table td,.x1-radar-table th{padding:9px 7px;border-bottom:1px solid var(--df-border-soft);text-align:left}
+.x1-radar-table td:not(:first-child){text-align:right;font-weight:800}
+.x1-prob-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.x1-prob{background:var(--df-raised);border:1px solid var(--df-border-soft);padding:13px;border-radius:11px;min-width:0}
+.x1-prob>div:first-child{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px}
+.x1-prob span{font-size:12px;color:var(--df-secondary);overflow-wrap:anywhere}
+.x1-prob strong{font-variant-numeric:tabular-nums;font-size:17px;white-space:nowrap}
+.x1-bar{height:7px;border-radius:999px;background:var(--df-border);overflow:hidden}
+.x1-bar span{display:block;height:100%;border-radius:inherit;background:var(--df-orange)}
+.x1-score-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.x1-score{min-height:80px;padding:12px 8px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:color-mix(in srgb,var(--df-orange) calc(var(--x1-score-strength) * 100%),var(--df-raised));border:1px solid var(--df-border)}
+.x1-score strong{font-size:19px;color:var(--df-text)}
+.x1-score span{font-size:12px;font-variant-numeric:tabular-nums;color:var(--df-secondary)}
+.x1-odds-table{min-width:850px}
+.x1-market-quote{width:100px;min-width:100px;color:var(--df-text);background:var(--df-raised);border:1px solid var(--df-border);padding:8px;border-radius:8px;font-size:13px}
+.x1-ev-result.x1-positive{color:#33b78c;font-weight:850}
+.x1-ev-result.x1-negative{color:#ee7878;font-weight:850}
+.x1-report{font-size:15px;color:var(--df-text);line-height:1.7;max-width:100ch}
+.x1-model-meta{display:flex;gap:8px;flex-wrap:wrap}
+.x1-model-meta span{background:var(--df-raised);border:1px solid var(--df-border);padding:8px 10px;border-radius:7px;font-size:11px;color:var(--df-muted)}
+.x1-disclaimer{font-size:12px;color:var(--df-muted);padding:12px 0 24px}
+/* Evita barra horizontal de rolagem dentro da sidebar recolhível. */
+#df-sidebar,.df-sidebar-nav{overflow-x:hidden!important;max-width:100vw;scrollbar-width:none}
+#df-sidebar .df-nav-list{grid-template-columns:minmax(0,1fr)!important;overflow-x:hidden!important;min-width:0;max-width:100%;scrollbar-width:thin}
+#df-sidebar .df-nav-item{min-width:0;width:100%;max-width:100%;box-sizing:border-box}
+#df-sidebar .df-nav-name{min-width:0}
+#df-sidebar .df-sidebar-bottom{min-width:0;overflow-x:hidden}
+@media(max-width:1250px){.x1-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.x1-filter .x1-submit{grid-column:span 2}.x1-score-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:850px){.x1-radars{grid-template-columns:1fr}.x1-prob-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.x1-score-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.x1-keyrates{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){.x1-hero,.x1-card{padding:16px}.x1-filter{grid-template-columns:1fr}.x1-filter .x1-submit{grid-column:1}.x1-headline{padding:12px;gap:8px}.x1-team-identity img{width:32px;height:32px;flex-basis:32px}.x1-team-identity{gap:5px}.x1-versus span{font-size:16px}.x1-score-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.x1-prob-grid{grid-template-columns:1fr}.x1-keyrates{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.x1-bar span{transition:none}}
