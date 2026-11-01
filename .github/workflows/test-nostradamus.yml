@@ -5,6 +5,7 @@ on:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/tests/test_nostradamus.py'
       - 'web_app/static/js/nostradamus.js'
+      - 'web_app/tests/test_nostradamus_ui.js'
       - 'web_app/static/js/league.js'
       - '.github/workflows/test-nostradamus.yml'
   push:
@@ -13,6 +14,7 @@ on:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/tests/test_nostradamus.py'
       - 'web_app/static/js/nostradamus.js'
+      - 'web_app/tests/test_nostradamus_ui.js'
       - '.github/workflows/test-nostradamus.yml'
 jobs:
   tests:
@@ -34,3 +36,6 @@ jobs:
       - name: Backtest — testes determinísticos
         working-directory: web_app
         run: python -m unittest discover -s tests -p 'test_nostradamus.py' -v
+      - name: Regressão das condições no navegador
+        working-directory: web_app
+        run: node tests/test_nostradamus_ui.js
