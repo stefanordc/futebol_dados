@@ -59,14 +59,16 @@ class TestX1(unittest.TestCase):
         self.assertGreater(odds["mandante"]["limite_odd_ev_3pct"],odds["mandante"]["odd_justa"])
         self.assertLess(odds["lay_mandante"]["limite_odd_ev_3pct"],odds["lay_mandante"]["odd_justa"])
 
+    @patch("queries_dados_fisicos.fisicos_lookup", return_value=({}, {}))
     @patch("queries_x1.fetch_all", side_effect=fake_fetch)
-    def test_full_analysis(self, _fetch):
+    def test_full_analysis(self, _fetch, _physical):
         result=queries_x1.avaliar(10,1,2,"2026/2027")
         self.assertEqual(result["campeonato"]["id"],10)
         self.assertEqual(result["mandante"]["clube"],"Mandante")
         self.assertEqual(result["visitante"]["clube"],"Visitante")
         self.assertEqual(result["modelo"]["amostra_jogos"],36)
         self.assertEqual(len(result["relatorio"]),2)
+        self.assertFalse(result["modelo"]["ajuste_fisico"])
         self.assertTrue(0<result["probabilidades"]["ambos_marcam"]<1)
 
     def test_same_team_rejected(self):

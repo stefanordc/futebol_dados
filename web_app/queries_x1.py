@@ -96,6 +96,35 @@ def _models(camp, season, home, away):
     return games,lam_h,lam_a,counts,{"n":n,"temporadas":selected,"media_casa":round(mean_h,3),"media_fora":round(mean_a,3)}
 
 
+
+def _physical_adjustment(camp, season, home, away):
+    """Ajuste físico secundário limitado a 4%, não causal."""
+    from queries_dados_fisicos import fisicos_lookup
+    lookup, _ = fisicos_lookup(season, campeonato_id=camp)
+    a, b = lookup.get(home), lookup.get(away)
+    neutral = {"aplicado": False, "motivo": "Amostra insuficiente",
+               "mandante": a, "visitante": b, "fator_mandante": 1.0, "fator_visitante": 1.0}
+    if not a or not b: return neutral
+    def valid(r):
+        return (int(r.get("jogos_km") or 0)>=4 and int(r.get("jogos_sprints") or 0)>=4
+                and _num(r.get("avg_distancia_percorrida")) is not None
+                and _num(r.get("avg_sprints")) is not None)
+    if not valid(a) or not valid(b): return neutral
+    peers=[r for r in lookup.values() if valid(r)]
+    if len(peers)<4: return neutral
+    km=[float(r["avg_distancia_percorrida"]) for r in peers]
+    sp=[float(r["avg_sprints"]) for r in peers]
+    def rank(v, values):
+        return (sum(x<v for x in values)+.5*sum(x==v for x in values))/len(values)-.5
+    def score(r):
+        return .45*rank(float(r["avg_distancia_percorrida"]),km)+.55*rank(float(r["avg_sprints"]),sp)
+    samples=min(int(a["jogos_km"]),int(a["jogos_sprints"]),int(b["jogos_km"]),int(b["jogos_sprints"]))
+    delta=_clamp(.075*(score(a)-score(b))*min(1.0,samples/12),-.04,.04)
+    return {"aplicado": True, "motivo": "Ajuste físico conservador, sem interpretação causal",
+            "mandante":a, "visitante":b,"fator_mandante":round(math.exp(delta),5),
+            "fator_visitante":round(math.exp(-delta),5),"amostra_minima":samples}
+
+
 def _team_stats(camp,season):
     # Agregação por clube/mandante-visitante; a média de xG é um proxy adicional.
     rows=fetch_all("""
@@ -287,6 +316,10 @@ def avaliar(campeonato_id,mandante_id,visitante_id,temporada=None):
             lh=_clamp(0.8*lh+0.2*lh*_clamp(xga/mu,0.65,1.5),0.2,4.3)
             la=_clamp(0.8*la+0.2*la*_clamp(xgb/mu,0.65,1.5),0.2,4.3)
             info["ajuste_xg"]=True
+    fisicos=_physical_adjustment(campeonato_id,temporada,mandante_id,visitante_id)
+    lh=_clamp(lh*fisicos["fator_mandante"],0.2,4.3)
+    la=_clamp(la*fisicos["fator_visitante"],0.2,4.3)
+    info["ajuste_fisico"]=fisicos["aplicado"]
     probs,scores=_markets(lh,la)
     peer=list(stats.values())
     report_home=club_map[mandante_id]["clube"];report_away=club_map[visitante_id]["clube"]
@@ -314,10 +347,12 @@ def avaliar(campeonato_id,mandante_id,visitante_id,temporada=None):
                     "radar":_radars(b,peer) if b else None},
         "gols_esperados":{"mandante":round(lh,3),"visitante":round(la,3)},
         "probabilidades":{k:round(v,6) for k,v in probs.items()},
+        "fisicos":fisicos,
         "placares":scores,"odds":_odds(probs),
         "modelo":{"nome":"Poisson regularizado por time","amostra_jogos":info["n"],
                   "temporadas_treino":info["temporadas"],"ajuste_xg":info.get("ajuste_xg",False),
                   "jogos_mandante":counts[mandante_id],"jogos_visitante":counts[visitante_id],
+                  "ajuste_fisico":fisicos["aplicado"],
                   "aviso":"Projeção estatística hipotética, não calibrada em validação externa. HT usa fração estimada de 46% dos gols; 1x0 aos 60' é o placar exato no minuto 60. Força aérea defensiva usa disputas aéreas ganhas como proxy; bola parada defensiva fica sem nota quando faltam dados.",
                   "criterio_goleada":"Diferença de pelo menos 3 gols ao final."},
         "relatorio":report,

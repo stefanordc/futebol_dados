@@ -130,7 +130,28 @@
       '</div>'+
       '<section class="x1-card"><h2>Gols esperados pelo modelo</h2><div class="x1-expected"><div><span>'+esc(data.mandante.clube)+'</span><strong>'+num(lh)+'</strong></div><span class="x1-divider">×</span><div><span>'+esc(data.visitante.clube)+'</span><strong>'+num(la)+'</strong></div></div>'+
       '<p class="x1-help">Projeção de gols para um confronto hipotético na temporada selecionada. Não representa placar previsto com certeza.</p></section>'+
+      renderFisicos()+
       '<section class="x1-card"><h2>Resumo da previsão</h2><p>'+esc(data.relatorio[0])+'</p></section>';
+  }
+  function renderFisicos(){
+    const fis=data.fisicos||{};
+    const h=fis.mandante||{},v=fis.visitante||{};
+    const cell=(label,key,digits=1)=>
+      '<tr><td>'+label+'</td><td>'+num(h[key],digits)+'</td><td>'+num(v[key],digits)+'</td></tr>';
+    return '<section class="x1-card"><h2>Indicadores físicos · médias por jogo</h2>'+
+      '<p class="x1-help">Fonte: dados_fisicos (SofaScore). Estatísticas históricas, não volume de corrida conhecido antes da próxima partida.</p>'+
+      '<div class="table-wrap"><table class="data-table"><thead><tr><th>Indicador</th><th>Mandante</th><th>Visitante</th></tr></thead><tbody>'+
+      cell("Distância percorrida (km)","avg_distancia_percorrida",2)+
+      cell("Sprints","avg_sprints",1)+
+      cell("Jogos com KM","jogos_km",0)+
+      cell("Jogos com sprints","jogos_sprints",0)+
+      cell("Média KM como mandante","km_casa",2)+
+      cell("Média KM como visitante","km_fora",2)+
+      cell("Média sprints como mandante","sprints_casa",1)+
+      cell("Média sprints como visitante","sprints_fora",1)+
+      '</tbody></table></div>'+
+      '<p class="x1-help">Ajuste na projeção: '+(fis.aplicado?'aplicado (efeito limitado a 4% sobre gols esperados)':'não aplicado — cobertura física insuficiente')+
+      '. A associação entre correr mais e vencer não demonstra causalidade.</p></section>';
   }
   function polar(i,total,r){
     const angle=-Math.PI/2+2*Math.PI*i/total;
