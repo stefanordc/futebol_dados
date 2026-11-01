@@ -17,6 +17,7 @@ import queries_stats
 import queries_finalizacoes_sofridas
 import queries_performance
 import queries_x1
+import queries_tecnico_avancadas
 
 DIR = Path(__file__).resolve().parent
 TEMPLATES = DIR / "templates"
@@ -452,6 +453,14 @@ def api_jogador(jogador_id: int, temporada: str | None = None):
     if not dados:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
     return dados
+
+
+@app.get("/api/tecnico/{tecnico_id}/estatisticas-avancadas")
+def api_tecnico_estatisticas_avancadas(
+    tecnico_id: int,
+    temporada: str = Query(..., min_length=1),
+):
+    return queries_tecnico_avancadas.estatisticas_tecnico(tecnico_id, temporada)
 
 
 @app.get("/api/tecnico/{tecnico_id}")
