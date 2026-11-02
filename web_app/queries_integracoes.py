@@ -546,6 +546,7 @@ def preview(payload):
         if now-v["criado"]>TTL:_PREVIEWS.pop(k,None)
     token=secrets.token_urlsafe(24)
     _PREVIEWS[token]={"rows":rows,"row_seasons":row_seasons,"paths":paths,
+                       "multiplas_temporadas":payload.get("temporadas") not in (None,""),
                        "temporadas_resultado":results,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
     return {"preview_id":token,"colunas":columns,
@@ -578,7 +579,7 @@ def importar(payload):
         raise ValueError("A lista de clubes mudou desde a prévia.")
     country=payload.get("pais") or prev["country"]
     league=payload.get("campeonato") or prev["league"]
-    multi=bool(prev.get("row_seasons") and len(set(prev["row_seasons"]))>1)
+    multi=bool(prev.get("multiplas_temporadas"))
     season=prev["season"] if multi else (payload.get("temporada") or prev["season"])
     for field,val in (("país",country),("campeonato",league),("temporada",season)):
         if not isinstance(val,str) or not 1<=len(val.strip())<=100:
