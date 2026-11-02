@@ -73,7 +73,7 @@
  let data=null;
  const COLUMNS_KEY="df_odds_ultima_selecao_v2";
  function rememberColumns(){
-   const checkboxes=$("#int-api-columns input[type=checkbox]");
+   const checkboxes=$$("#int-api-columns input[type=checkbox]");
    const active=checkboxes.filter(cb=>cb.checked).map(cb=>cb.value);
    try{localStorage.setItem(COLUMNS_KEY,JSON.stringify(active));}catch(error){}
    updateColumnCount();
@@ -85,8 +85,8 @@
    }catch(error){return null;}
  }
  function updateColumnCount(){
-   const total=$("#int-api-columns input[type=checkbox]").length;
-   const selected=$("#int-api-columns input[type=checkbox]:checked").length;
+   const total=$$("#int-api-columns input[type=checkbox]").length;
+   const selected=$$("#int-api-columns input[type=checkbox]:checked").length;
    const counter=$("#int-api-selected-count");
    if(counter)counter.textContent=selected+" de "+total+" colunas selecionadas";
  }
@@ -120,7 +120,7 @@
  function renderClubRows(clubs,catalog,keepEdits){
    const body=$("#int-api-clubs");
    const previous=new Map();
-   if(keepEdits)for(const tr of $("#int-api-clubs tr")){
+   if(keepEdits)for(const tr of $$("#int-api-clubs tr")){
      previous.set(tr.dataset.original,{
        nome:$(".int-standard",tr)?.value,
        clube_id:$(".int-odds-club-id",tr)?.value
@@ -249,17 +249,17 @@
  $("#int-api-reset").addEventListener("click",()=>{
    if(!data)return;
    const marked=new Set(data.colunas_marcadas||data.colunas);
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=marked.has(cb.value);});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=marked.has(cb.value);});
    rememberColumns();
  });
  $("#int-api-select-all").addEventListener("click",()=>{
    if(!data)return;
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=true;});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=true;});
    rememberColumns();
  });
  $("#int-api-clear").addEventListener("click",()=>{
    if(!data)return;
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=false;});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=false;});
    rememberColumns();
  });
  $("#int-import").addEventListener("click",async()=>{
