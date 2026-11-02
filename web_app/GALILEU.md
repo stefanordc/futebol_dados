@@ -33,3 +33,5 @@
 2. Atualize `main` localmente com `git pull --ff-only origin main` (salve modificações locais primeiro).
 3. Reinicie `python app.py`; acesse `http://127.0.0.1:8000/apostas/galileu`.
 4. Salve pelo menos uma estratégia no Nostradamus. As estratégias antigas armazenadas no navegador serão importadas ao abrir o Nostradamus uma vez.
+
+**Condições físicas:** os métodos salvos podem utilizar médias e diferenças de quilômetros e sprints obtidos de `dados_fisicos`, desde que o histórico anterior de cada equipe tenha cobertura suficiente e o vínculo entre a partida e a origem seja único. A confirmação continua revalidando todas as condições antes do registro.

@@ -59,3 +59,18 @@ Também removidas as colunas de resumo **Entradas cotadas** e **Resultado (u)**,
 - O Galileu não usa mais as condições enviadas pelo navegador. Lê os métodos diretamente do banco **em toda consulta e confirmação**, verifica ID e versão selecionados e reavalia as condições antes de gravar a entrada permanente. As regras salvas na entrada permanecem fotografadas como estavam naquela confirmação.
 - RLS habilitado; nem `anon` nem `authenticated` nem `service_role` acessam diretamente essa tabela. O backend já usa `SUPABASE_DB_URL`.
 - **A aplicação é para localhost e um usuário**. Não exponha as rotas de escrita na internet sem autenticação/autorização por usuário.
+
+## Indicadores físicos nas estratégias (02/11/2026)
+
+No construtor de condições, o grupo **Dados físicos** inclui:
+- `km`: distância média percorrida por partida (quilômetros).
+- `sprints`: média de sprints por partida.
+- `km_diff`: diferença média de km do time em relação ao **adversário de cada partida histórica** (pode ser negativa).
+- `sprints_diff`: diferença média de sprints em relação ao adversário de cada partida histórica.
+
+Exemplos de regras: mandante.km > visitante.km, visitante.sprints >= 100, mandante.km_diff >= 5, visitante.sprints_diff < 0.
+Os comparadores de valor fixo e mesmo indicador do adversário funcionam normalmente. A validação, salvamento e edição persistem as novas métricas em JSONB da tabela de estratégias — **não** exigem alteração de schema.
+
+**Origem:** `dados_fisicos` no Supabase. Vinculação prioritária por `jogos.id_sofascore = dados_fisicos.id_jogo`. Para ligas com jogos sem SofaScore (como Brasileiro e Bundesliga), vínculo estrito por **ambas as equipes, data, temporada, competição e país**; associações ambíguas são descartadas. Nomes são aceitos apenas quando únicos no cadastro, ou IDs equivalentes da `clubes_fontes` são usados quando disponíveis.
+
+**Proteção de backtesting:** só entram jogos já concluídos em datas **estritamente anteriores** ao confronto avaliado. Jogos do mesmo dia e futuros não participam dos indicadores; o Galileu também utiliza exatamente esse histórico. No mínimo cinco partidas anteriores; para cada indicador físico a cobertura deve ser pelo menos 60% da janela, com três medições ou mais. Um km ou sprint igual a zero, sem dado, ou sem pareamento seguro, vira `null`, não `0`. A condição que depende do campo indisponível **não é satisfeita**. Distância e sprints representam esforço registrado, não comprovam causalidade de vitória.

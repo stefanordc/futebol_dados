@@ -60,6 +60,38 @@ class TestGalileu(TestCase):
         out=self.signals(methods=[self.method,second])
         self.assertEqual(len(out["jogos"][0]["metodos"]),2)
 
+    def test_galileu_avalia_km_e_sprints_anteriores(self):
+        past=[]
+        for r in self.past:
+            out=dict(r)
+            out.update(home_km=118,away_km=99,home_sprints=155,away_sprints=120)
+            past.append(out)
+        method={**self.method,"condicoes":[
+            {"lado":"mandante","metrica":"km","comparador":"gt","referencia":"adversario"},
+            {"lado":"mandante","metrica":"sprints_diff","comparador":"ge",
+             "referencia":"valor","valor":30},
+        ]}
+        data=self.signals(methods=[method],history=past)
+        self.assertEqual(data["total"],2)
+        item=data["jogos"][0]
+        self.assertEqual(item["estatisticas"]["mandante"]["km"],118)
+        self.assertEqual(item["estatisticas"]["visitante"]["sprints"],120)
+        self.assertEqual(item["estatisticas"]["mandante"]["sprints_diff"],35)
+        self.assertEqual(item["metodos"][0]["regras"][0]["observado"],118)
+        self.assertEqual(item["metodos"][0]["regras"][1]["observado"],35)
+
+    def test_galileu_nao_aceita_fisico_futuro_ou_no_dia(self):
+        only=[dict(r) for r in self.past]
+        # No dia do jogo, dados excessivamente altos NÃO fazem parte do histórico.
+        fake=game(999,self.today+timedelta(days=1),gf=3,ga=0,comp=1,season="2026/2027")
+        fake.update(campeonato="LaLiga",home_km=220,away_km=50,
+                    home_sprints=250,away_sprints=20)
+        only.append(fake)
+        method={**self.method,"condicoes":[
+            {"lado":"mandante","metrica":"km","comparador":"gt","referencia":"adversario"}
+        ]}
+        data=self.signals(methods=[method],history=only)
+        self.assertEqual(data["total"],0)
     def test_sem_dados_minimos_ou_jogo_ja_registrado(self):
         self.assertEqual(self.signals(history=self.past[:4])["total"],0)
         r=self.signals(reg={901})

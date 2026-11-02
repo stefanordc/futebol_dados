@@ -34,6 +34,10 @@ METRICAS = {
     "dribles_certos": "Dribles certos por jogo",
     "faltas": "Faltas cometidas por jogo",
     "duelos_aereos": "Duelos aéreos ganhos por jogo",
+    "km": "Dados físicos · Distância percorrida (km/jogo)",
+    "sprints": "Dados físicos · Sprints por jogo",
+    "km_diff": "Dados físicos · Diferença de km por jogo",
+    "sprints_diff": "Dados físicos · Diferença de sprints por jogo",
 }
 COMPARADORES = {"gt":">","ge":">=","lt":"<","le":"<=","eq":"=","ne":"!="}
 MERCADOS = {
@@ -71,7 +75,8 @@ SELECT j.id,j.data,j.temporada,j.campeonato_id,c.nome AS campeonato,
        ec.escanteios AS home_escanteios,ea.escanteios AS away_escanteios,
        ec.dribles_certos AS home_dribles_certos,ea.dribles_certos AS away_dribles_certos,
        ec.faltas_cometidas AS home_faltas,ea.faltas_cometidas AS away_faltas,
-       ec.disputas_aereas_ganhas AS home_duelos_aereos,ea.disputas_aereas_ganhas AS away_duelos_aereos
+       ec.disputas_aereas_ganhas AS home_duelos_aereos,ea.disputas_aereas_ganhas AS away_duelos_aereos,
+       fis.home_km,fis.away_km,fis.home_sprints,fis.away_sprints
 FROM jogos j
 JOIN campeonatos c ON c.id=j.campeonato_id
 JOIN clubes h ON h.id=j.casa_id
@@ -79,6 +84,64 @@ JOIN clubes v ON v.id=j.fora_id
 LEFT JOIN estatisticas ec ON ec.jogo_id=j.id AND ec.clube_id=j.casa_id AND ec.periodo='Completo'
 LEFT JOIN estatisticas ea ON ea.jogo_id=j.id AND ea.clube_id=j.fora_id AND ea.periodo='Completo'
 LEFT JOIN odds_fotmob oh ON oh.jogo_id=j.id
+-- Os IDs físicos são SofaScore. Para partidas sem ID SofaScore
+-- (ex.: Brasileiro e Bundesliga FotMob), só aceitamos pareamento
+-- único de data, temporada, liga, país e AMBOS os clubes.
+LEFT JOIN paises p ON p.id=c.pais_id
+LEFT JOIN LATERAL (
+ SELECT MAX(NULLIF(fh.distancia_percorrida,0)) AS home_km,
+        MAX(NULLIF(fa.distancia_percorrida,0)) AS away_km,
+        MAX(NULLIF(fh.sprints,0)) AS home_sprints,
+        MAX(NULLIF(fa.sprints,0)) AS away_sprints
+ FROM dados_fisicos fh
+ JOIN dados_fisicos fa ON fa.id_jogo=fh.id_jogo
+   AND fa.id_campeonato=fh.id_campeonato
+   AND fa.temporada=fh.temporada AND fa.data=fh.data
+ WHERE fh.data=j.data AND fh.temporada=j.temporada
+   AND (j.id_sofascore IS NULL OR fh.id_jogo=j.id_sofascore)
+   AND LOWER(TRIM(fh.campeonato))=LOWER(TRIM(
+       CASE c.nome WHEN 'LaLiga' THEN 'Espanhol'
+                   WHEN 'Serie A' THEN 'Italiano'
+                   WHEN 'Premier League' THEN 'Inglês'
+                   WHEN 'Bundesliga' THEN 'Alemão'
+                   ELSE c.nome END))
+   AND LOWER(TRIM(fh.pais))=LOWER(TRIM(p.nome))
+   AND (
+      EXISTS (
+       SELECT 1 FROM clubes_fontes hsrc
+       WHERE hsrc.fonte='sofascore' AND hsrc.id_externo=fh.id_clube::text
+         AND hsrc.clube_id=j.casa_id
+      )
+      OR (
+       NOT EXISTS (
+         SELECT 1 FROM clubes_fontes hsrc
+         WHERE hsrc.fonte='sofascore' AND hsrc.id_externo=fh.id_clube::text
+       )
+       AND LOWER(TRIM(fh.clube))=LOWER(TRIM(h.clube))
+       AND (SELECT COUNT(*) FROM clubes hname
+            WHERE LOWER(TRIM(hname.clube))=LOWER(TRIM(fh.clube)))=1
+      )
+   )
+   AND (
+      EXISTS (
+       SELECT 1 FROM clubes_fontes asrc
+       WHERE asrc.fonte='sofascore' AND asrc.id_externo=fa.id_clube::text
+         AND asrc.clube_id=j.fora_id
+      )
+      OR (
+       NOT EXISTS (
+         SELECT 1 FROM clubes_fontes asrc
+         WHERE asrc.fonte='sofascore' AND asrc.id_externo=fa.id_clube::text
+       )
+       AND LOWER(TRIM(fa.clube))=LOWER(TRIM(v.clube))
+       AND (SELECT COUNT(*) FROM clubes aname
+            WHERE LOWER(TRIM(aname.clube))=LOWER(TRIM(fa.clube)))=1
+      )
+   )
+ -- Se mais de um jogo da origem puder representar a partida,
+ -- não inventamos um pareamento: todas as medidas ficam nulas.
+ HAVING COUNT(*)=1
+) fis ON TRUE
 WHERE j.data<=%s AND j.data<CURRENT_DATE
   AND j.gols_casa IS NOT NULL AND j.gols_fora IS NOT NULL
   {competition}
@@ -95,6 +158,31 @@ def _n(v):
 
 def _safe_div(a,b):
     return a/b if a is not None and b is not None and b>0 else None
+
+# Histórico comum ao Nostradamus e ao Galileu, sempre de jogos já finalizados.
+HISTORICAL_FIELDS=("xg","xgot","chutes","chutes_certos","passes_certos","posse",
+                   "grandes_chances","escanteios","dribles_certos","faltas","duelos_aereos")
+
+def _history_item(game,role):
+    if role not in ("home","away"):
+        raise ValueError("Mando inválido para o histórico.")
+    other="away" if role=="home" else "home"
+    own_home=role=="home"
+    item={
+        "gf":int(game["gols_casa"] if own_home else game["gols_fora"]),
+        "ga":int(game["gols_fora"] if own_home else game["gols_casa"]),
+    }
+    for field in HISTORICAL_FIELDS:
+        item[field]=game.get(role+"_"+field)
+    for field in ("km","sprints"):
+        measured=_n(game.get(role+"_"+field))
+        opponent=_n(game.get(other+"_"+field))
+        # Zero ou negativo indicam registro físico indisponível/incorreto.
+        measured=measured if measured is not None and measured>0 else None
+        opponent=opponent if opponent is not None and opponent>0 else None
+        item[field]=measured
+        item[field+"_diff"]=measured-opponent if measured is not None and opponent is not None else None
+    return item
 
 def _stats(history,amount):
     # O recorte 10/20 indica um LIMITE máximo, não uma obrigação de ter
@@ -118,7 +206,8 @@ def _stats(history,amount):
        "clean_sheets_pct":100*sum(x==0 for x in conceded)/n,
     }
     fields=("xg","xgot","chutes","chutes_certos","passes_certos","posse",
-            "grandes_chances","escanteios","dribles_certos","faltas","duelos_aereos")
+            "grandes_chances","escanteios","dribles_certos","faltas","duelos_aereos",
+            "km","sprints","km_diff","sprints_diff")
     for key in fields:
         eligible=[r for r in selected if _n(r.get(key)) is not None]
         # Require reasonable statistical coverage for this feature.
@@ -348,14 +437,8 @@ def testar(payload,rows=None):
         for g in games:
             hkey=(g["campeonato_id"],g["temporada"],g["casa_id"])
             akey=(g["campeonato_id"],g["temporada"],g["fora_id"])
-            for key,role,opposition in ((hkey,"home","away"),(akey,"away","home")):
-                gf=int(g["gols_casa"] if role=="home" else g["gols_fora"])
-                ga=int(g["gols_fora"] if role=="home" else g["gols_casa"])
-                item={"gf":gf,"ga":ga}
-                for field in ("xg","xgot","chutes","chutes_certos","passes_certos","posse",
-                              "grandes_chances","escanteios","dribles_certos","faltas","duelos_aereos"):
-                    item[field]=g.get(role+"_"+field)
-                histories[key].append(item)
+            for key,role in ((hkey,"home"),(akey,"away")):
+                histories[key].append(_history_item(g,role))
     summary=[]
     for league_name,rec in sorted(leagues.items()):
         rec["campeonato"]=league_name
