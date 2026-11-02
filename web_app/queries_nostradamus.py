@@ -65,6 +65,33 @@ SELECT j.id,j.data,j.temporada,j.campeonato_id,c.nome AS campeonato,
        j.casa_id,j.fora_id,h.clube AS mandante,v.clube AS visitante,
        j.gols_casa,j.gols_fora,
        oh.odd_casa,oh.odd_empate,oh.odd_fora,oh.criado_em AS odd_criada,
+       oa.odd_1_ft AS api_odd_1_ft,
+       oa.odd_x_ft AS api_odd_x_ft,
+       oa.odd_2_ft AS api_odd_2_ft,
+       oa.over_ft_0_5 AS api_over_ft_0_5,
+       oa.over_ft_1_5 AS api_over_ft_1_5,
+       oa.over_ft_2_5 AS api_over_ft_2_5,
+       oa.over_ft_3_5 AS api_over_ft_3_5,
+       oa.under_ft_2_5 AS api_under_ft_2_5,
+       oa.btts_yes AS api_btts_yes,
+       oa.btts_no AS api_btts_no,
+       oa.lay_odd_1_ft AS api_lay_odd_1_ft,
+       oa.lay_odd_x_ft AS api_lay_odd_x_ft,
+       oa.lay_odd_2_ft AS api_lay_odd_2_ft,
+       oa.lay_cs_1_0 AS api_lay_cs_1_0,
+       oa.lay_cs_0_1 AS api_lay_cs_0_1,
+       oa.bookie_odd_1_ft AS api_bookie_odd_1_ft,
+       oa.bookie_odd_x_ft AS api_bookie_odd_x_ft,
+       oa.bookie_odd_2_ft AS api_bookie_odd_2_ft,
+       oa.bookie_over_ft_0_5 AS api_bookie_over_ft_0_5,
+       oa.bookie_over_ft_1_5 AS api_bookie_over_ft_1_5,
+       oa.bookie_over_ft_2_5 AS api_bookie_over_ft_2_5,
+       oa.bookie_over_ft_3_5 AS api_bookie_over_ft_3_5,
+       oa.bookie_under_ft_2_5 AS api_bookie_under_ft_2_5,
+       oa.bookie_btts_yes AS api_bookie_btts_yes,
+       oa.bookie_btts_no AS api_bookie_btts_no,
+       oa.bookie_cs_1_0 AS api_bookie_cs_1_0,
+       oa.bookie_cs_0_1 AS api_bookie_cs_0_1,
        ec.xg AS home_xg,ea.xg AS away_xg,
        ec.xgot AS home_xgot,ea.xgot AS away_xgot,
        ec.total_chutes AS home_chutes,ea.total_chutes AS away_chutes,
@@ -84,6 +111,44 @@ JOIN clubes v ON v.id=j.fora_id
 LEFT JOIN estatisticas ec ON ec.jogo_id=j.id AND ec.clube_id=j.casa_id AND ec.periodo='Completo'
 LEFT JOIN estatisticas ea ON ea.jogo_id=j.id AND ea.clube_id=j.fora_id AND ea.periodo='Completo'
 LEFT JOIN odds_fotmob oh ON oh.jogo_id=j.id
+-- Cotações da tabela odds, pareadas sem confiar em semelhança aproximada.
+-- Exige identificadores de AMBOS os clubes, data, liga e temporada.
+-- Se houver mais de uma linha correspondente, nenhuma odd é atribuída.
+LEFT JOIN LATERAL (
+ SELECT MAX(o.odd_1_ft) AS odd_1_ft,
+        MAX(o.odd_x_ft) AS odd_x_ft,
+        MAX(o.odd_2_ft) AS odd_2_ft,
+        MAX(o.over_ft_0_5) AS over_ft_0_5,
+        MAX(o.over_ft_1_5) AS over_ft_1_5,
+        MAX(o.over_ft_2_5) AS over_ft_2_5,
+        MAX(o.over_ft_3_5) AS over_ft_3_5,
+        MAX(o.under_ft_2_5) AS under_ft_2_5,
+        MAX(o.btts_yes) AS btts_yes,
+        MAX(o.btts_no) AS btts_no,
+        MAX(o.lay_odd_1_ft) AS lay_odd_1_ft,
+        MAX(o.lay_odd_x_ft) AS lay_odd_x_ft,
+        MAX(o.lay_odd_2_ft) AS lay_odd_2_ft,
+        MAX(o.lay_cs_1_0) AS lay_cs_1_0,
+        MAX(o.lay_cs_0_1) AS lay_cs_0_1,
+        MAX(o.bookie_odd_1_ft) AS bookie_odd_1_ft,
+        MAX(o.bookie_odd_x_ft) AS bookie_odd_x_ft,
+        MAX(o.bookie_odd_2_ft) AS bookie_odd_2_ft,
+        MAX(o.bookie_over_ft_0_5) AS bookie_over_ft_0_5,
+        MAX(o.bookie_over_ft_1_5) AS bookie_over_ft_1_5,
+        MAX(o.bookie_over_ft_2_5) AS bookie_over_ft_2_5,
+        MAX(o.bookie_over_ft_3_5) AS bookie_over_ft_3_5,
+        MAX(o.bookie_under_ft_2_5) AS bookie_under_ft_2_5,
+        MAX(o.bookie_btts_yes) AS bookie_btts_yes,
+        MAX(o.bookie_btts_no) AS bookie_btts_no,
+        MAX(o.bookie_cs_1_0) AS bookie_cs_1_0,
+        MAX(o.bookie_cs_0_1) AS bookie_cs_0_1
+ FROM public.odds o
+ WHERE o.mandante_id=j.casa_id AND o.visitante_id=j.fora_id
+   AND o.data_jogo::date=j.data
+   AND REPLACE(o.temporada,'-','/')=j.temporada
+   AND LOWER(BTRIM(o.campeonato))=LOWER(BTRIM(c.nome))
+ HAVING COUNT(*)=1
+) oa ON TRUE
 -- Os IDs físicos são SofaScore. Para partidas sem ID SofaScore
 -- (ex.: Brasileiro e Bundesliga FotMob), só aceitamos pareamento
 -- único de data, temporada, liga, país e AMBOS os clubes.
@@ -318,24 +383,54 @@ def _settle(key,goals_home,goals_away):
     }
     return events[key]
 
+# O banco contém odds de casas de apostas e Lay ESTIMADO, nunca Lay
+# executável na Betfair. Os preços históricos da API podem ter sido obtidos
+# após a partida: não afirmar timestamp pré-jogo que a fonte não comprova.
+API_MARKETS={
+    "back_mandante":("api_odd_1_ft","api_bookie_odd_1_ft"),
+    "back_visitante":("api_odd_2_ft","api_bookie_odd_2_ft"),
+    "back_empate":("api_odd_x_ft","api_bookie_odd_x_ft"),
+    "over_05":("api_over_ft_0_5","api_bookie_over_ft_0_5"),
+    "over_15":("api_over_ft_1_5","api_bookie_over_ft_1_5"),
+    "over_25":("api_over_ft_2_5","api_bookie_over_ft_2_5"),
+    "over_35":("api_over_ft_3_5","api_bookie_over_ft_3_5"),
+    "under_25":("api_under_ft_2_5","api_bookie_under_ft_2_5"),
+    "ambos_marcam":("api_btts_yes","api_bookie_btts_yes"),
+    "ambos_nao":("api_btts_no","api_bookie_btts_no"),
+    "lay_mandante":("api_lay_odd_1_ft","api_bookie_odd_1_ft"),
+    "lay_visitante":("api_lay_odd_2_ft","api_bookie_odd_2_ft"),
+    "lay_empate":("api_lay_odd_x_ft","api_bookie_odd_x_ft"),
+    "lay_1x0":("api_lay_cs_1_0","api_bookie_cs_1_0"),
+    "lay_0x1":("api_lay_cs_0_1","api_bookie_cs_0_1"),
+}
+
 def _odds_for_game(r,market,manual):
     if manual is not None:return manual,"hipotetica"
-    # odds_fotmob contém cotações de back de casas, não odds LAY
-    # executáveis em bolsa de apostas. Nunca reutilizá-las como lay.
+    field=API_MARKETS.get(market)
+    if field:
+        price=_n(r.get(field[0]))
+        if price is not None and 1.01<=price<=1000:
+            return price,("lay_estimado" if market.startswith("lay_") else "api_casa")
+    # Histórico FotMob: aceita Back 1x2 SOMENTE se registro anterior ao jogo.
     if market.startswith("lay_"):return None,None
-    source={"back_mandante":"odd_casa","lay_mandante":"odd_casa",
-            "back_visitante":"odd_fora","lay_visitante":"odd_fora",
-            "back_empate":"odd_empate","lay_empate":"odd_empate"}.get(market)
+    source={"back_mandante":"odd_casa","back_visitante":"odd_fora",
+            "back_empate":"odd_empate"}.get(market)
     if not source:return None,None
     created=r.get("odd_criada")
     if not created:return None,None
     if isinstance(created,str):
         try:created=datetime.fromisoformat(created.replace("Z","+00:00"))
         except ValueError:return None,None
-    if created.date()>=r["data"]:
-        return None,None
+    if created.date()>=r["data"]:return None,None
     o=_n(r.get(source))
     return (o,"registrada_antes") if o is not None and 1.01<=o<=1000 else (None,None)
+
+def _bookmaker_for_game(r,market,origin):
+    if origin not in ("api_casa","lay_estimado"):return None
+    column=API_MARKETS.get(market)
+    value=r.get(column[1]) if column else None
+    return str(value).strip()[:90] if value else None
+
 
 def _units(success,market,odd,commission):
     if odd is None:return None
@@ -394,7 +489,9 @@ def testar(payload,rows=None):
             filtered.append({**r,"data":d})
     filtered.sort(key=lambda r:(r["data"],int(r["id"])))
     histories=defaultdict(list)
-    leagues=defaultdict(lambda:{"entradas":0,"greens":0,"reds":0,"unidades":0.0,"cotadas":0,"jogos":[]})
+    leagues=defaultdict(lambda:{"entradas":0,"greens":0,"reds":0,"unidades":0.0,
+                "cotadas":0,"odds_soma":0.0,"good_run":0,"bad_run":0,
+                "maior_good_run":0,"maior_bad_run":0,"jogos":[]})
     length=None if window=="temporada" else int(window)
     matched_total=0
     for d,games_iter in groupby(filtered,key=lambda r:r["data"]):
@@ -421,15 +518,26 @@ def testar(payload,rows=None):
                 rec["entradas"]+=1
                 rec["greens"]+=int(hit)
                 rec["reds"]+=int(not hit)
+                if hit:
+                    rec["good_run"]+=1
+                    rec["bad_run"]=0
+                    rec["maior_good_run"]=max(rec["maior_good_run"],rec["good_run"])
+                else:
+                    rec["bad_run"]+=1
+                    rec["good_run"]=0
+                    rec["maior_bad_run"]=max(rec["maior_bad_run"],rec["bad_run"])
                 if units is not None:
                     rec["cotadas"]+=1
                     rec["unidades"]+=units
+                    rec["odds_soma"]+=odd
                 if len(rec["jogos"])<400:
                     rec["jogos"].append({
                       "id":g["id"],"data":d.isoformat(),"mandante":g["mandante"],
                       "visitante":g["visitante"],"placar":str(g["gols_casa"])+"x"+str(g["gols_fora"]),
                       "green":hit,"odd":odd,"tipo_odd":origin,
+                      "bookmaker":_bookmaker_for_game(g,market,origin),
                       "unidades":round(units,3) if units is not None else None,
+                      "valor_reais":round(units*100,2) if units is not None else None,
                       "historico_mandante":min(len(histories[hkey]),length) if length is not None else len(histories[hkey]),
                       "historico_visitante":min(len(histories[akey]),length) if length is not None else len(histories[akey]),
                       "condicoes":details,
@@ -443,15 +551,24 @@ def testar(payload,rows=None):
     for league_name,rec in sorted(leagues.items()):
         rec["campeonato"]=league_name
         rec["win_rate"]=round(100*rec["greens"]/rec["entradas"],2) if rec["entradas"] else 0
+        rec["odd_media"]=round(rec["odds_soma"]/rec["cotadas"],2) if rec["cotadas"] else None
         rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
+        rec["valor_reais"]=round(rec["unidades"]*100,2) if rec["cotadas"] else None
+        del rec["odds_soma"]
+        del rec["good_run"]
+        del rec["bad_run"]
         summary.append(rec)
     recorte_descrito=("até os últimos "+window+" jogos disponíveis" if window!="temporada"
                      else "todos os jogos disponíveis da temporada")
     return {"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "resultados":summary,"entradas":matched_total,
-            "limite_detalhes":400,"odd_hipotetica":manual,
-            "aviso":"A data de corte limita as partidas analisadas. Para cada entrada, usamos "
-                    +recorte_descrito+" anteriores à data do confronto, na mesma liga e temporada, "
-                    "com mínimo de 5 jogos. Partidas futuras, da própria entrada ou da mesma data "
-                    "não entram nos indicadores. Win rate = greens / entradas. "
-                    "O resultado histórico não garante desempenho futuro."}
+            "limite_detalhes":400,"odd_hipotetica":manual,"stake_reais":100,
+            "aviso":"A data de corte limita os jogos analisados. Indicadores usam apenas "
+                    +recorte_descrito+" anteriores a cada jogo, com mínimo de 5. "
+                    "Win rate e sequências consideram todas as entradas; unidades e resultado "
+                    "financeiro consideram SOMENTE entradas cotadas (1 unidade = R$ 100). "
+                    "Odds Back são preços de casas do banco; como a data de captura da API "
+                    "não comprova preço pré-jogo, o retorno é uma estimativa retrospectiva. "
+                    "Odds Lay são estimadas, não executáveis, com comissão fixa de 4,5%. "
+                    "Sem cotação, o resultado financeiro fica indisponível. "
+                    "O passado não garante resultado futuro."}
