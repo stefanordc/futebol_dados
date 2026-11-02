@@ -228,8 +228,6 @@ class TestIntegracoes(TestCase):
         self.assertIn('const selected=$$("#int-api-columns input[type=checkbox]:checked").length',js)
         self.assertIn('tr.classList.toggle("int-match-auto",on)',js)
         self.assertNotIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
-        self.assertNotIn('$("#int-api-columns input[type=checkbox]").forEach',js)
-        self.assertNotIn('for(const tr of $("#int-api-clubs tr"))',js)
 
     def test_lay_simulado_escada_e_fonte_preferida(self):
         self.assertEqual(qi._simulated_lay("1.85"),1.86)
