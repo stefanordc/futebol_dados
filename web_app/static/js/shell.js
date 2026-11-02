@@ -7,6 +7,7 @@
     ['Jogos', '/', 'calendar'], ['Campeonatos', '/static/campeonatos.html', 'trophy'], ['Clubes', '/clubes', 'shield'],
     ['Jogadores', '/jogadores', 'users'], ['Técnicos', '/tecnicos', 'briefcase'],
     ['Árbitros', '/arbitros', 'flag'], ['Estatísticas', '/estatisticas', 'chart'],
+    ['Vincular Clubes', '/vincular-clubes', 'shield'],
     ['Apostas', '/apostas', 'trending']
   ];
   const strokes = {

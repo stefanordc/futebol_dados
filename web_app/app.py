@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -23,6 +23,9 @@ import queries_nostradamus
 import queries_estrategias
 import queries_galileu
 import queries_tecnico_avancadas
+import queries_vinculos
+import queries_integracoes
+from ipaddress import ip_address
 
 DIR = Path(__file__).resolve().parent
 TEMPLATES = DIR / "templates"
@@ -67,6 +70,70 @@ def pagina_diretorio():
 @app.get("/apostas")
 def pagina_apostas():
     return RedirectResponse(url="/apostas/x1",status_code=307)
+
+
+def _integracoes_somente_local(request: Request):
+    # Admin: endpoints sem autenticação, disponíveis somente no loopback.
+    host = request.client.host if request.client else ""
+    try:
+        if not ip_address(host).is_loopback:
+            raise HTTPException(status_code=403,detail="Administração disponível apenas no localhost.")
+    except ValueError:
+        raise HTTPException(status_code=403,detail="Administração disponível apenas no localhost.")
+
+
+@app.get("/vincular-clubes")
+def pagina_vincular_clubes(request: Request):
+    _integracoes_somente_local(request)
+    return FileResponse(TEMPLATES / "vincular_clubes.html")
+
+
+@app.get("/apostas/nostradamus/conectar-api")
+def pagina_conectar_api(request: Request):
+    _integracoes_somente_local(request)
+    return FileResponse(TEMPLATES / "api_connect.html")
+
+
+@app.get("/api/integracoes/vinculos")
+def api_integracoes_vinculos(request: Request, fonte: str = "fisicos"):
+    _integracoes_somente_local(request)
+    try:
+        return queries_vinculos.listar(fonte)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/integracoes/vinculos")
+def api_integracoes_vincular(request: Request, payload: dict):
+    _integracoes_somente_local(request)
+    try:
+        return queries_vinculos.vincular(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
+@app.post("/api/integracoes/odds/preview")
+def api_integracoes_odds_preview(request: Request, payload: dict):
+    _integracoes_somente_local(request)
+    try:
+        return queries_integracoes.preview(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/integracoes/odds/importar")
+def api_integracoes_odds_importar(request: Request, payload: dict):
+    _integracoes_somente_local(request)
+    try:
+        return queries_integracoes.importar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.get("/api/integracoes/odds/importacoes")
+def api_integracoes_odds_importacoes(request: Request):
+    _integracoes_somente_local(request)
+    return queries_integracoes.ultimas()
 
 
 @app.get("/apostas/nostradamus")

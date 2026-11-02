@@ -1,0 +1,35 @@
+name: Integrações — clubes e odds
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_vinculos.py'
+      - 'web_app/queries_integracoes.py'
+      - 'web_app/tests/test_integracoes.py'
+      - 'web_app/templates/api_connect.html'
+      - 'web_app/templates/vincular_clubes.html'
+      - 'web_app/static/js/integracoes.js'
+      - 'web_app/sql/odds_importacoes.sql'
+      - '.github/workflows/test-integracoes.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_integracoes.py'
+      - 'web_app/queries_vinculos.py'
+      - 'web_app/tests/test_integracoes.py'
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependências
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Compilação
+        run: python -m compileall -q web_app/app.py web_app/queries_integracoes.py web_app/queries_vinculos.py
+      - name: JavaScript
+        run: node --check web_app/static/js/integracoes.js
+      - name: Testes de unidade e segurança
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_integracoes.py' -v

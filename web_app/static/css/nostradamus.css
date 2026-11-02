@@ -140,3 +140,5 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-saved-empty strong{color:var(--df-text)}
 .ns-saved-empty p{color:var(--df-secondary);font-size:13px;margin:7px 0 0}
 @media(max-width:790px){.ns-saved-table-wrap{margin:0 -4px}.ns-saved-table td{padding:13px}}
+
+.ns-subtabs a.ns-subtab{text-decoration:none;display:inline-flex;align-items:center}
