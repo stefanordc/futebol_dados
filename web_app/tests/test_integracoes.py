@@ -313,6 +313,119 @@ class TestIntegracoes(TestCase):
         save.assert_called_once_with(qi._KEYRING_SERVICE,
                                      "futpythontrader.com.br","TESTE_NAO_REAL")
 
+    def test_lista_temporadas_ano_simples_e_intervalo(self):
+        brasil="/api/download/brazil/serie-a-betano/2026"
+        bulgaria="/api/download/bulgaria/vtora-liga/2026-2027"
+        self.assertEqual(qi._temporadas_da_requisicao(
+            brasil,"2026, 2025, 2024, 2026\n2023; 2022; 2021"),
+            ["2026","2025","2024","2023","2022","2021"])
+        self.assertEqual(qi._temporadas_da_requisicao(
+            bulgaria,"2026-2027, 2025-2026, 2024-2025"),
+            ["2026-2027","2025-2026","2024-2025"])
+        self.assertEqual(qi._metadata(bulgaria),
+                         ("2026-2027","Vtora Liga","Bulgária"))
+        self.assertEqual(qi._temporadas_da_requisicao(brasil,""),["2026"])
+        with self.assertRaisesRegex(ValueError,"Não misture"):
+            qi._temporadas_da_requisicao(brasil,"2026, 2025-2026")
+        with self.assertRaisesRegex(ValueError,"consecutivo"):
+            qi._temporadas_da_requisicao(bulgaria,"2026-2028")
+        with self.assertRaisesRegex(ValueError,"1 a 12"):
+            qi._temporadas_da_requisicao(brasil,",".join(str(x) for x in range(2020,2033)))
+
+    def test_previa_consulta_duas_temporadas_sem_repetir_chave(self):
+        resp1=Response({"matches":[
+            {"Match_ID":"id26","Home":"Flamengo","Away":"Corinthians",
+             "Season":"2026","Odd_1_FT":"2.1"}]})
+        resp2=Response({"matches":[
+            {"Match_ID":"id25","Home":"Flamengo","Away":"Corinthians",
+             "Season":"2025","Odd_1_FT":"1.9"}]})
+        opener=MagicMock()
+        opener.open.side_effect=[resp1,resp2]
+        with patch.object(qi.socket,"getaddrinfo",
+                          return_value=[(2,1,6,"",("8.8.8.8",443))]),\
+             patch.object(qi,"build_opener",return_value=opener),\
+             patch.object(qi,"fetch_all",return_value=CLUBS),\
+             patch.object(qi,"_last_columns",return_value=None),\
+             patch.object(qi.keyring,"get_password",return_value=None):
+            result=qi.preview({
+                "base":"https://futpythontrader.com.br",
+                "caminho":"/api/download/brazil/serie-a-betano/2026",
+                "temporadas":"2026, 2025","chave":"EXEMPLO_TESTE",
+                "cabecalho":"api_key"
+            })
+        self.assertEqual(result["total"],2)
+        self.assertEqual(result["temporadas"],["2026","2025"])
+        self.assertEqual([x["partidas"] for x in result["temporadas_resultado"]],[1,1])
+        urls=[call.args[0].full_url for call in opener.open.call_args_list]
+        self.assertIn("/2026?api_key=EXEMPLO_TESTE",urls[0])
+        self.assertIn("/2025?api_key=EXEMPLO_TESTE",urls[1])
+        stored=qi._PREVIEWS[result["preview_id"]]
+        self.assertEqual(stored["row_seasons"],["2026","2025"])
+        self.assertNotIn("EXEMPLO_TESTE",str(stored))
+
+    def test_previa_relata_temporada_sem_resposta(self):
+        from urllib.error import HTTPError
+        opener=MagicMock()
+        opener.open.side_effect=[
+            HTTPError("https://futpythontrader.com.br",404,"Not Found",None,None),
+            Response({"matches":[{"Home":"Flamengo","Away":"Corinthians","Match_ID":"B"}]})
+        ]
+        with patch.object(qi.socket,"getaddrinfo",
+                          return_value=[(2,1,6,"",("8.8.8.8",443))]),\
+             patch.object(qi,"build_opener",return_value=opener),\
+             patch.object(qi,"fetch_all",return_value=CLUBS),\
+             patch.object(qi,"_last_columns",return_value=None),\
+             patch.object(qi.keyring,"get_password",return_value=None):
+            result=qi.preview({
+                "base":"https://futpythontrader.com.br",
+                "caminho":"/api/download/brazil/serie-a-betano/2026",
+                "temporadas":"2026, 2025"
+            })
+        self.assertEqual(result["total"],1)
+        self.assertEqual([x["status"] for x in result["temporadas_resultado"]],
+                         ["erro","ok"])
+        self.assertEqual(result["temporadas_resultado"][0]["mensagem"],"HTTP 404")
+        self.assertEqual(qi._PREVIEWS[result["preview_id"]]["row_seasons"],["2025"])
+
+    def test_importacao_multitemporada_mantem_ano_da_url(self):
+        qi._PREVIEWS["multiseason"]={
+          "criado":qi.time.monotonic(),
+          "host":"futpythontrader.com.br",
+          "path":"/api/download/brazil/serie-a-betano/2026",
+          "paths":{"2026":"/api/download/brazil/serie-a-betano/2026",
+                   "2025":"/api/download/brazil/serie-a-betano/2025"},
+          "season":"2026","country":"Brasil","league":"Serie A Betano",
+          "multiplas_temporadas":True,
+          "row_seasons":["2026","2025"],
+          "columns":["Home","Away","Match_ID","Season","Odd_1_FT"],
+          "rows":[
+              {"Home":"Flamengo","Away":"Corinthians","Match_ID":"A",
+               "Season":"2025","Odd_1_FT":"2.1"},
+              {"Home":"Flamengo","Away":"Corinthians","Match_ID":"B",
+               "Season":"2026","Odd_1_FT":"1.8"}
+          ]}
+        fake=MagicMock()
+        cur=fake.cursor.return_value.__enter__.return_value
+        cur.fetchone.side_effect=[{"id":101},{"id":1001},
+                                  {"id":102},{"id":1002}]
+        @contextmanager
+        def conn():yield fake
+        with patch.object(qi,"get_conn",conn),\
+             patch.object(qi,"fetch_all",return_value=CLUBS):
+            result=qi.importar({
+                "preview_id":"multiseason","colunas":["Home","Away","Match_ID",
+                    "Season","Odd_1_FT"],"temporada":"2026, 2025",
+                "clubes":[{"original":"Flamengo","padronizado":"Flamengo","clube_id":None},
+                           {"original":"Corinthians","padronizado":"Corinthians","clube_id":None}]})
+        self.assertEqual(result["inseridos"],2)
+        self.assertEqual([x["temporada"] for x in result["importacoes"]],["2026","2025"])
+        inserts=[call.args[1] for call in cur.execute.call_args_list
+                 if len(call.args)>1 and isinstance(call.args[1],list)]
+        self.assertEqual(len(inserts),2)
+        self.assertEqual([params[4] for params in inserts],["2026","2025"])
+        self.assertEqual([params[0] for params in inserts],[101,102])
+        fake.commit.assert_called_once()
+
     def test_importacao_atomica_commit_sem_chave(self):
         qi._PREVIEWS.clear()
         qi._PREVIEWS["abc"]={"criado":qi.time.monotonic(),"host":"api.exemplo.com",

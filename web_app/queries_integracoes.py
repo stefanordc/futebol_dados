@@ -109,9 +109,10 @@ def _metadata(path):
     parts=[p for p in path.split("/") if p]
     year=next((p for p in reversed(parts) if re.fullmatch(r"20\d{2}(?:[-/]20\d{2})?",p)),None)
     country=next((p.title() for p in parts if p.lower() in
-                  ("brazil","brasil","england","spain","italy","germany","france")),None)
+                  ("brazil","brasil","england","spain","italy","germany","france","bulgaria")),None)
     country={"Brazil":"Brasil","England":"Inglaterra","Spain":"Espanha",
-             "Italy":"Itália","Germany":"Alemanha","France":"França"}.get(country,country)
+             "Italy":"Itália","Germany":"Alemanha","France":"França",
+             "Bulgaria":"Bulgária"}.get(country,country)
     league=parts[-2].replace("-"," ").title() if len(parts)>=2 and year else None
     return year,league,country
 
@@ -426,11 +427,57 @@ def _preparar_colunas(cur,colunas):
             sql.Identifier(name),sql.SQL(typ)))
     cur.execute(sql.SQL("ALTER TABLE public.odds ") + sql.SQL(", ").join(alteracoes))
 
+MAX_TEMPORADAS=12
+MAX_ROWS_BATCH=20000
+TEMPORADA_PATTERN=re.compile(r"20\d{2}(?:-20\d{2})?$")
+
+def _temporadas_da_requisicao(path,entrada):
+    """Aceita lista colada com vírgula, ponto e vírgula ou quebra de linha."""
+    original=path.rstrip("/").rsplit("/",1)[-1]
+    if entrada in (None,""):
+        return [original] if TEMPORADA_PATTERN.fullmatch(original) else [None]
+    if not isinstance(entrada,str) or len(entrada)>350:
+        raise ValueError("Informe até 12 temporadas separadas por vírgula ou quebra de linha.")
+    items=[x.strip() for x in re.split(r"[,;\n\r]+",entrada) if x.strip()]
+    if not items or len(items)>MAX_TEMPORADAS:
+        raise ValueError("Informe de 1 a 12 temporadas.")
+    intervalos=bool(re.fullmatch(r"20\d{2}-20\d{2}",original))
+    if not TEMPORADA_PATTERN.fullmatch(original):
+        raise ValueError("O caminho da API precisa terminar com uma temporada válida.")
+    unique=list(dict.fromkeys(items))
+    for item in unique:
+        if not TEMPORADA_PATTERN.fullmatch(item):
+            raise ValueError(f"Temporada inválida: {item}. Use 2026 ou 2026-2027.")
+        if ("-" in item)!=intervalos:
+            raise ValueError("Não misture temporadas simples e intervalos na mesma URL.")
+        if "-" in item:
+            a,b=map(int,item.split("-"))
+            if b!=a+1:
+                raise ValueError(f"Intervalo inválido: {item}. O segundo ano deve ser consecutivo.")
+    return unique
+
+def _download_temporada(opener,url,headers):
+    request=Request(url,headers=headers,method="GET")
+    with opener.open(request,timeout=30) as response:
+        content_type=(response.headers.get("Content-Type") or "").lower()
+        raw=response.read(LIMIT_BYTES+1)
+        if len(raw)>LIMIT_BYTES:
+            raise ValueError("Resposta excede o limite de 16 MB.")
+    rows=_parse_response(raw,content_type)
+    if len(rows)>LIMIT_ROWS:
+        raise ValueError("A temporada excede o limite de 5.000 partidas.")
+    if any(not isinstance(row,dict) for row in rows):
+        raise ValueError("A resposta possui partidas inválidas.")
+    return rows
+
 def preview(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
     base=str(payload.get("base",""))
     path=str(payload.get("caminho",""))
     url,host=_url(base,path)
+    seasons=_temporadas_da_requisicao(path,payload.get("temporadas"))
+    if len(seasons)>1 and seasons[0] is None:
+        raise ValueError("Informe um caminho terminado em temporada.")
     api_key=payload.get("chave","")
     header=payload.get("cabecalho","api_key")
     if header not in ("api_key","x-api-key","Authorization"):
@@ -441,36 +488,51 @@ def preview(payload):
     if not nova_chave:
         api_key=_chave_armazenada(host) or ""
     salvar=payload.get("salvar_chave",False) is True
-    headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.1"}
-    if api_key:
-        if header=="api_key":
-            # O provedor recebe a chave na query string; não a registramos.
-            url += "?" + urlencode({"api_key":api_key})
-        else:
-            headers[header]="Bearer "+api_key if header=="Authorization" else api_key
-    req=Request(url,headers=headers,method="GET")
+    headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.2"}
+    if api_key and header!="api_key":
+        headers[header]="Bearer "+api_key if header=="Authorization" else api_key
     opener=build_opener(HTTPSHandler(),_NoRedirect())
-    try:
-        with opener.open(req,timeout=30) as response:
-            content_type=(response.headers.get("Content-Type") or "").lower()
-            raw=response.read(LIMIT_BYTES+1)
-            if len(raw)>LIMIT_BYTES:raise ValueError("Resposta excede o limite de 16 MB.")
-    except HTTPError as exc:
-        if exc.code in (401,403):
-            raise ValueError("Chave de API inválida ou acesso não autorizado.") from None
-        raise ValueError(f"Falha na API (HTTP {exc.code}). Verifique o caminho.") from None
-    except (URLError,TimeoutError,OSError):
-        raise ValueError("Falha ao consultar a API. Confira host, chave e caminho.") from None
-    rows=_parse_response(raw,content_type)
+    root=url.rsplit("/",1)[0]
+    rows=[]
+    row_seasons=[]
+    paths={}
+    results=[]
+    for season in seasons:
+        current_path=(path.rsplit("/",1)[0]+"/"+season) if season is not None else path
+        current_url=(root+"/"+season) if season is not None else url
+        paths[season]=current_path
+        if api_key and header=="api_key":
+            current_url+="?"+urlencode({"api_key":api_key})
+        try:
+            season_rows=_download_temporada(opener,current_url,headers)
+        except HTTPError as exc:
+            if exc.code in (401,403):
+                raise ValueError("Chave de API inválida ou acesso não autorizado.") from None
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":f"HTTP {exc.code}"})
+            continue
+        except (URLError,TimeoutError,OSError):
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":"Falha de conexão ou limite de tempo."})
+            continue
+        except ValueError as exc:
+            # Mensagens geradas localmente; nunca repassar URL com credenciais.
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":str(exc)})
+            continue
+        results.append({"temporada":season,"status":"ok" if season_rows else "vazio",
+                        "partidas":len(season_rows)})
+        if len(rows)+len(season_rows)>MAX_ROWS_BATCH:
+            raise ValueError("O lote excede 20.000 partidas. Divida a lista de temporadas.")
+        rows.extend(season_rows)
+        row_seasons.extend([season]*len(season_rows))
+    if not rows:
+        raise ValueError("Nenhuma partida retornada. Verifique os resultados das temporadas e os caminhos.")
     if nova_chave and salvar:
         try:
             keyring.set_password(_KEYRING_SERVICE,host,nova_chave)
         except Exception as exc:
             raise ValueError("A consulta funcionou, mas não foi possível guardar a chave no cofre do sistema.") from exc
-    if not rows or len(rows)>LIMIT_ROWS:
-        raise ValueError("Prévia aceita entre 1 e 5.000 partidas por importação.")
-    if any(not isinstance(row,dict) for row in rows):
-        raise ValueError("Cada partida deve conter colunas identificáveis.")
     columns=list(OrderedDict.fromkeys(k for row in rows for k in row
         if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)
         and not _is_handicap_column(k)))
@@ -479,20 +541,24 @@ def preview(payload):
     revisao=_clubes_preview(rows,country)
     saved=_last_columns()
     selected=[c for c in saved if c in columns] if saved is not None else _default_columns(columns)
-    if not selected:
-        selected=_default_columns(columns)
+    if not selected:selected=_default_columns(columns)
     now=time.monotonic()
     for k,v in list(_PREVIEWS.items()):
         if now-v["criado"]>TTL:_PREVIEWS.pop(k,None)
     token=secrets.token_urlsafe(24)
-    _PREVIEWS[token]={"rows":rows,"columns":columns,"criado":now,
+    _PREVIEWS[token]={"rows":rows,"row_seasons":row_seasons,"paths":paths,
+                       "multiplas_temporadas":payload.get("temporadas") not in (None,""),
+                       "temporadas_resultado":results,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
-    return {"preview_id":token,"colunas":columns,"chave_salva":bool(_chave_armazenada(host)),"colunas_marcadas":selected,
+    return {"preview_id":token,"colunas":columns,
+            "chave_salva":bool(_chave_armazenada(host)),"colunas_marcadas":selected,
             "selecao_origem":"ultima_importacao" if saved is not None else "recomendada",
-            "temporada":season,"campeonato":league,
-            **revisao,"total":len(rows),
+            "temporada":season,"temporadas":seasons,"temporadas_resultado":results,
+            "multiplas_temporadas":payload.get("temporadas") not in (None,""),
+            "campeonato":league,**revisao,"total":len(rows),
             "exemplo":{c:rows[0].get(c) for c in columns},
-            "aviso":"Revise as sugestões antes de importar. Nenhum dado foi salvo."}
+            "aviso":"Revise temporadas com erro e as sugestões de clubes antes de importar."}
+
 
 def importar(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
@@ -514,10 +580,16 @@ def importar(payload):
         raise ValueError("A lista de clubes mudou desde a prévia.")
     country=payload.get("pais") or prev["country"]
     league=payload.get("campeonato") or prev["league"]
-    season=payload.get("temporada") or prev["season"]
+    multi=bool(prev.get("multiplas_temporadas"))
+    season=prev["season"] if multi else (payload.get("temporada") or prev["season"])
     for field,val in (("país",country),("campeonato",league),("temporada",season)):
         if not isinstance(val,str) or not 1<=len(val.strip())<=100:
             raise ValueError(f"Informe {field}.")
+    row_seasons=prev.get("row_seasons")
+    if row_seasons is None:
+        row_seasons=[season]*len(prev["rows"])
+    if len(row_seasons)!=len(prev["rows"]):
+        raise ValueError("A prévia possui temporadas inconsistentes.")
     valid_ids={c["id"] for c in _catalogo_pais(country)}
     normalized={}
     for x in aliases:
@@ -529,60 +601,80 @@ def importar(payload):
         elif type(cid) is not int or cid not in valid_ids:
             raise ValueError("Clube não pertence ao país selecionado. Revise a vinculação.")
         normalized[x["original"]]=(name.strip(),cid)
-    prepared=[]
+    prepared=OrderedDict()
     column_types={}
-    for idx,row in enumerate(prev["rows"],start=1):
+    for idx,(row,row_season) in enumerate(zip(prev["rows"],row_seasons),start=1):
+        # Uma temporada por registro: nunca confiar apenas no campo Season do CSV.
+        target_season=row_season if multi else season
+        if not isinstance(target_season,str) or not TEMPORADA_PATTERN.fullmatch(target_season):
+            raise ValueError("Temporada inválida encontrada na prévia.")
         values=_linha_colunas(row,columns)
-        prepared.append((idx,row,values))
+        prepared.setdefault(target_season,[]).append((idx,row,values))
         for source in columns:
             column_types[_nome_coluna(source)]=_tipo_coluna(source)
             if _is_odd_column(source):
                 column_types["lay_"+_nome_coluna(source)]="numeric(12,4)"
                 column_types["bookie_"+_nome_coluna(source)]="text"
-    # Para repetir a importação, o índice único em (fonte, temporada, partida_externa_id)
-    # impede duplicação mesmo com duas requisições simultâneas.
     inserted=0
     ignored=0
+    importacoes=[]
     with get_conn() as conn:
         with conn.cursor() as cur:
             _preparar_colunas(cur,column_types)
-            cur.execute("""INSERT INTO public.odds_importacoes
-                (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
-                VALUES (%s,%s,%s,%s,%s,%s,0) RETURNING id""",
-                (prev["host"],prev["path"],country,league,season,Json(columns)))
-            batch=cur.fetchone()["id"]
-            for i,row,values in prepared:
-                h=_pick(row,HOME_KEYS)
-                a=_pick(row,AWAY_KEYS)
-                home,home_id=normalized.get(h,(h,None))
-                away,away_id=normalized.get(a,(a,None))
-                external=_pick(row,ID_KEYS)
-                dt=_parse_game_date(row)
-                standard={
-                    "importacao_id":batch,"linha_origem":i,
-                    "fonte":prev["host"],"partida_externa_id":external,
-                    "temporada":season,"campeonato":league,"pais":country,
-                    "data_jogo":dt,"mandante":home,"visitante":away,
-                    "mandante_id":home_id,"visitante_id":away_id,
-                    "lay_origem":"estimado_um_tick",
-                    "lay_precificacao_real":False,
-                    "lay_liquidez_verificada":False,
-                    "lay_comissao_pct":Decimal("4.5")
-                }
-                standard.update(values)
-                keys=list(standard)
-                query=sql.SQL("""INSERT INTO public.odds ({}) VALUES ({})
-                    ON CONFLICT DO NOTHING RETURNING id""").format(
-                    sql.SQL(",").join(map(sql.Identifier,keys)),
-                    sql.SQL(",").join([sql.Placeholder() for _ in keys]))
-                cur.execute(query,[standard[k] for k in keys])
-                if cur.fetchone():
-                    inserted+=1
+            for target_season,partidas in prepared.items():
+                target_path=prev.get("paths",{}).get(target_season,prev["path"])
+                cur.execute("""INSERT INTO public.odds_importacoes
+                    (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
+                    VALUES (%s,%s,%s,%s,%s,%s,0) RETURNING id""",
+                    (prev["host"],target_path,country,league,target_season,Json(columns)))
+                batch=cur.fetchone()["id"]
+                current_inserted=0
+                current_ignored=0
+                for line,(i,row,values) in enumerate(partidas,start=1):
+                    h=_pick(row,HOME_KEYS)
+                    a=_pick(row,AWAY_KEYS)
+                    home,home_id=normalized.get(h,(h,None))
+                    away,away_id=normalized.get(a,(a,None))
+                    external=_pick(row,ID_KEYS)
+                    dt=_parse_game_date(row)
+                    standard={
+                        "importacao_id":batch,"linha_origem":line,
+                        "fonte":prev["host"],"partida_externa_id":external,
+                        "temporada":target_season,"campeonato":league,"pais":country,
+                        "data_jogo":dt,"mandante":home,"visitante":away,
+                        "mandante_id":home_id,"visitante_id":away_id,
+                        "lay_origem":"estimado_um_tick",
+                        "lay_precificacao_real":False,
+                        "lay_liquidez_verificada":False,
+                        "lay_comissao_pct":Decimal("4.5")
+                    }
+                    # Os metadados autorizados da URL e os nomes padronizados
+                    # prevalecem sobre campos homônimos de CSV não confiável.
+                    for name,value in values.items():
+                        if name not in standard:standard[name]=value
+                    keys=list(standard)
+                    query=sql.SQL("""INSERT INTO public.odds ({}) VALUES ({})
+                        ON CONFLICT DO NOTHING RETURNING id""").format(
+                        sql.SQL(",").join(map(sql.Identifier,keys)),
+                        sql.SQL(",").join([sql.Placeholder() for _ in keys]))
+                    cur.execute(query,[standard[k] for k in keys])
+                    if cur.fetchone():
+                        current_inserted+=1
+                    else:
+                        current_ignored+=1
+                inserted+=current_inserted
+                ignored+=current_ignored
+                if current_inserted:
+                    cur.execute("UPDATE public.odds_importacoes SET total_registros=%s WHERE id=%s",
+                                (current_inserted,batch))
+                    importacoes.append({"temporada":target_season,"importacao_id":batch,
+                                       "inseridos":current_inserted,"ignorados":current_ignored})
                 else:
-                    ignored+=1
+                    # Evitar lotes vazios mesmo se outras temporadas forem novas.
+                    cur.execute("DELETE FROM public.odds_importacoes WHERE id=%s",(batch,))
+                    importacoes.append({"temporada":target_season,"importacao_id":None,
+                                       "inseridos":0,"ignorados":current_ignored})
             if inserted:
-                cur.execute("UPDATE public.odds_importacoes SET total_registros=%s WHERE id=%s",
-                            (inserted,batch))
                 for original,(display,cid) in normalized.items():
                     if cid is None:continue
                     eid="odds:"+prev["host"]+":"+original.strip().lower()
@@ -600,12 +692,14 @@ def importar(payload):
                             raise ValueError("Vínculo divergente já existente. Revise os clubes.")
                 conn.commit()
             else:
-                # Não criar histórico fictício de lote sem registros novos.
                 conn.rollback()
-                batch=None
     _PREVIEWS.pop(token,None)
-    return {"importacao_id":batch,"inseridos":inserted,"ignorados":ignored,
+    completed=[x for x in importacoes if x["importacao_id"] is not None]
+    return {"importacao_id":completed[0]["importacao_id"] if len(completed)==1 else None,
+            "importacoes":importacoes,"inseridos":inserted,"ignorados":ignored,
+            "temporadas_resultado":prev.get("temporadas_resultado",[]),
             "colunas":columns,"lay":"estimado_um_tick","comissao_pct":4.5}
+
 
 def ultimas():
     return fetch_all("""SELECT id,origem,caminho,pais,campeonato,temporada,

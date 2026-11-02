@@ -53,3 +53,14 @@ padding:12px 18px;border-radius:11px;font:inherit;font-weight:800;cursor:pointer
 }
 .int-table .int-match-label[hidden]{display:none}
 [data-theme="light"] .int-table .int-match-label{color:#895200}
+
+.int-season-paste{grid-column:1/-1}
+.int-season-paste textarea{display:block;width:100%;min-height:90px;padding:12px;margin-top:7px;
+ border:1px solid var(--df-border,#2c3541);border-radius:9px;background:var(--df-raised,#1b212a);
+ color:var(--df-text,#f8fafc);font:inherit;font-size:14px;resize:vertical}
+.int-season-paste small{display:block;margin-top:8px;font-size:12px;line-height:1.5}
+.int-season-results{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.int-season-result{border:1px solid var(--df-border,#2c3541);border-radius:9px;
+ padding:8px 12px;font-size:13px;font-weight:600}
+.int-season-error{border-color:#dc5555;color:#ff9595}
+.int-season-paste textarea:focus-visible{outline:2px solid var(--df-orange,#ff6b1a);outline-offset:2px}

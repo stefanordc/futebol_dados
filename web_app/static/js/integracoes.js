@@ -231,8 +231,29 @@
  });
  function renderPreview(){
    $("#int-api-preview").hidden=false;
-   $("#int-api-count").textContent=data.total+" registros retornados; fonte não importada ainda.";
-   $("#int-season").value=data.temporada||"";
+   const summaries=data.temporadas_resultado||[];
+   const successful=summaries.filter(x=>x.status==="ok").length;
+   const errors=summaries.filter(x=>x.status==="erro").length;
+   $("#int-api-count").textContent=data.total+" partidas em "+successful+
+     " temporada(s) com dados; "+errors+" com erro. Nenhum dado salvo ainda.";
+   const results=$("#int-season-results");
+   results.replaceChildren();
+   results.hidden=summaries.length===0;
+   summaries.forEach(item=>{
+     const line=element("div",
+       (item.temporada||"Temporada da URL")+" — "+
+       (item.status==="ok"?item.partidas+" partidas":
+        item.status==="vazio"?"sem partidas":
+        "erro: "+(item.mensagem||"não disponível")),
+       "int-season-result "+(item.status==="erro"?"int-season-error":""));
+     results.append(line);
+   });
+   const editableSeason=$("#int-season");
+   editableSeason.value=data.multiplas_temporadas
+     ?data.temporadas.join(", "):(data.temporada||"");
+   editableSeason.readOnly=Boolean(data.multiplas_temporadas);
+   editableSeason.title=data.multiplas_temporadas
+     ?"Temporadas definidas individualmente pelas URLs consultadas.":"Temporada editável.";
    $("#int-league").value=data.campeonato||"";
    $("#int-country").value=data.pais||"";
    renderClubRows(data.clubes,data.catalogo,false);
@@ -257,6 +278,7 @@
    try{
      const result=await request("/api/integracoes/odds/preview",json({
        base:$("#int-api-base").value,caminho:$("#int-api-path").value,
+       temporadas:$("#int-api-seasons").value.trim(),
        chave:$("#int-api-key").value,salvar_chave:$("#int-api-save-key").checked,cabecalho:$("#int-api-header").value
      }));
      $("#int-api-key").value="";data=result;
@@ -289,7 +311,12 @@
      original:tr.dataset.original,padronizado:$(".int-standard",tr).value,
      clube_id:$(".int-odds-club-id",tr).value?Number($(".int-odds-club-id",tr).value):null
    }));
-   if(!confirm("Importar "+data.total+" registros de odds com "+columns.length+" coluna(s) selecionada(s)?"))return;
+   const erroTemporadas=(data.temporadas_resultado||[]).filter(x=>x.status==="erro");
+   const avisos=erroTemporadas.length
+     ?"\nAtenção: "+erroTemporadas.length+" temporada(s) falharam e NÃO serão importadas.":"";
+   if(!confirm("Importar "+data.total+" partidas de "+
+       (data.temporadas_resultado||[]).filter(x=>x.status==="ok").length+
+       " temporada(s), com "+columns.length+" colunas?"+avisos))return;
    const btn=$("#int-import");btn.disabled=true;
    try{
      const result=await request("/api/integracoes/odds/importar",json({
@@ -297,9 +324,11 @@
        temporada:$("#int-season").value,campeonato:$("#int-league").value,pais:$("#int-country").value
      }));
      rememberColumns();
+     const detalhes=(result.importacoes||[]).map(x=>
+       x.temporada+": "+x.inseridos+" novos, "+x.ignorados+" repetidos").join(" | ");
      const mensagem=result.inseridos
-       ? "Importação #"+result.importacao_id+": "+result.inseridos+" novos registros, "+result.ignorados+" repetidos ignorados."
-       : "Nenhum registro novo. "+result.ignorados+" partidas já estavam cadastradas.";
+       ?result.inseridos+" novos registros, "+result.ignorados+" repetidos ignorados. "+detalhes
+       :"Nenhum registro novo. "+result.ignorados+" partidas já estavam cadastradas. "+detalhes;
      show(mensagem);
      data=null;$("#int-api-preview").hidden=true;await history();
    }catch(e){show(e.message,true);}
