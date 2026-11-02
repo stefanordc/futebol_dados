@@ -169,10 +169,26 @@ def _clubes_preview(rows,pais):
     for nome in nomes:
         iguais=por_nome.get(key(nome),[])
         igual=iguais[0] if len(iguais)==1 else None
+        sugestoes=_suggest(nome,catalogo)
+        # Preenche apenas se a similaridade é alta e a melhor opção é inequívoca.
+        # A confirmação da importação continua sob controle do usuário.
+        principal=sugestoes[0] if sugestoes else None
+        segundo=sugestoes[1] if len(sugestoes)>1 else None
+        auto=igual is not None or (
+            principal is not None and principal["similaridade"]>=95
+            and (segundo is None or principal["similaridade"]-segundo["similaridade"]>=5)
+        )
+        escolhido=igual if igual else (
+            next((c for c in catalogo if c["id"]==principal["id"]),None)
+            if auto and principal else None
+        )
         resultados.append({"original":nome,
-                           "padronizado":igual["clube"] if igual else nome,
-                           "clube_id":igual["id"] if igual else None,
-                           "sugestoes":_suggest(nome,catalogo)})
+                           "padronizado":escolhido["clube"] if escolhido else nome,
+                           "clube_id":escolhido["id"] if escolhido else None,
+                           "correspondencia_automatica":bool(escolhido),
+                           "similaridade_automatica":100 if igual else (
+                               principal["similaridade"] if escolhido and principal else None),
+                           "sugestoes":sugestoes})
     return {"catalogo":catalogo,"clubes":resultados,"pais":pais}
 
 def revisar_clubes(payload):
@@ -203,13 +219,19 @@ ODDS_COLUMN=re.compile(
     re.I
 )
 FAVORITE_BOOKMAKERS=("bet365","pinnacle","pinacle")
+# Handicap asiático (AH) e europeu (EH) ficam fora do importador.
+HANDICAP_COLUMN=re.compile(r"^(?:Bookie_)?(?:AH|EH)_",re.I)
+
+def _is_handicap_column(column):
+    return isinstance(column,str) and bool(HANDICAP_COLUMN.match(column))
 
 def _is_odd_column(column):
     return bool(ODDS_COLUMN.fullmatch(column))
 
 def _default_columns(columns):
-    selected=[c for c in columns if c in MATCH_COLUMNS or _is_odd_column(c)]
-    return selected or list(columns)
+    allowed=[c for c in columns if not _is_handicap_column(c)]
+    selected=[c for c in allowed if c in MATCH_COLUMNS or _is_odd_column(c)]
+    return selected or allowed
 
 def _last_columns():
     # Persistência já existente no banco: o último lote confirmado tem seu
@@ -217,7 +239,8 @@ def _last_columns():
     recent=fetch_all("""SELECT colunas FROM public.odds_importacoes
                         ORDER BY id DESC LIMIT 1""")
     if recent and isinstance(recent[0].get("colunas"),list):
-        return [c for c in recent[0]["colunas"] if isinstance(c,str)]
+        return [c for c in recent[0]["colunas"]
+                if isinstance(c,str) and not _is_handicap_column(c)]
     return None
 
 def _bookmaker_column(odd):
@@ -341,7 +364,8 @@ def preview(payload):
     if any(not isinstance(row,dict) for row in rows):
         raise ValueError("Cada partida deve conter colunas identificáveis.")
     columns=list(OrderedDict.fromkeys(k for row in rows for k in row
-        if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)))
+        if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)
+        and not _is_handicap_column(k)))
     if len(columns)>300:raise ValueError("A API retornou mais de 300 colunas.")
     season,league,country=_metadata(path)
     revisao=_clubes_preview(rows,country)
@@ -372,7 +396,7 @@ def importar(payload):
         _PREVIEWS.pop(token,None)
         raise ValueError("Prévia expirada. Consulte a API novamente.")
     columns=payload.get("colunas")
-    if not isinstance(columns,list) or not columns or len(columns)!=len(set(columns)) or any(c not in prev["columns"] for c in columns):
+    if not isinstance(columns,list) or not columns or len(columns)!=len(set(columns)) or any(c not in prev["columns"] or _is_handicap_column(c) for c in columns):
         raise ValueError("Escolha colunas existentes na prévia.")
     aliases=payload.get("clubes")
     if not isinstance(aliases,list):raise ValueError("Revise os nomes dos clubes.")
