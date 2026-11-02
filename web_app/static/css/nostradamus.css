@@ -209,3 +209,20 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 @media(max-width:800px){
   .ns-condition .ns-odd-criterion{grid-column:1/-1}
 }
+
+/* O mando aparece imediatamente depois do papel (Favorito/Zebra/Ambos). */
+.ns-condition{grid-template-columns:minmax(150px,1.3fr) minmax(135px,1fr) minmax(170px,1.45fr) minmax(105px,1fr) auto}
+.ns-condition .ns-home-filter-wrap{grid-column:auto}
+.ns-condition .ns-home-filter:disabled{opacity:.65;cursor:not-allowed}
+@media(max-width:1060px){
+  .ns-condition{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ns-condition .ns-kind-field{grid-column:1/-1}
+  .ns-condition .ns-home-filter-wrap{grid-column:2}
+  .ns-condition .ns-remove{grid-column:1/-1;justify-self:start}
+}
+@media(max-width:550px){
+  .ns-condition{grid-template-columns:minmax(0,1fr)}
+  .ns-condition .ns-kind-field,
+  .ns-condition .ns-home-filter-wrap,
+  .ns-condition .ns-remove{grid-column:1}
+}
