@@ -1,4 +1,4 @@
-"""Prévia segura e importação atômica de JSON de odds em um servidor local.
+"""Prévia segura e importação atômica de CSV ou JSON de odds em um servidor local.
 
 IMPORTANTE: endpoint sem autenticação destina-se apenas a loopback. A chave nunca
 é persistida, nem na prévia em memória, nem nas tabelas de odds.
@@ -6,11 +6,13 @@ IMPORTANTE: endpoint sem autenticação destina-se apenas a loopback. A chave nu
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from urllib.parse import urlsplit, urljoin
+from urllib.parse import urlsplit, urljoin, urlencode
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPHandler, HTTPRedirectHandler
 from urllib.error import URLError, HTTPError
 from ipaddress import ip_address
 from collections import OrderedDict
+import csv
+import io
 import json
 import os
 import re
@@ -23,15 +25,15 @@ from db import fetch_all, get_conn
 from queries_vinculos import _suggest, key
 
 _PREVIEWS={}
-LIMIT_BYTES=2_000_000
-LIMIT_ROWS=500
+LIMIT_BYTES=16_000_000
+LIMIT_ROWS=5000
 TTL=1200
 SAFE_KEY=re.compile(r"^[a-zA-Z0-9_.-]{1,100}$")
 PRIVATE_FIELD=re.compile(r"(api[_-]?key|token|password|secret|authorization|cookie)",re.I)
-HOME_KEYS=("home_team","homeTeam","home_name","homeName","home","mandante","team1","time_casa","teams.home.name","participants.home.name","competitors.home.name")
-AWAY_KEYS=("away_team","awayTeam","away_name","awayName","away","visitante","team2","time_fora","teams.away.name","participants.away.name","competitors.away.name")
-ID_KEYS=("id","match_id","event_id","fixture_id","game_id","matchId")
-DATE_KEYS=("date","start_time","startTime","commence_time","kickoff","utcDate","data","datetime")
+HOME_KEYS=("Home","Home_Team","home_team","homeTeam","home_name","homeName","home","mandante","team1","time_casa","teams.home.name","participants.home.name","competitors.home.name")
+AWAY_KEYS=("Away","Away_Team","away_team","awayTeam","away_name","awayName","away","visitante","team2","time_fora","teams.away.name","participants.away.name","competitors.away.name")
+ID_KEYS=("Match_ID","id","match_id","event_id","fixture_id","game_id","matchId")
+DATE_KEYS=("Date","date","start_time","startTime","commence_time","kickoff","utcDate","data","datetime")
 
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
@@ -59,6 +61,47 @@ def _rows(payload):
     if _pick(payload,HOME_KEYS) and _pick(payload,AWAY_KEYS):return [payload]
     raise ValueError("Não encontrei uma lista de partidas na resposta da API.")
 
+def _parse_response(raw, content_type=""):
+    """Interpreta CSV da FutPythonTrader ou listas JSON de outras fontes."""
+    try:
+        decoded=raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ValueError("A API não retornou UTF-8 válido.") from None
+    if "json" in content_type or decoded.lstrip().startswith(("{","[")):
+        try:
+            return _rows(json.loads(decoded))
+        except (ValueError,TypeError):
+            raise ValueError("Resposta JSON inválida ou sem partidas.") from None
+    if decoded.lstrip().startswith("<"):
+        raise ValueError("A API retornou HTML, não CSV ou JSON. Confira a chave e a rota.")
+    try:
+        reader=csv.DictReader(io.StringIO(decoded, newline=""))
+        if not reader.fieldnames or len(reader.fieldnames)!=len(set(reader.fieldnames)):
+            raise ValueError("CSV sem cabeçalhos válidos ou com colunas repetidas.")
+        if len(reader.fieldnames)>300:
+            raise ValueError("A API retornou mais de 300 colunas.")
+        rows=[]
+        for row in reader:
+            if None in row:
+                raise ValueError("CSV com campos extras em uma das linhas.")
+            rows.append(row)
+            if len(rows)>LIMIT_ROWS:
+                raise ValueError("CSV excede 5.000 partidas por importação.")
+    except csv.Error:
+        raise ValueError("CSV inválido retornado pela API.") from None
+    if rows and not (_pick(rows[0],HOME_KEYS) and _pick(rows[0],AWAY_KEYS)):
+        raise ValueError("Não encontrei as colunas Home e Away no CSV.")
+    return rows
+
+def _parse_game_date(row):
+    value=_pick(row,DATE_KEYS)
+    if not value:return None
+    for fmt in ("%d/%m/%Y","%d-%m-%Y","%Y/%m/%d"):
+        try:return datetime.strptime(value,fmt).isoformat()
+        except ValueError:pass
+    try:return datetime.fromisoformat(value.replace("Z","+00:00")).isoformat()
+    except ValueError:return None
+
 def _metadata(path):
     parts=[p for p in path.split("/") if p]
     year=next((p for p in reversed(parts) if re.fullmatch(r"20\d{2}(?:[-/]20\d{2})?",p)),None)
@@ -73,7 +116,7 @@ def _url(base,path):
     base=base.strip()
     p=urlsplit(base)
     host=p.hostname
-    allowed={h.strip().lower() for h in os.getenv("ODDS_API_ALLOWED_HOSTS","").split(",") if h.strip()}
+    allowed={"futpythontrader.com.br"} | {h.strip().lower() for h in os.getenv("ODDS_API_ALLOWED_HOSTS","").split(",") if h.strip()}
     if not host or p.scheme!="https" or not allowed or host.lower() not in allowed:
         raise ValueError("Configure ODDS_API_ALLOWED_HOSTS no .env e informe base HTTPS autorizada.")
     if p.username or p.password or p.query or p.fragment or p.port not in (None,443):
@@ -93,32 +136,39 @@ def preview(payload):
     path=str(payload.get("caminho",""))
     url,host=_url(base,path)
     api_key=payload.get("chave","")
-    header=payload.get("cabecalho","x-api-key")
-    if header not in ("x-api-key","Authorization"):raise ValueError("Cabeçalho de chave inválido.")
+    header=payload.get("cabecalho","api_key")
+    if header not in ("api_key","x-api-key","Authorization"):
+        raise ValueError("Método de autenticação inválido.")
     if not isinstance(api_key,str) or len(api_key)>1024 or "\n" in api_key or "\r" in api_key:
         raise ValueError("Chave de API inválida.")
-    headers={"Accept":"application/json","User-Agent":"DadosFutebolImporter/1.0"}
-    if api_key:headers[header]="Bearer "+api_key if header=="Authorization" else api_key
+    headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.1"}
+    if api_key:
+        if header=="api_key":
+            # O provedor recebe a chave na query string; não a registramos.
+            url += "?" + urlencode({"api_key":api_key})
+        else:
+            headers[header]="Bearer "+api_key if header=="Authorization" else api_key
     req=Request(url,headers=headers,method="GET")
     opener=build_opener(HTTPSHandler(),_NoRedirect())
     try:
-        with opener.open(req,timeout=12) as response:
-            if "json" not in (response.headers.get("Content-Type") or "").lower():
-                raise ValueError("A API não retornou JSON.")
+        with opener.open(req,timeout=30) as response:
+            content_type=(response.headers.get("Content-Type") or "").lower()
             raw=response.read(LIMIT_BYTES+1)
-            if len(raw)>LIMIT_BYTES:raise ValueError("Resposta excede o limite de 2 MB.")
-    except (HTTPError,URLError,TimeoutError,OSError) as exc:
-        raise ValueError("Falha ao consultar a API autorizada. Confira host, chave e caminho.") from exc
-    try:data=json.loads(raw)
-    except (ValueError,UnicodeDecodeError):raise ValueError("JSON inválido.") from None
-    rows=_rows(data)
+            if len(raw)>LIMIT_BYTES:raise ValueError("Resposta excede o limite de 16 MB.")
+    except HTTPError as exc:
+        if exc.code in (401,403):
+            raise ValueError("Chave de API inválida ou acesso não autorizado.") from None
+        raise ValueError(f"Falha na API (HTTP {exc.code}). Verifique o caminho.") from None
+    except (URLError,TimeoutError,OSError):
+        raise ValueError("Falha ao consultar a API. Confira host, chave e caminho.") from None
+    rows=_parse_response(raw,content_type)
     if not rows or len(rows)>LIMIT_ROWS:
-        raise ValueError("Prévia aceita entre 1 e 500 registros por importação.")
+        raise ValueError("Prévia aceita entre 1 e 5.000 partidas por importação.")
     if any(not isinstance(row,dict) for row in rows):
-        raise ValueError("Cada partida precisa ser um objeto JSON.")
+        raise ValueError("Cada partida deve conter colunas identificáveis.")
     columns=list(OrderedDict.fromkeys(k for row in rows for k in row
         if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)))
-    if len(columns)>100:raise ValueError("A API retornou mais de 100 colunas.")
+    if len(columns)>300:raise ValueError("A API retornou mais de 300 colunas.")
     teams=sorted(set(n for row in rows for n in (_pick(row,HOME_KEYS),_pick(row,AWAY_KEYS)) if n))
     clubs=fetch_all("SELECT id,clube FROM clubes ORDER BY clube")
     unique={}
@@ -189,12 +239,7 @@ def importar(payload):
                 home,home_id=normalized.get(h,(h,None))
                 away,away_id=normalized.get(a,(a,None))
                 eid=_pick(row,ID_KEYS)
-                dt=_pick(row,DATE_KEYS)
-                if dt:
-                    try:
-                        parsed=datetime.fromisoformat(dt.replace("Z","+00:00"))
-                        dt=parsed.isoformat() if parsed.tzinfo else None
-                    except ValueError:dt=None
+                dt=_parse_game_date(row)
                 chosen={c:row.get(c) for c in columns}
                 cur.execute("""INSERT INTO odds
                     (importacao_id,linha_origem,fonte,partida_externa_id,temporada,

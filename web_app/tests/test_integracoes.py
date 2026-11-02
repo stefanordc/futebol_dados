@@ -93,6 +93,39 @@ class TestIntegracoes(TestCase):
         self.assertNotIn("CHAVE-SECRETA",str(qi._PREVIEWS))
         self.assertEqual(len(qi._PREVIEWS),1)
 
+    def test_csv_futpythontrader(self):
+        raw=(b"Match_ID,Country,Season,League,Date,Home,Away,Odd_1_FT,Odd_X_FT,Odd_2_FT\n"
+             b"123,Brazil,2026,Serie A Betano,02/11/2026,Flamengo,Corinthians,1.9,3.1,4.2\n")
+        rows=qi._parse_response(raw,"text/csv")
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["Odd_1_FT"],"1.9")
+        self.assertEqual(qi._pick(rows[0],qi.HOME_KEYS),"Flamengo")
+        self.assertEqual(qi._pick(rows[0],qi.AWAY_KEYS),"Corinthians")
+        self.assertEqual(qi._pick(rows[0],qi.ID_KEYS),"123")
+        self.assertEqual(qi._parse_game_date(rows[0]),"2026-11-02T00:00:00")
+
+    def test_csv_preview_query_key_sem_persistencia(self):
+        class CsvResponse:
+            headers={"Content-Type":"text/csv"}
+            def read(self,n):
+                return b"Match_ID,Home,Away,Odd_1_FT\n1,Flamengo,Corinthians,1.80\n"
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+        opener=MagicMock()
+        opener.open.return_value=CsvResponse()
+        qi._PREVIEWS.clear()
+        with patch.dict(qi.os.environ,{"ODDS_API_ALLOWED_HOSTS":"futpythontrader.com.br"}),\
+             patch.object(qi.socket,"getaddrinfo",return_value=[(2,1,6,"",("8.8.8.8",443))]),\
+             patch.object(qi,"build_opener",return_value=opener),\
+             patch.object(qi,"fetch_all",return_value=CLUBS):
+            result=qi.preview({"base":"https://futpythontrader.com.br",
+                "caminho":"/api/download/brazil/serie-a-betano/2026",
+                "chave":"MINHA_CHAVE","cabecalho":"api_key"})
+        req=opener.open.call_args.args[0]
+        self.assertIn("api_key=MINHA_CHAVE",req.full_url)
+        self.assertEqual(result["colunas"],["Match_ID","Home","Away","Odd_1_FT"])
+        self.assertNotIn("MINHA_CHAVE",str(qi._PREVIEWS))
+
     def test_importacao_atomica_commit_sem_chave(self):
         qi._PREVIEWS.clear()
         qi._PREVIEWS["abc"]={"criado":qi.time.monotonic(),"host":"api.exemplo.com",

@@ -7,8 +7,9 @@
     ['Jogos', '/', 'calendar'], ['Campeonatos', '/static/campeonatos.html', 'trophy'], ['Clubes', '/clubes', 'shield'],
     ['Jogadores', '/jogadores', 'users'], ['Técnicos', '/tecnicos', 'briefcase'],
     ['Árbitros', '/arbitros', 'flag'], ['Estatísticas', '/estatisticas', 'chart'],
+    ['Apostas', '/apostas', 'trending'],
     ['Vincular Clubes', '/vincular-clubes', 'shield'],
-    ['Apostas', '/apostas', 'trending']
+    ['Conectar API', '/apostas/nostradamus/conectar-api', 'trending']
   ];
   const strokes = {
     trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4"/>',
@@ -50,6 +51,7 @@
     path.startsWith('/jogador/') ? '/jogadores' :
     path.startsWith('/tecnico/') ? '/tecnicos' :
     path.startsWith('/arbitro/') ? '/arbitros' :
+    path === '/apostas/nostradamus/conectar-api' ? '/apostas/nostradamus/conectar-api' :
     path.startsWith('/apostas/') ? '/apostas' : links.find(x => x[1] === path)?.[1] || '/';
   const activeTitle = links.find(x => x[1] === active)?.[0] || 'Jogos';
   const sideMount = document.getElementById('df-sidebar-mount');
