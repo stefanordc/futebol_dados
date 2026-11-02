@@ -229,6 +229,33 @@ class TestIntegracoes(TestCase):
         self.assertIn('tr.classList.toggle("int-match-auto",on)',js)
         self.assertNotIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
 
+    def test_controles_chave_e_loading_importacao_ui(self):
+        root=Path(__file__).resolve().parents[1]
+        html=(root/"templates"/"api_connect.html").read_text(encoding="utf-8")
+        css=(root/"static"/"css"/"integracoes.css").read_text(encoding="utf-8")
+        js=(root/"static"/"js"/"integracoes.js").read_text(encoding="utf-8")
+        self.assertIn('id="int-api-save-key" checked',html)
+        self.assertIn('class="int-save-switch"',html)
+        self.assertIn('id="int-api-delete-key" class="int-delete-key" disabled',html)
+        self.assertIn('id="int-api-key-status" role="status"',html)
+        self.assertIn('id="int-import-loader" class="int-loader-overlay" hidden',html)
+        self.assertIn('role="dialog" aria-modal="true"',html)
+        self.assertIn('id="int-loader-console"',html)
+        self.assertIn('role="progressbar"',html)
+        self.assertIn('progresso indeterminado',html.lower())
+        self.assertIn('integracoes.js?v=9',html)
+        self.assertIn('integracoes.css?v=4',html)
+        self.assertIn('.int-loader-overlay[hidden]{display:none!important}',css)
+        self.assertIn('prefers-reduced-motion:reduce',css)
+        self.assertIn('function beginImportLoader(total,seasonCount)',js)
+        self.assertIn('function endImportLoader()',js)
+        self.assertIn('beginImportLoader(data.total,seasonCount)',js)
+        self.assertIn('finally{endImportLoader();btn.disabled=false;}',js)
+        self.assertIn('function updateKeyUI(saved,error=false)',js)
+        self.assertIn('deleteButton.disabled=!saved||error',js)
+        self.assertIn('await keyStatus()',js)
+        self.assertNotIn('Math.random()',js)
+
     def test_lay_simulado_escada_e_fonte_preferida(self):
         self.assertEqual(qi._simulated_lay("1.85"),1.86)
         self.assertEqual(qi._simulated_lay("2.00"),2.02)
