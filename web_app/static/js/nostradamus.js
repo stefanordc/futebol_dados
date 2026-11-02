@@ -98,9 +98,55 @@ function drawCount(){
   $("#ns-count").textContent=n+"/10 condições";
   $("#ns-add").disabled=n>=10;
 }
+// Dropdown de checkboxes: sem seleção = todos os campeonatos.
+const selectedLeagues=()=>[...document.querySelectorAll("#ns-league-items input:checked")]
+  .map(input=>Number(input.value));
+function drawLeagues(){
+  const ids=selectedLeagues();
+  const total=document.querySelectorAll("#ns-league-items input").length;
+  const names=[...document.querySelectorAll("#ns-league-items input:checked")]
+    .map(el=>el.dataset.nome);
+  const summary=$("#ns-league-summary");
+  summary.textContent=!ids.length?"Todos os campeonatos":
+    ids.length===1?names[0]:
+    ids.length===total?"Todos os "+total+" campeonatos":
+    ids.length+" campeonatos selecionados";
+  $("#ns-league-all").classList.toggle("is-active",!ids.length);
+}
+function setLeagues(ids){
+  const wanted=new Set(Array.isArray(ids)?ids.map(Number):[]);
+  document.querySelectorAll("#ns-league-items input").forEach(input=>{
+    input.checked=wanted.has(Number(input.value));
+  });
+  drawLeagues();
+}
+function closeLeagues(){
+  $("#ns-league-options").hidden=true;
+  $("#ns-league-trigger").setAttribute("aria-expanded","false");
+}
+$("#ns-league-trigger").addEventListener("click",()=>{
+  const options=$("#ns-league-options");
+  options.hidden=!options.hidden;
+  $("#ns-league-trigger").setAttribute("aria-expanded",String(!options.hidden));
+});
+$("#ns-league-all").addEventListener("click",()=>{
+  setLeagues([]);
+  closeLeagues();
+  $("#ns-league-trigger").focus();
+});
+$("#ns-league-items").addEventListener("change",drawLeagues);
+document.addEventListener("click",event=>{
+  if(!$("#ns-league-control").contains(event.target))closeLeagues();
+});
+$("#ns-league-control").addEventListener("keydown",event=>{
+  if(event.key==="Escape"){
+    closeLeagues();
+    $("#ns-league-trigger").focus();
+  }
+});
 const values=()=>({
   nome:$("#ns-nome").value.trim(),corte:$("#ns-corte").value,
-  jogos:$("#ns-janela").value,campeonato_id:$("#ns-campeonato").value?Number($("#ns-campeonato").value):null,
+  jogos:$("#ns-janela").value,campeonato_ids:selectedLeagues(),
   objetivo:$("#ns-objetivo").value,
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
   comissao_pct:4.5,
@@ -123,7 +169,8 @@ function restore(saved){
   $("#ns-nome").value=saved.nome||"";
   $("#ns-corte").value=saved.corte||$("#ns-corte").value;
   $("#ns-janela").value=saved.jogos||"20";
-  $("#ns-campeonato").value=saved.campeonato_id||"";
+  setLeagues(Array.isArray(saved.campeonato_ids)&&saved.campeonato_ids.length
+    ?saved.campeonato_ids:(saved.campeonato_id?[saved.campeonato_id]:[]));
   $("#ns-objetivo").value=saved.objetivo||"back_mandante";
   $("#ns-odd").value=saved.odd_hipotetica??"";
   $("#ns-comissao").value="4.5";
@@ -221,6 +268,8 @@ function resetEditing(){
   $("#ns-editing").hidden=true;
   $("#ns-save").textContent="Salvar estratégia";
   $("#ns-nome").value="";
+  setLeagues([]);
+  closeLeagues();
   $("#ns-conditions").innerHTML="";
   conditionLine();
 }
@@ -336,7 +385,7 @@ function show(response){
     '<td class="'+pnlClass(r.unidades)+'">'+fmt(r.unidades,2)+'</td>'+
     '<td class="'+pnlClass(r.valor_reais)+'">'+money(r.valor_reais)+'</td>'+
     '<td>'+fmt(r.odd_media,2)+'</td>'+
-    '<td>'+fmt(r.cotadas,0)+' / '+fmt(r.entradas,0)+'</td>'+
+    '<td class="'+pnlClass(r.lucro_medio_entrada)+'">'+money(r.lucro_medio_entrada)+'</td>'+
     '<td class="ns-green">'+fmt(r.maior_good_run,0)+'</td>'+
     '<td class="ns-red">'+fmt(r.maior_bad_run,0)+'</td></tr>').join(""):
     '<tr><td colspan="12">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
@@ -377,8 +426,10 @@ async function init(){
     if(!response.ok)throw new Error("Não foi possível carregar os indicadores.");
     meta=await response.json();
     $("#ns-objetivo").innerHTML=opts(meta.objetivos,"back_mandante");
-    $("#ns-campeonato").innerHTML='<option value="">Todos os campeonatos</option>'+
-      (meta.ligas||[]).map(c=>'<option value="'+Number(c.id)+'">'+esc(c.nome)+'</option>').join("");
+    $("#ns-league-items").innerHTML=(meta.ligas||[]).map(c=>
+      '<label class="ns-league-option"><input type="checkbox" value="'+Number(c.id)+
+      '" data-nome="'+esc(c.nome)+'"><span>'+esc(c.nome)+'</span></label>').join("");
+    drawLeagues();
     conditionLine();
     await fetchSaved();
     await importLegacy();

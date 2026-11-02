@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-list-v7">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-multiliguas-v2">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -28,7 +28,19 @@
 <div class="ns-fields">
 <label>Data de corte (inclusive)<input type="date" id="ns-corte" required></label>
 <label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5 jogos</option><option value="10">Até 10 jogos (mín. 5)</option><option value="20" selected>Até 20 jogos (mín. 5)</option><option value="temporada">Temporada inteira (mín. 5)</option></select></label>
-<label>Campeonato<select id="ns-campeonato"><option value="">Todos os campeonatos</option></select></label>
+<div class="ns-league-field">
+  <span id="ns-league-label">Campeonatos</span>
+  <div class="ns-league-control" id="ns-league-control">
+    <button type="button" id="ns-league-trigger" class="ns-league-trigger" aria-controls="ns-league-options" aria-haspopup="true" aria-expanded="false" aria-labelledby="ns-league-label ns-league-summary">
+      <span id="ns-league-summary">Todos os campeonatos</span><span aria-hidden="true">▾</span>
+    </button>
+    <div id="ns-league-options" class="ns-league-options" hidden>
+      <button id="ns-league-all" class="ns-league-all" type="button">Todos os campeonatos</button>
+      <div id="ns-league-items" class="ns-league-items" role="group" aria-label="Selecione um ou mais campeonatos"></div>
+      <div class="ns-league-hint">Marque quantos campeonatos desejar.</div>
+    </div>
+  </div>
+</div>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
 <label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Mandante com xG superior"></label>
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
@@ -40,7 +52,7 @@
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
 </form>
-<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Entradas cotadas</th><th>Good run máx.</th><th>Bad run máx.</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Lucro médio/entrada (R$)</th><th>Good run máx.</th><th>Bad run máx.</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
 </div>
 <div id="ns-feedback" role="status" aria-live="polite"></div><section id="ns-saved" class="ns-panel" hidden><div class="ns-heading"><h2>Estratégias salvas no Supabase</h2><button type="button" class="ns-button secondary" id="ns-create">+ Nova estratégia</button></div><p class="x1-help">Estratégias cadastradas no banco de dados, com data de criação e última atualização. Use Ver regras para consultar ou Editar para modificar.</p><div id="ns-saved-list"></div></section>
 
@@ -48,5 +60,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-odds-reais-v1" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-multiliguas-v2" defer></script>
 </body></html>

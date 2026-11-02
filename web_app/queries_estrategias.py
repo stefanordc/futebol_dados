@@ -11,7 +11,7 @@ from psycopg2.extras import Json
 from db import fetch_all, get_conn
 import queries_nostradamus as ns
 
-COLS="""id,nome,objetivo,corte,jogos,campeonato_id,condicoes,
+COLS="""id,nome,objetivo,corte,jogos,campeonato_id,campeonato_ids,condicoes,
         odd_hipotetica,comissao_pct,versao,criado_em,atualizado_em"""
 BASE=f"SELECT {COLS} FROM public.nostradamus_estrategias"
 
@@ -32,9 +32,8 @@ def _validate(body):
     jogos=str(body.get("jogos","20"))
     if jogos not in {"5","10","20","temporada"}:
         raise ValueError("Janela de jogos inválida.")
-    liga=body.get("campeonato_id")
-    if liga in ("",None):liga=None
-    elif type(liga) is not int or liga<1:raise ValueError("Campeonato inválido.")
+    ligas=ns.ligas_selecionadas(body) or []
+    liga=ligas[0] if len(ligas)==1 else None
     conditions=ns._valid_conditions(body.get("condicoes"))
     odd=body.get("odd_hipotetica")
     if odd in ("",None):odd=None
@@ -51,16 +50,16 @@ def _validate(body):
     if not commission.is_finite() or not Decimal("0")<=commission<=Decimal("30"):
         raise ValueError("Comissão inválida.")
     return dict(nome=nome.strip(),objetivo=objetivo,corte=dt,jogos=jogos,
-                campeonato_id=liga,condicoes=conditions,
+                campeonato_id=liga,campeonato_ids=ligas,condicoes=conditions,
                 odd_hipotetica=odd,comissao_pct=commission)
 
 def _params(v):
     return (v["nome"],v["objetivo"],v["corte"],v["jogos"],v["campeonato_id"],
-            Json(v["condicoes"]),v["odd_hipotetica"],v["comissao_pct"])
+            v["campeonato_ids"],Json(v["condicoes"]),v["odd_hipotetica"],v["comissao_pct"])
 
 INSERT="""INSERT INTO public.nostradamus_estrategias
-          (nome,objetivo,corte,jogos,campeonato_id,condicoes,odd_hipotetica,comissao_pct)
-          VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING """+COLS
+          (nome,objetivo,corte,jogos,campeonato_id,campeonato_ids,condicoes,odd_hipotetica,comissao_pct)
+          VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING """+COLS
 
 def criar(payload):
     v=_validate(payload)
@@ -87,7 +86,7 @@ def editar(strategy_id,payload):
             with conn.cursor() as cur:
                 cur.execute("""UPDATE public.nostradamus_estrategias
                         SET nome=%s,objetivo=%s,corte=%s,jogos=%s,
-                            campeonato_id=%s,condicoes=%s,odd_hipotetica=%s,
+                            campeonato_id=%s,campeonato_ids=%s,condicoes=%s,odd_hipotetica=%s,
                             comissao_pct=%s,versao=versao+1,atualizado_em=now()
                         WHERE id=%s AND versao=%s
                         RETURNING """+COLS,(*_params(v),strategy_id,ver))
@@ -115,7 +114,7 @@ def importar(payload):
                 for attempt in range(101):
                     suffix=f" (importada {attempt})" if attempt else ""
                     current={**original,"nome":original_name[:80-len(suffix)]+suffix}
-                    cur.execute("""SELECT objetivo,corte,jogos,campeonato_id,condicoes,
+                    cur.execute("""SELECT objetivo,corte,jogos,campeonato_id,campeonato_ids,condicoes,
                                           odd_hipotetica,comissao_pct
                                    FROM public.nostradamus_estrategias
                                    WHERE lower(btrim(nome))=lower(%s)""",(current["nome"],))
@@ -124,7 +123,8 @@ def importar(payload):
                         if (old["objetivo"]==current["objetivo"]
                             and old["corte"]==current["corte"]
                             and old["jogos"]==current["jogos"]
-                            and old["campeonato_id"]==current["campeonato_id"]
+                            and (old["campeonato_ids"] or
+                                 ([old["campeonato_id"]] if old["campeonato_id"] else []))==current["campeonato_ids"]
                             and old["condicoes"]==current["condicoes"]
                             and old["odd_hipotetica"]==current["odd_hipotetica"]
                             and old["comissao_pct"]==current["comissao_pct"]):
