@@ -12,6 +12,7 @@ from urllib.error import URLError, HTTPError
 from ipaddress import ip_address
 from collections import OrderedDict
 import csv
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 import io
 import json
 import os
@@ -190,6 +191,119 @@ def revisar_clubes(payload):
         raise ValueError("Informe um país válido.")
     return _clubes_preview(prev["rows"],pais.strip())
 
+# Colunas da partida e mercados de odds disponíveis no CSV do provedor.
+# Odds simuladas são SEMPRE identificadas como simuladas: não são cotações Betfair.
+MATCH_COLUMNS={"Match_ID","Country","Season","Div","League","Date","Round",
+               "Home","Away","Home_Score","Away_Score"}
+ODDS_COLUMN=re.compile(
+    r"^(?:Odd_[12X]_(?:FT|HT)|Over_(?:FT|HT)_\d+_\d+|"
+    r"Under_(?:FT|HT)_\d+_\d+|BTTS_(?:Yes|No)|DC_(?:1X|12|X2)|"
+    r"CS_\d+_\d+|AH_(?:Home|Away)_(?:neg|pos)_\d+(?:_\d+)?|"
+    r"EH_(?:Home|Draw|Away)_(?:neg_)?\d+|odds?)$",
+    re.I
+)
+FAVORITE_BOOKMAKERS=("bet365","pinnacle","pinacle")
+
+def _is_odd_column(column):
+    return bool(ODDS_COLUMN.fullmatch(column))
+
+def _default_columns(columns):
+    selected=[c for c in columns if c in MATCH_COLUMNS or _is_odd_column(c)]
+    return selected or list(columns)
+
+def _last_columns():
+    # Persistência já existente no banco: o último lote confirmado tem seu
+    # conjunto de colunas gravado em odds_importacoes.colunas.
+    recent=fetch_all("""SELECT colunas FROM public.odds_importacoes
+                        ORDER BY id DESC LIMIT 1""")
+    if recent and isinstance(recent[0].get("colunas"),list):
+        return [c for c in recent[0]["colunas"] if isinstance(c,str)]
+    return None
+
+def _bookmaker_column(odd):
+    if odd.startswith("Odd_"):
+        return "Bookie_1X2_"+odd.rsplit("_",1)[-1]
+    if odd.startswith(("Over_","Under_")):
+        p=odd.split("_")
+        if len(p)==4:
+            return "Bookie_OU_"+p[1]+"_"+p[2]+"_"+p[3]
+    if odd.startswith("BTTS_"):
+        return "Bookie_BTTS"
+    if odd.startswith("DC_"):
+        return "Bookie_DC"
+    if odd.startswith(("CS_","AH_","EH_")):
+        return "Bookie_"+odd if odd.startswith("CS_") else (
+            "Bookie_"+odd.replace("AH_Home_","AH_").replace("AH_Away_","AH_")
+                      .replace("EH_Home_","EH_").replace("EH_Draw_","EH_")
+                      .replace("EH_Away_","EH_"))
+    return None
+
+# Escada válida do Exchange. Um tick acima do Back é apenas uma HIPÓTESE
+# de spread mínimo e não representa o melhor Lay negociável na Betfair.
+TICK_BANDS=[
+    (Decimal("2"),Decimal("0.01")),
+    (Decimal("3"),Decimal("0.02")),
+    (Decimal("4"),Decimal("0.05")),
+    (Decimal("6"),Decimal("0.10")),
+    (Decimal("10"),Decimal("0.20")),
+    (Decimal("20"),Decimal("0.50")),
+    (Decimal("30"),Decimal("1")),
+    (Decimal("50"),Decimal("2")),
+    (Decimal("100"),Decimal("5")),
+    (Decimal("1000"),Decimal("10"))
+]
+
+def _simulated_lay(back,asian=False):
+    try:
+        price=Decimal(str(back).replace(",","."))
+    except (InvalidOperation,ValueError,TypeError):
+        return None
+    if not price.is_finite() or not Decimal("1.01")<=price<Decimal("1000"):
+        return None
+    if asian:
+        result=(price/Decimal("0.01")).to_integral_value(rounding=ROUND_FLOOR)*Decimal("0.01")+Decimal("0.01")
+        return float(result) if result<=1000 else None
+    for upper,step in TICK_BANDS:
+        if price < upper:
+            # Níveis são ancorados nas fronteiras da escada.
+            base={Decimal("2"):Decimal("1"),Decimal("3"):Decimal("2"),
+                  Decimal("4"):Decimal("3"),Decimal("6"):Decimal("4"),
+                  Decimal("10"):Decimal("6"),Decimal("20"):Decimal("10"),
+                  Decimal("30"):Decimal("20"),Decimal("50"):Decimal("30"),
+                  Decimal("100"):Decimal("50"),Decimal("1000"):Decimal("100")}[upper]
+            n=((price-base)/step).to_integral_value(rounding=ROUND_FLOOR)+1
+            candidate=base+n*step
+            return float(candidate) if candidate<=1000 else None
+    return None
+
+def _enriquecer_lay(row,columns):
+    selected={c:row.get(c) for c in columns}
+    bookmakers={}
+    generated=0
+    for c in columns:
+        if not _is_odd_column(c):
+            continue
+        bookie_column=_bookmaker_column(c)
+        bookie=str(row.get(bookie_column) or "").strip() if bookie_column else ""
+        if bookie:
+            normalized=key(bookie).replace(" ","")
+            bookmakers[c]={"bookmaker":bookie,
+                            "preferencial":any(k in normalized for k in FAVORITE_BOOKMAKERS)}
+        lay=_simulated_lay(row.get(c),asian=c.startswith("AH_"))
+        if lay is not None:
+            selected["Lay_Simulado_"+c]=lay
+            generated+=1
+    if generated:
+        selected["_metodo_lay_simulado"]={
+            "descricao":"Aproximacao ilustrativa de 1 tick acima do Back; nao e cotacao real nem executavel.",
+            "spread":"1 tick de escada Betfair","comissao_pct":4.5,
+            "precificacao_real":False,"liquidez_verificada":False,
+            "quantidade":generated
+        }
+    if bookmakers:
+        selected["_bookmakers_das_odds"]=bookmakers
+    return selected
+
 def preview(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
     base=str(payload.get("base",""))
@@ -231,13 +345,19 @@ def preview(payload):
     if len(columns)>300:raise ValueError("A API retornou mais de 300 colunas.")
     season,league,country=_metadata(path)
     revisao=_clubes_preview(rows,country)
+    saved=_last_columns()
+    selected=[c for c in saved if c in columns] if saved is not None else _default_columns(columns)
+    if not selected:
+        selected=_default_columns(columns)
     now=time.monotonic()
     for k,v in list(_PREVIEWS.items()):
         if now-v["criado"]>TTL:_PREVIEWS.pop(k,None)
     token=secrets.token_urlsafe(24)
     _PREVIEWS[token]={"rows":rows,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
-    return {"preview_id":token,"colunas":columns,"temporada":season,"campeonato":league,
+    return {"preview_id":token,"colunas":columns,"colunas_marcadas":selected,
+            "selecao_origem":"ultima_importacao" if saved is not None else "recomendada",
+            "temporada":season,"campeonato":league,
             **revisao,"total":len(rows),
             "exemplo":{c:rows[0].get(c) for c in columns},
             "aviso":"Revise as sugestões antes de importar. Nenhum dado foi salvo."}
@@ -291,7 +411,7 @@ def importar(payload):
                 away,away_id=normalized.get(a,(a,None))
                 eid=_pick(row,ID_KEYS)
                 dt=_parse_game_date(row)
-                chosen={c:row.get(c) for c in columns}
+                chosen=_enriquecer_lay(row,columns)
                 cur.execute("""INSERT INTO odds
                     (importacao_id,linha_origem,fonte,partida_externa_id,temporada,
                      campeonato,pais,data_jogo,mandante,visitante,mandante_id,
@@ -317,7 +437,8 @@ def importar(payload):
                         raise ValueError("Vínculo divergente já existente. Revise os clubes.")
         conn.commit()
     _PREVIEWS.pop(token,None)
-    return {"importacao_id":batch,"inseridos":len(prev["rows"]),"colunas":columns}
+    return {"importacao_id":batch,"inseridos":len(prev["rows"]),"colunas":columns,
+            "lay":"simulado_um_tick","comissao_pct":4.5}
 
 def ultimas():
     return fetch_all("""SELECT id,origem,caminho,pais,campeonato,temporada,

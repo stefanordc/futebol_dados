@@ -71,6 +71,25 @@
  }
  if(location.pathname!=="/apostas/nostradamus/conectar-api")return;
  let data=null;
+ const COLUMNS_KEY="df_odds_ultima_selecao_v2";
+ function rememberColumns(){
+   const checkboxes=$("#int-api-columns input[type=checkbox]");
+   const active=checkboxes.filter(cb=>cb.checked).map(cb=>cb.value);
+   try{localStorage.setItem(COLUMNS_KEY,JSON.stringify(active));}catch(error){}
+   updateColumnCount();
+ }
+ function savedColumns(){
+   try{
+     const columns=JSON.parse(localStorage.getItem(COLUMNS_KEY));
+     return Array.isArray(columns)&&columns.every(c=>typeof c==="string")?columns:null;
+   }catch(error){return null;}
+ }
+ function updateColumnCount(){
+   const total=$("#int-api-columns input[type=checkbox]").length;
+   const selected=$("#int-api-columns input[type=checkbox]:checked").length;
+   const counter=$("#int-api-selected-count");
+   if(counter)counter.textContent=selected+" de "+total+" colunas selecionadas";
+ }
  let countryVersion=0, countryTimer=null;
  async function history(){
    try{
@@ -184,10 +203,18 @@
    $("#int-country").value=data.pais||"";
    renderClubRows(data.clubes,data.catalogo,false);
    const cols=$("#int-api-columns");cols.replaceChildren();
+   const stored=savedColumns();
+   const current=new Set(data.colunas);
+   const candidates=stored&&stored.some(c=>current.has(c))
+      ?stored:(data.colunas_marcadas||data.colunas);
+   const marked=new Set(candidates);
    for(const c of data.colunas){
-     const label=element("label"),checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=true;checkbox.value=c;
+     const label=element("label"),checkbox=document.createElement("input");
+     checkbox.type="checkbox";checkbox.checked=marked.has(c);checkbox.value=c;
+     checkbox.addEventListener("change",rememberColumns);
      label.append(checkbox,document.createTextNode(" "+c));cols.append(label);
    }
+   updateColumnCount();
    $("#int-api-example").textContent=JSON.stringify(data.exemplo,null,2);
  }
  $("#int-api-form").addEventListener("submit",async event=>{
@@ -202,6 +229,22 @@
      renderPreview();$("#int-import").disabled=false;show("Prévia recebida. Revise os clubes e colunas antes de confirmar.");
    }catch(e){show(e.message,true);}
    finally{submit.disabled=false;}
+ });
+ $("#int-api-reset").addEventListener("click",()=>{
+   if(!data)return;
+   const marked=new Set(data.colunas_marcadas||data.colunas);
+   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=marked.has(cb.value);});
+   rememberColumns();
+ });
+ $("#int-api-select-all").addEventListener("click",()=>{
+   if(!data)return;
+   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=true;});
+   rememberColumns();
+ });
+ $("#int-api-clear").addEventListener("click",()=>{
+   if(!data)return;
+   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=false;});
+   rememberColumns();
  });
  $("#int-import").addEventListener("click",async()=>{
    if(!data)return;
@@ -218,7 +261,7 @@
        preview_id:data.preview_id,colunas:columns,clubes:clubs,
        temporada:$("#int-season").value,campeonato:$("#int-league").value,pais:$("#int-country").value
      }));
-     show("Importação #"+result.importacao_id+" concluída: "+result.inseridos+" registros gravados.");
+     rememberColumns();show("Importação #"+result.importacao_id+" concluída: "+result.inseridos+" registros gravados.");
      data=null;$("#int-api-preview").hidden=true;await history();
    }catch(e){show(e.message,true);}
    finally{btn.disabled=false;}
