@@ -12,7 +12,6 @@ import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 # O mesmo importador do aplicativo, sem duplicar sua lógica de mercados.
@@ -53,7 +52,7 @@ def discover_targets(records: list[dict], today: datetime) -> list[dict]:
         base_path = "/api/download/" + m.group(1) + "/" + m.group(2)
         current = current_season(m.group(3), today)
         # Não misturar anos simples com intervalos da mesma rota.
-        if "-" in m.group(3) != ("-" in current):
+        if ("-" in m.group(3)) != ("-" in current):
             continue
         target_path = base_path + "/" + current
         candidate = {
