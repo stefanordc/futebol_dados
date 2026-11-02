@@ -41,10 +41,14 @@ METRICAS = {
 }
 COMPARADORES = {"gt":">","ge":">=","lt":"<","le":"<=","eq":"=","ne":"!="}
 MERCADOS = {
-    "back_mandante":"Back mandante",
-    "lay_mandante":"Lay mandante",
-    "back_visitante":"Back visitante",
-    "lay_visitante":"Lay visitante",
+    "back_favorito":"Back favorito",
+    "lay_favorito":"Lay favorito",
+    "back_zebra":"Back zebra",
+    "lay_zebra":"Lay zebra",
+    "back_mandante":"Back mandante (estratégia antiga)",
+    "lay_mandante":"Lay mandante (estratégia antiga)",
+    "back_visitante":"Back visitante (estratégia antiga)",
+    "lay_visitante":"Lay visitante (estratégia antiga)",
     "back_empate":"Back empate",
     "lay_empate":"Lay empate",
     "over_05":"Over 0,5",
@@ -54,8 +58,8 @@ MERCADOS = {
     "under_25":"Under 2,5",
     "ambos_marcam":"Ambos marcam",
     "ambos_nao":"Ambos não marcam",
-    "lay_goleada_mandante":"Lay goleada mandante",
-    "lay_goleada_visitante":"Lay goleada visitante",
+    "lay_goleada_mandante":"Lay goleada mandante (estratégia antiga)",
+    "lay_goleada_visitante":"Lay goleada visitante (estratégia antiga)",
     "lay_1x0":"Lay placar 1x0",
     "lay_0x1":"Lay placar 0x1",
 }
@@ -294,6 +298,7 @@ def _valid_conditions(conditions):
     Novo formato: lado, metrica, comparador, referencia, metrica_ref, valor.
       - referencia='valor': compara a métrica com valor fixo.
       - referencia='adversario': compara mesmo indicador do time oposto, sem ajuste.\n      - referencia='mandante'/'visitante': legado, outra métrica + ajuste.
+      - lado='favorito'/'zebra': calculado pelas odds Match Odds 1 e 2 da partida.
     Formato legado: metrica, comparador, margem => mandante x visitante + margem.
     """
     if not isinstance(conditions,list) or not 1<=len(conditions)<=10:
@@ -305,9 +310,9 @@ def _valid_conditions(conditions):
         lado=c.get("lado","mandante")
         referencia=c.get("referencia","visitante")
         metrica_ref=c.get("metrica_ref",c["metrica"])
-        if lado not in ("mandante","visitante"):
+        if lado not in ("mandante","visitante","favorito","zebra"):
             raise ValueError("Equipe analisada inválida.")
-        if referencia not in ("valor","adversario","mandante","visitante"):
+        if referencia not in ("valor","adversario","mandante","visitante","favorito","zebra"):
             raise ValueError("Referência de comparação inválida.")
         if metrica_ref not in METRICAS:
             raise ValueError("Indicador de referência inválido.")
@@ -334,24 +339,73 @@ def _valid_conditions(conditions):
     return parsed
 
 
-def _evaluate_condition(cond,home_stats,away_stats):
+def _favorite_home(game):
+    """Compara APENAS odds de vitória dos times no Match Odds (1 e 2).
+
+    Empate (X) não é um time. Sem ambas as cotações válidas, ou em empate
+    exato de preços, a classificação é indisponível: nunca inferimos pelo placar.
+    """
+    home=_n(game.get("api_odd_1_ft"))
+    away=_n(game.get("api_odd_2_ft"))
+    if home is None or away is None:
+        return None
+    if not 1.01<=home<=1000 or not 1.01<=away<=1000 or home==away:
+        return None
+    return home<away
+
+
+def _role_to_side(role, favorite_home):
+    if role in ("mandante","visitante"):
+        return role
+    if favorite_home is None:
+        return None
+    if role=="favorito":
+        return "mandante" if favorite_home else "visitante"
+    if role=="zebra":
+        return "visitante" if favorite_home else "mandante"
+    raise ValueError("Papel de clube não reconhecido.")
+
+
+def _requires_favorite(market,conditions):
+    return market in ("back_favorito","lay_favorito","back_zebra","lay_zebra") or any(
+        condition["lado"] in ("favorito","zebra") or
+        condition["referencia"] in ("favorito","zebra") for condition in conditions
+    )
+
+
+def _market_for_game(market, favorite_home):
+    if market not in ("back_favorito","lay_favorito","back_zebra","lay_zebra"):
+        return market
+    if favorite_home is None:
+        raise ValueError("Match Odds não disponíveis para classificar favorito/zebra.")
+    side=_role_to_side("favorito" if market.endswith("favorito") else "zebra",favorite_home)
+    return market.split("_",1)[0]+"_"+side
+
+
+def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
     teams={"mandante":home_stats,"visitante":away_stats}
-    observed=teams[cond["lado"]].get(cond["metrica"])
+    side=_role_to_side(cond["lado"],favorite_home)
+    if side is None:
+        return None
+    observed=teams[side].get(cond["metrica"])
     if cond["referencia"]=="valor":
         reference=cond["valor"]
         ref_name="Valor fixo"
     elif cond["referencia"]=="adversario":
-        side="visitante" if cond["lado"]=="mandante" else "mandante"
-        reference=teams[side].get(cond["metrica"])
-        ref_name=METRICAS[cond["metrica"]]+" do "+side
+        opposite="visitante" if side=="mandante" else "mandante"
+        reference=teams[opposite].get(cond["metrica"])
+        ref_name=METRICAS[cond["metrica"]]+" do adversário"
     else:
-        ref_value=teams[cond["referencia"]].get(cond["metrica_ref"])
+        reference_side=_role_to_side(cond["referencia"],favorite_home)
+        if reference_side is None:
+            return None
+        ref_value=teams[reference_side].get(cond["metrica_ref"])
         reference=ref_value+cond["valor"] if ref_value is not None else None
         ref_name=METRICAS[cond["metrica_ref"]]
     if not _compare(observed,reference,cond["comparador"]):
         return None
     return {
-        "lado":cond["lado"],"metrica":cond["metrica"],
+        "lado":cond["lado"],"mando":side,"metrica":cond["metrica"],
         "nome":METRICAS[cond["metrica"]],"comparador":COMPARADORES[cond["comparador"]],
         "observado":round(observed,3),"comparado":round(reference,3),
         "referencia":cond["referencia"],"nome_ref":ref_name,
@@ -519,10 +573,16 @@ def testar(payload,rows=None):
                 "maior_good_run":0,"maior_bad_run":0,"jogos":[]})
     length=None if window=="temporada" else int(window)
     matched_total=0
+    sem_classificacao=0
+    requires_classification=_requires_favorite(market,conditions)
     for d,games_iter in groupby(filtered,key=lambda r:r["data"]):
         games=list(games_iter)
         # Crucial: evaluate ALL same-day games BEFORE adding any to history.
         for g in games:
+            fav_home=_favorite_home(g)
+            if requires_classification and fav_home is None:
+                sem_classificacao+=1
+                continue
             hkey=(g["campeonato_id"],g["temporada"],g["casa_id"])
             akey=(g["campeonato_id"],g["temporada"],g["fora_id"])
             h=_stats(histories[hkey],length)
@@ -530,16 +590,17 @@ def testar(payload,rows=None):
             if h is None or a is None:continue
             details=[]
             for condition in conditions:
-                evaluated=_evaluate_condition(condition,h,a)
+                evaluated=_evaluate_condition(condition,h,a,fav_home)
                 if evaluated is None:
                     break
                 details.append(evaluated)
             else:
                 matched_total+=1
                 name=g["campeonato"];rec=leagues[name]
-                hit=_settle(market,int(g["gols_casa"]),int(g["gols_fora"]))
-                odd,origin=_odds_for_game(g,market,manual)
-                units=_units(hit,market,odd,commission)
+                settled_market=_market_for_game(market,fav_home)
+                hit=_settle(settled_market,int(g["gols_casa"]),int(g["gols_fora"]))
+                odd,origin=_odds_for_game(g,settled_market,manual)
+                units=_units(hit,settled_market,odd,commission)
                 rec["entradas"]+=1
                 rec["greens"]+=int(hit)
                 rec["reds"]+=int(not hit)
@@ -560,7 +621,15 @@ def testar(payload,rows=None):
                       "id":g["id"],"data":d.isoformat(),"mandante":g["mandante"],
                       "visitante":g["visitante"],"placar":str(g["gols_casa"])+"x"+str(g["gols_fora"]),
                       "green":hit,"odd":odd,"tipo_odd":origin,
-                      "bookmaker":_bookmaker_for_game(g,market,origin),
+                      "bookmaker":_bookmaker_for_game(g,settled_market,origin),
+                      "favorito":(g["mandante"] if fav_home else g["visitante"]) if fav_home is not None else None,
+                      "zebra":(g["visitante"] if fav_home else g["mandante"]) if fav_home is not None else None,
+                      "mando_favorito":_role_to_side("favorito",fav_home) if fav_home is not None else None,
+                      "mando_zebra":_role_to_side("zebra",fav_home) if fav_home is not None else None,
+                      "odd_favorito":_n(g.get("api_odd_1_ft" if fav_home else "api_odd_2_ft")) if fav_home is not None else None,
+                      "odd_zebra":_n(g.get("api_odd_2_ft" if fav_home else "api_odd_1_ft")) if fav_home is not None else None,
+                      "placar_favorito":(str(g["gols_casa"])+"x"+str(g["gols_fora"]) if fav_home else
+                                          str(g["gols_fora"])+"x"+str(g["gols_casa"])) if fav_home is not None else None,
                       "unidades":round(units,3) if units is not None else None,
                       "valor_reais":round(units*100,2) if units is not None else None,
                       "historico_mandante":min(len(histories[hkey]),length) if length is not None else len(histories[hkey]),
@@ -590,9 +659,14 @@ def testar(payload,rows=None):
     return {"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "campeonato_ids":leagues_selected or [],
             "resultados":summary,"entradas":matched_total,
+            "sem_classificacao":sem_classificacao,
             "limite_detalhes":400,"odd_hipotetica":manual,"stake_reais":100,
             "aviso":"A data de corte limita os jogos analisados. Indicadores usam apenas "
                     +recorte_descrito+" anteriores a cada jogo, com mínimo de 5. "
+                    "Favorito é o time com menor odd de vitória no Match Odds (1 ou 2); "
+                    "a odd de empate (X) não classifica times. Preços iguais ou ausentes "
+                    "não permitem classificar favorito/zebra; essas partidas são ignoradas "
+                    "quando o filtro ou mercado depende da classificação. "
                     "Win rate e sequências consideram todas as entradas; unidades e resultado "
                     "financeiro consideram SOMENTE entradas cotadas (1 unidade = R$ 100). "
                     "Odds Back são preços de casas do banco; como a data de captura da API "
