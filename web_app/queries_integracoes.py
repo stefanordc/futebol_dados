@@ -232,7 +232,7 @@ def _bookmaker_column(odd):
     if odd.startswith("DC_"):
         return "Bookie_DC"
     if odd.startswith(("CS_","AH_","EH_")):
-        return "Bookie_"+odd.rsplit("_",1)[0] if odd.startswith("CS_") else (
+        return "Bookie_"+odd if odd.startswith("CS_") else (
             "Bookie_"+odd.replace("AH_Home_","AH_").replace("AH_Away_","AH_")
                       .replace("EH_Home_","EH_").replace("EH_Draw_","EH_")
                       .replace("EH_Away_","EH_"))
