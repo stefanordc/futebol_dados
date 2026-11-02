@@ -173,7 +173,7 @@ class TestNostradamus(TestCase):
         self.assertAlmostEqual(back["unidades"],3)
         self.assertEqual(lay["greens"],1)
         self.assertEqual(lay["reds"],4)
-        self.assertAlmostEqual(lay["unidades"],-3.02)
+        self.assertAlmostEqual(lay["unidades"],-3.045)  # 4,5% em 1 green, 4 reds
 
     def test_odds_registradas_pre_jogo(self):
         x=game(20,self.start+timedelta(days=6),odd_created=datetime.combine(self.start,datetime.min.time()))
