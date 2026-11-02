@@ -223,10 +223,10 @@ class TestIntegracoes(TestCase):
 
     def test_checkbox_usa_lista_e_destaque_e_renderiza(self):
         js=(Path(__file__).resolve().parents[1]/"static"/"js"/"integracoes.js").read_text(encoding="utf-8")
-        self.assertIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
-        self.assertIn('const total=$("#int-api-columns input[type=checkbox]").length',js)
-        self.assertIn('const selected=$("#int-api-columns input[type=checkbox]:checked").length',js)
-        self.assertIn("tr.classList.toggle(\"int-match-auto\",on)",js)
+        self.assertIn('const checkboxes=$$("#int-api-columns input[type=checkbox]")',js)
+        self.assertIn('const total=$$("#int-api-columns input[type=checkbox]").length',js)
+        self.assertIn('const selected=$$("#int-api-columns input[type=checkbox]:checked").length',js)
+        self.assertIn('tr.classList.toggle("int-match-auto",on)',js)
         self.assertNotIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
         self.assertNotIn('$("#int-api-columns input[type=checkbox]").forEach',js)
         self.assertNotIn('for(const tr of $("#int-api-clubs tr"))',js)
