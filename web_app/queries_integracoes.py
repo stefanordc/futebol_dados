@@ -116,7 +116,7 @@ def _url(base,path):
     base=base.strip()
     p=urlsplit(base)
     host=p.hostname
-    allowed={h.strip().lower() for h in os.getenv("ODDS_API_ALLOWED_HOSTS","futpythontrader.com.br").split(",") if h.strip()}
+    allowed={"futpythontrader.com.br"} | {h.strip().lower() for h in os.getenv("ODDS_API_ALLOWED_HOSTS","").split(",") if h.strip()}
     if not host or p.scheme!="https" or not allowed or host.lower() not in allowed:
         raise ValueError("Configure ODDS_API_ALLOWED_HOSTS no .env e informe base HTTPS autorizada.")
     if p.username or p.password or p.query or p.fragment or p.port not in (None,443):
