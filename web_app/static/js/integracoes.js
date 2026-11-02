@@ -71,6 +71,7 @@
  }
  if(location.pathname!=="/apostas/nostradamus/conectar-api")return;
  let data=null;
+ let countryVersion=0, countryTimer=null;
  async function history(){
    try{
      const rows=await request("/api/integracoes/odds/importacoes");
@@ -97,29 +98,91 @@
    select.value=club.clube_id==null?"":String(club.clube_id);
    return select;
  }
+ function renderClubRows(clubs,catalog,keepEdits){
+   const body=$("#int-api-clubs");
+   const previous=new Map();
+   if(keepEdits)for(const tr of $("#int-api-clubs tr")){
+     previous.set(tr.dataset.original,{
+       nome:$(".int-standard",tr)?.value,
+       clube_id:$(".int-odds-club-id",tr)?.value
+     });
+   }
+   body.replaceChildren();
+   data.catalogo=catalog;
+   data.clubes=clubs;
+   const validIds=new Set(catalog.map(c=>String(c.id)));
+   const state=$("#int-country-catalog");
+   if(state){
+     state.textContent=catalog.length
+       ?catalog.length+" clubes cadastrados no país selecionado. As sugestões exibem somente esses clubes."
+       :"Nenhum clube cadastrado nesse país. Você pode padronizar os nomes sem vincular.";
+   }
+   for(const c of clubs){
+     const tr=element("tr");tr.dataset.original=c.original;
+     const name=element("td",c.original),edit=document.createElement("td");
+     const input=document.createElement("input");input.className="int-standard";
+     input.maxLength=150;
+     const prior=previous.get(c.original);
+     input.value=prior?prior.nome:c.padronizado;
+     edit.append(input);
+     const ref=document.createElement("td"),select=optionSelector(c,catalog);
+     if(prior){
+       select.value=validIds.has(prior.clube_id)?prior.clube_id:"";
+     }
+     select.addEventListener("change",()=>{
+       const chosen=catalog.find(x=>String(x.id)===select.value);
+       if(chosen)input.value=chosen.clube;
+     });
+     ref.append(select);
+     if(c.sugestoes?.length){
+       ref.append(element("small",
+         "Mais próximos: "+c.sugestoes.map(x=>x.clube+" ("+x.similaridade+"%)").join(" · "),
+         "int-muted"));
+     }
+     tr.append(name,edit,ref);
+     body.append(tr);
+   }
+ }
+ async function refreshCountry(){
+   if(!data)return;
+   const version=++countryVersion;
+   const pais=$("#int-country").value.trim();
+   const status=$("#int-country-catalog");
+   const importButton=$("#int-import");
+   importButton.disabled=true;
+   if(!pais){
+     if(status)status.textContent="Informe um país para listar os clubes correspondentes.";
+     return;
+   }
+   if(status)status.textContent="Consultando clubes de "+pais+"…";
+   try{
+     const result=await request("/api/integracoes/odds/clubes",json({
+       preview_id:data.preview_id,pais
+     }));
+     if(version!==countryVersion||!data)return;
+     renderClubRows(result.clubes,result.catalogo,true);
+     importButton.disabled=false;
+   }catch(error){
+     if(version!==countryVersion)return;
+     if(status)status.textContent="Não foi possível atualizar os clubes deste país.";
+     show(error.message,true);
+   }
+ }
+ $("#int-country").addEventListener("input",()=>{
+   if(!data)return;
+   clearTimeout(countryTimer);
+   countryVersion++;
+   $("#int-import").disabled=true;
+   $("#int-country-catalog").textContent="Atualizando clubes conforme o país informado…";
+   countryTimer=setTimeout(refreshCountry,350);
+ });
  function renderPreview(){
    $("#int-api-preview").hidden=false;
    $("#int-api-count").textContent=data.total+" registros retornados; fonte não importada ainda.";
    $("#int-season").value=data.temporada||"";
    $("#int-league").value=data.campeonato||"";
    $("#int-country").value=data.pais||"";
-   const body=$("#int-api-clubs");body.replaceChildren();
-   for(const c of data.clubes){
-     const tr=element("tr");tr.dataset.original=c.original;
-     const name=element("td",c.original),edit=document.createElement("td");
-     const input=document.createElement("input");input.className="int-standard";input.value=c.padronizado;input.maxLength=150;
-     edit.append(input);const ref=document.createElement("td"),select=optionSelector(c,data.catalogo);
-     select.addEventListener("change",()=>{
-       const chosen=data.catalogo.find(x=>String(x.id)===select.value);
-       if(chosen)input.value=chosen.clube;
-     });
-     ref.append(select);
-     if(c.sugestoes?.length){
-       const hint=element("small","Mais próximos: "+c.sugestoes.map(x=>x.clube+" ("+x.similaridade+"%)").join(" · "),"int-muted");
-       ref.append(hint);
-     }
-     tr.append(name,edit,ref);body.append(tr);
-   }
+   renderClubRows(data.clubes,data.catalogo,false);
    const cols=$("#int-api-columns");cols.replaceChildren();
    for(const c of data.colunas){
      const label=element("label"),checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=true;checkbox.value=c;
@@ -128,7 +191,7 @@
    $("#int-api-example").textContent=JSON.stringify(data.exemplo,null,2);
  }
  $("#int-api-form").addEventListener("submit",async event=>{
-   event.preventDefault();data=null;$("#int-api-preview").hidden=true;
+   event.preventDefault();clearTimeout(countryTimer);countryVersion++;data=null;$("#int-api-preview").hidden=true;
    const submit=$("#int-api-form button[type=submit]");submit.disabled=true;
    try{
      const result=await request("/api/integracoes/odds/preview",json({
@@ -136,7 +199,7 @@
        chave:$("#int-api-key").value,cabecalho:$("#int-api-header").value
      }));
      $("#int-api-key").value="";data=result;
-     renderPreview();show("Prévia recebida. Revise os clubes e colunas antes de confirmar.");
+     renderPreview();$("#int-import").disabled=false;show("Prévia recebida. Revise os clubes e colunas antes de confirmar.");
    }catch(e){show(e.message,true);}
    finally{submit.disabled=false;}
  });

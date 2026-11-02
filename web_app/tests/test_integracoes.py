@@ -7,9 +7,9 @@ from unittest.mock import patch,MagicMock
 import queries_integracoes as qi
 import queries_vinculos as qv
 
-CLUBS=[{"id":1,"clube":"Flamengo","pais_id":1},
-       {"id":2,"clube":"Atlético","pais_id":1},
-       {"id":3,"clube":"Corinthians","pais_id":1}]
+CLUBS=[{"id":1,"clube":"Flamengo","pais_id":1,"pais":"Brasil"},
+       {"id":2,"clube":"Atlético","pais_id":1,"pais":"Brasil"},
+       {"id":3,"clube":"Corinthians","pais_id":1,"pais":"Brasil"}]
 FIS=[{"externo_id":"123","nome":"Flamengo","registros":5,"pais":"Brasil"},
      {"externo_id":"321","nome":"Atletico MG","registros":6,"pais":"Brasil"},
      {"externo_id":"987","nome":"Outra equipe","registros":1,"pais":"Brasil"}]
@@ -126,6 +126,45 @@ class TestIntegracoes(TestCase):
         self.assertEqual(result["colunas"],["Match_ID","Home","Away","Odd_1_FT"])
         self.assertNotIn("MINHA_CHAVE",str(qi._PREVIEWS))
 
+    def test_catalogo_filtra_pais_e_alias(self):
+        clubes=CLUBS+[{"id":99,"clube":"Alavés","pais":"Espanha"}]
+        with patch.object(qi,"fetch_all",return_value=clubes):
+            catalogo=qi._catalogo_pais("Brazil")
+            self.assertEqual(len(catalogo),3)
+            self.assertNotIn(99,{c["id"] for c in catalogo})
+            self.assertEqual([c["id"] for c in qi._catalogo_pais("Spain")],[99])
+            self.assertEqual(qi._catalogo_pais("País inexistente"),[])
+            revisao=qi._clubes_preview([{"Home":"Flamengo","Away":"Alavés"}],"Brasil")
+        self.assertEqual(len(revisao["catalogo"]),3)
+        alaves=next(c for c in revisao["clubes"] if c["original"]=="Alavés")
+        self.assertIsNone(alaves["clube_id"])
+        self.assertNotIn(99,[s["id"] for s in alaves["sugestoes"]])
+
+    def test_revisar_clubes_apos_alterar_pais(self):
+        qi._PREVIEWS["pais"]={"rows":[{"Home":"Flamengo","Away":"Alavés"}],
+                               "criado":qi.time.monotonic()}
+        clubes=CLUBS+[{"id":99,"clube":"Alavés","pais":"Espanha"}]
+        with patch.object(qi,"fetch_all",return_value=clubes):
+            resultado=qi.revisar_clubes({"preview_id":"pais","pais":"Espanha"})
+        self.assertEqual([c["id"] for c in resultado["catalogo"]],[99])
+        alaves=next(c for c in resultado["clubes"] if c["original"]=="Alavés")
+        self.assertEqual(alaves["clube_id"],99)
+
+    def test_importacao_recusa_clube_de_outro_pais(self):
+        qi._PREVIEWS["fora"]={"criado":qi.time.monotonic(),
+            "columns":["Home","Away"],"country":"Brasil","league":"Serie A",
+            "season":"2026","rows":[{"Home":"Flamengo","Away":"Alavés"}]}
+        clubes=CLUBS+[{"id":99,"clube":"Alavés","pais":"Espanha"}]
+        with patch.object(qi,"fetch_all",return_value=clubes),\
+             patch.object(qi,"get_conn") as conn:
+            with self.assertRaisesRegex(ValueError,"não pertence ao país"):
+                qi.importar({"preview_id":"fora","colunas":["Home","Away"],
+                    "clubes":[
+                        {"original":"Flamengo","padronizado":"Flamengo","clube_id":1},
+                        {"original":"Alavés","padronizado":"Alavés","clube_id":99}],
+                    "pais":"Brasil"})
+            conn.assert_not_called()
+
     def test_importacao_atomica_commit_sem_chave(self):
         qi._PREVIEWS.clear()
         qi._PREVIEWS["abc"]={"criado":qi.time.monotonic(),"host":"api.exemplo.com",
@@ -139,7 +178,7 @@ class TestIntegracoes(TestCase):
         @contextmanager
         def conn():yield fake
         with patch.object(qi,"get_conn",conn),patch.object(qi,"fetch_all",
-            return_value=[{"id":1},{"id":2}]):
+            return_value=CLUBS):
             out=qi.importar({"preview_id":"abc","colunas":["odds"],
                  "clubes":[{"original":"Flamengo","padronizado":"Flamengo","clube_id":1},
                            {"original":"Atlético","padronizado":"Atlético","clube_id":2}]})
