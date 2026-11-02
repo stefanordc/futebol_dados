@@ -344,8 +344,8 @@ _KEYRING_SERVICE="DadosFutebol - API de odds"
 def _chave_armazenada(host):
     try:
         return keyring.get_password(_KEYRING_SERVICE,host)
-    except Exception as exc:
-        raise ValueError("Não foi possível consultar o cofre de credenciais do sistema.") from exc
+    except Exception:
+        return None
 
 def status_chave(base):
     _,host=_url(str(base),"/api/download")
@@ -387,7 +387,7 @@ def _valor_coluna(source,value):
             except ValueError:pass
         return None
     if _tipo_coluna(source)=="integer":
-        try:return int(value) if re.fullmatch(r"[+-]?\\d+",str(value).strip()) else None
+        try:return int(value) if re.fullmatch(r"[+-]?\d+",str(value).strip()) else None
         except (ValueError,TypeError):return None
     if _tipo_coluna(source)=="numeric(12,4)":
         try:
