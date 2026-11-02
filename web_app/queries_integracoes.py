@@ -130,6 +130,66 @@ def _url(base,path):
         raise ValueError("API não pode apontar para localhost ou rede privada.")
     return urljoin(f"https://{host}/",path.lstrip("/")),host.lower()
 
+# Normalização do país digitado e dos nomes persistidos em public.paises.
+PAIS_EQUIVALENCIAS={
+    "br":"brasil","bra":"brasil","brazil":"brasil","brasil":"brasil",
+    "england":"inglaterra","inglaterra":"inglaterra",
+    "spain":"espanha","espana":"espanha","espanha":"espanha",
+    "germany":"alemanha","deutschland":"alemanha","alemanha":"alemanha",
+    "italy":"italia","italia":"italia",
+    "france":"franca","franca":"franca",
+    "argentina":"argentina","portugal":"portugal",
+    "united states":"estados unidos","usa":"estados unidos",
+}
+
+def _pais_normalizado(nome):
+    valor=key(nome)
+    return PAIS_EQUIVALENCIAS.get(valor,valor)
+
+def _catalogo_pais(pais):
+    """Só exibe clubes de public.clubes do país escolhido."""
+    if not isinstance(pais,str) or not 1<=len(pais.strip())<=100:
+        return []
+    todos=fetch_all("""SELECT c.id,c.clube,p.nome AS pais
+                         FROM public.clubes c
+                         JOIN public.paises p ON p.id=c.pais_id
+                         ORDER BY c.clube""")
+    alvo=_pais_normalizado(pais)
+    return [c for c in todos if _pais_normalizado(c["pais"])==alvo]
+
+def _clubes_preview(rows,pais):
+    catalogo=_catalogo_pais(pais)
+    nomes=sorted(set(n for row in rows
+        for n in (_pick(row,HOME_KEYS),_pick(row,AWAY_KEYS)) if n))
+    por_nome={}
+    for c in catalogo:
+        por_nome.setdefault(key(c["clube"]),[]).append(c)
+    resultados=[]
+    for nome in nomes:
+        iguais=por_nome.get(key(nome),[])
+        igual=iguais[0] if len(iguais)==1 else None
+        resultados.append({"original":nome,
+                           "padronizado":igual["clube"] if igual else nome,
+                           "clube_id":igual["id"] if igual else None,
+                           "sugestoes":_suggest(nome,catalogo)})
+    return {"catalogo":catalogo,"clubes":resultados,"pais":pais}
+
+def revisar_clubes(payload):
+    """Atualiza as opções após o usuário alterar o país da importação."""
+    if not isinstance(payload,dict):
+        raise ValueError("Requisição inválida.")
+    token=payload.get("preview_id")
+    pais=payload.get("pais")
+    if not isinstance(token,str) or token not in _PREVIEWS:
+        raise ValueError("Prévia expirada. Consulte a API novamente.")
+    prev=_PREVIEWS[token]
+    if time.monotonic()-prev["criado"]>TTL:
+        _PREVIEWS.pop(token,None)
+        raise ValueError("Prévia expirada. Consulte a API novamente.")
+    if not isinstance(pais,str) or not 1<=len(pais.strip())<=100:
+        raise ValueError("Informe um país válido.")
+    return _clubes_preview(prev["rows"],pais.strip())
+
 def preview(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
     base=str(payload.get("base",""))
@@ -169,17 +229,8 @@ def preview(payload):
     columns=list(OrderedDict.fromkeys(k for row in rows for k in row
         if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)))
     if len(columns)>300:raise ValueError("A API retornou mais de 300 colunas.")
-    teams=sorted(set(n for row in rows for n in (_pick(row,HOME_KEYS),_pick(row,AWAY_KEYS)) if n))
-    clubs=fetch_all("SELECT id,clube FROM clubes ORDER BY clube")
-    unique={}
-    for c in clubs:unique.setdefault(key(c["clube"]),[]).append(c)
-    clubs_preview=[]
-    for name in teams:
-        matches=unique.get(key(name),[])
-        best=matches[0] if len(matches)==1 else None
-        clubs_preview.append({"original":name,"padronizado":best["clube"] if best else name,
-          "clube_id":best["id"] if best else None,"sugestoes":_suggest(name,clubs)})
     season,league,country=_metadata(path)
+    revisao=_clubes_preview(rows,country)
     now=time.monotonic()
     for k,v in list(_PREVIEWS.items()):
         if now-v["criado"]>TTL:_PREVIEWS.pop(k,None)
@@ -187,7 +238,7 @@ def preview(payload):
     _PREVIEWS[token]={"rows":rows,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
     return {"preview_id":token,"colunas":columns,"temporada":season,"campeonato":league,
-            "pais":country,"clubes":clubs_preview,"catalogo":clubs,"total":len(rows),
+            **revisao,"total":len(rows),
             "exemplo":{c:rows[0].get(c) for c in columns},
             "aviso":"Revise as sugestões antes de importar. Nenhum dado foi salvo."}
 
@@ -208,7 +259,8 @@ def importar(payload):
     names={n for row in prev["rows"] for n in (_pick(row,HOME_KEYS),_pick(row,AWAY_KEYS)) if n}
     if {x.get("original") for x in aliases if isinstance(x,dict)}!=names or len(aliases)!=len(names):
         raise ValueError("A lista de clubes mudou desde a prévia.")
-    valid_ids={c["id"] for c in fetch_all("SELECT id FROM clubes")}
+    country=payload.get("pais") or prev["country"]
+    valid_ids={c["id"] for c in _catalogo_pais(country)}
     normalized={}
     for x in aliases:
         name=x.get("padronizado")
@@ -217,9 +269,8 @@ def importar(payload):
             raise ValueError("Nome de clube inválido.")
         if cid in ("",None):cid=None
         elif type(cid) is not int or cid not in valid_ids:
-            raise ValueError("Clube de referência inválido.")
+            raise ValueError("Clube não pertence ao país selecionado. Revise a vinculação.")
         normalized[x["original"]]=(name.strip(),cid)
-    country=payload.get("pais") or prev["country"]
     league=payload.get("campeonato") or prev["league"]
     season=payload.get("temporada") or prev["season"]
     for field,val in (("país",country),("campeonato",league),("temporada",season)):
