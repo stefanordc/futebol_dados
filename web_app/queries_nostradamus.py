@@ -292,6 +292,35 @@ def _stats(history,amount):
                           if total_xg>0 and len(eligible)>=max(3,int(.6*n+.99999)) else None)
     return out
 
+ODD_FILTER_MARKETS = {
+    "back_favorito": "Match Odds · Back favorito",
+    "back_zebra": "Match Odds · Back zebra",
+    "back_empate": "Match Odds · Back empate",
+    "over_05": "Over 0,5",
+    "over_15": "Over 1,5",
+    "over_25": "Over 2,5",
+    "over_35": "Over 3,5",
+    "under_25": "Under 2,5",
+    "ambos_marcam": "Ambos marcam · Sim",
+    "ambos_nao": "Ambos marcam · Não",
+    "lay_favorito": "Match Odds · Lay favorito (estimado)",
+    "lay_zebra": "Match Odds · Lay zebra (estimado)",
+    "lay_empate": "Match Odds · Lay empate (estimado)",
+    "lay_1x0": "Correct Score · Lay 1x0 (estimado)",
+    "lay_0x1": "Correct Score · Lay 0x1 (estimado)",
+}
+
+def _odd_limit(value, label):
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        raise ValueError(label + " inválida.")
+    price = _n(value)
+    if price is None or not 1.01 <= price <= 1000:
+        raise ValueError(label + " deve estar entre 1,01 e 1000.")
+    return price
+
+
 def _valid_conditions(conditions):
     """Normaliza condições novas e antigas, sem execução dinâmica de expressões.
 
@@ -305,13 +334,31 @@ def _valid_conditions(conditions):
         raise ValueError("Escolha entre 1 e 10 condições.")
     parsed=[]
     for c in conditions:
-        if not isinstance(c,dict) or c.get("metrica") not in METRICAS or c.get("comparador") not in COMPARADORES:
+        if not isinstance(c, dict):
+            raise ValueError("Critério inválido.")
+        tipo=c.get("tipo","indicador")
+        if tipo=="odd":
+            market=c.get("mercado")
+            if market not in ODD_FILTER_MARKETS:
+                raise ValueError("Selecione o mercado da odd.")
+            min_odd=_odd_limit(c.get("odd_min"),"Odd mínima")
+            max_odd=_odd_limit(c.get("odd_max"),"Odd máxima")
+            if min_odd is None and max_odd is None:
+                raise ValueError("Informe a odd mínima e/ou a odd máxima.")
+            if min_odd is not None and max_odd is not None and min_odd>max_odd:
+                raise ValueError("Odd mínima não pode superar a odd máxima.")
+            parsed.append({"tipo":"odd","mercado":market,
+                           "odd_min":min_odd,"odd_max":max_odd})
+            continue
+        if tipo!="indicador" or c.get("metrica") not in METRICAS or c.get("comparador") not in COMPARADORES:
             raise ValueError("Métrica ou comparador inválido.")
         lado=c.get("lado","mandante")
         referencia=c.get("referencia","visitante")
         metrica_ref=c.get("metrica_ref",c["metrica"])
-        if lado not in ("mandante","visitante","favorito","zebra"):
+        if lado not in ("mandante","visitante","favorito","zebra","ambos"):
             raise ValueError("Equipe analisada inválida.")
+        if lado=="ambos" and referencia!="valor":
+            raise ValueError("Ambos requer comparação com valor absoluto: as duas equipes devem atender à condição.")
         if referencia not in ("valor","adversario","mandante","visitante","favorito","zebra"):
             raise ValueError("Referência de comparação inválida.")
         if metrica_ref not in METRICAS:
@@ -333,7 +380,7 @@ def _valid_conditions(conditions):
             if valor is None or not -10000<=valor<=10000:
                 raise ValueError("Valor de comparação inválido.")
         parsed.append({
-            "lado":lado,"metrica":c["metrica"],"comparador":c["comparador"],
+            "tipo":"indicador","lado":lado,"metrica":c["metrica"],"comparador":c["comparador"],
             "referencia":referencia,"metrica_ref":metrica_ref,"valor":valor
         })
     return parsed
@@ -368,8 +415,12 @@ def _role_to_side(role, favorite_home):
 
 def _requires_favorite(market,conditions):
     return market in ("back_favorito","lay_favorito","back_zebra","lay_zebra") or any(
-        condition["lado"] in ("favorito","zebra") or
-        condition["referencia"] in ("favorito","zebra") for condition in conditions
+        (condition.get("tipo")=="odd" and condition["mercado"] in (
+            "back_favorito","lay_favorito","back_zebra","lay_zebra")) or
+        (condition.get("tipo")!="odd" and (
+            condition["lado"] in ("favorito","zebra") or
+            condition["referencia"] in ("favorito","zebra")))
+        for condition in conditions
     )
 
 
@@ -384,6 +435,21 @@ def _market_for_game(market, favorite_home):
 
 def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
     teams={"mandante":home_stats,"visitante":away_stats}
+    if cond["lado"]=="ambos":
+        observed_home=home_stats.get(cond["metrica"])
+        observed_away=away_stats.get(cond["metrica"])
+        reference=cond["valor"]
+        if not (_compare(observed_home,reference,cond["comparador"]) and
+                _compare(observed_away,reference,cond["comparador"])):
+            return None
+        return {"tipo":"indicador","lado":"ambos","mando":"ambos",
+                "metrica":cond["metrica"],"nome":METRICAS[cond["metrica"]],
+                "comparador":COMPARADORES[cond["comparador"]],
+                "observado":None,"observado_mandante":round(observed_home,3),
+                "observado_visitante":round(observed_away,3),
+                "comparado":round(reference,3),"referencia":"valor",
+                "nome_ref":"Valor fixo","metrica_ref":cond["metrica"],
+                "valor":reference}
     side=_role_to_side(cond["lado"],favorite_home)
     if side is None:
         return None
@@ -405,7 +471,7 @@ def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
     if not _compare(observed,reference,cond["comparador"]):
         return None
     return {
-        "lado":cond["lado"],"mando":side,"metrica":cond["metrica"],
+        "tipo":"indicador","lado":cond["lado"],"mando":side,"metrica":cond["metrica"],
         "nome":METRICAS[cond["metrica"]],"comparador":COMPARADORES[cond["comparador"]],
         "observado":round(observed,3),"comparado":round(reference,3),
         "referencia":cond["referencia"],"nome_ref":ref_name,
@@ -590,7 +656,21 @@ def testar(payload,rows=None):
             if h is None or a is None:continue
             details=[]
             for condition in conditions:
-                evaluated=_evaluate_condition(condition,h,a,fav_home)
+                if condition.get("tipo")=="odd":
+                    criterion_market=_market_for_game(condition["mercado"],fav_home)
+                    criterion_odd,criterion_source=_odds_for_game(g,criterion_market,None)
+                    if criterion_odd is None or (
+                        condition["odd_min"] is not None and criterion_odd<condition["odd_min"]
+                    ) or (
+                        condition["odd_max"] is not None and criterion_odd>condition["odd_max"]
+                    ):
+                        break
+                    evaluated={"tipo":"odd","mercado":condition["mercado"],
+                               "nome":ODD_FILTER_MARKETS[condition["mercado"]],
+                               "odd":criterion_odd,"fonte":criterion_source,
+                               "odd_min":condition["odd_min"],"odd_max":condition["odd_max"]}
+                else:
+                    evaluated=_evaluate_condition(condition,h,a,fav_home)
                 if evaluated is None:
                     break
                 details.append(evaluated)
@@ -667,6 +747,10 @@ def testar(payload,rows=None):
                     "a odd de empate (X) não classifica times. Preços iguais ou ausentes "
                     "não permitem classificar favorito/zebra; essas partidas são ignoradas "
                     "quando o filtro ou mercado depende da classificação. "
+                    "A opção Ambos exige que cada equipe satisfaça o mesmo limite "
+                    "do indicador. Filtros de odd usam exclusivamente a cotação "
+                    "do mercado escolhido, sem substituir pela odd hipotética; "
+                    "sem cotação, a condição não é atendida. "
                     "Win rate e sequências consideram todas as entradas; unidades e resultado "
                     "financeiro consideram SOMENTE entradas cotadas (1 unidade = R$ 100). "
                     "Odds Back são preços de casas do banco; como a data de captura da API "
