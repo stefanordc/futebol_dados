@@ -22,7 +22,7 @@
      $("#int-link-info").textContent="Consultando banco…";
      try{
        result=await request("/api/integracoes/vinculos?fonte="+source);
-       $("#int-link-title").textContent=source==="fisicos"?"Dados físicos · Clubes sem vínculo":"API de odds · Clubes sem vínculo";
+       $("#int-link-title").textContent=source==="fisicos"?"Dados físicos · Clubes sem vínculo":source==="api"?"API de odds · Clubes sem vínculo":"Dados físicos · Vincular com clubes sem nenhuma referência";
        $("#int-link-info").textContent=result.total+" pendências · "+result.ja_equivalentes_por_nome+
           " identificados por nome idêntico · "+result.clubes.length+" clubes elegíveis para vínculo.";
        render();

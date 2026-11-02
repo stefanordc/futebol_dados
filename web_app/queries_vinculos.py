@@ -27,8 +27,14 @@ def listar(fonte="fisicos"):
     # Na lista física, só entram clubes SEM vínculo SofaScore. Ter FotMob não exclui.
     # Todos já têm ao menos uma referência FotMob no cadastro atual.
     ids_sofa={r['clube_id'] for r in refs if r['fonte']=='sofascore'}
-    targets=[c for c in clubs if c['id'] not in ids_sofa] if fonte=='fisicos' else clubs
-    if fonte=="fisicos":
+    ids_odds={r["clube_id"] for r in refs if r["fonte"]=="odds_api"}
+    if fonte=="sem_referencia":
+        targets=[c for c in clubs if c["id"] not in with_ref]
+    elif fonte=="fisicos":
+        targets=[c for c in clubs if c["id"] not in ids_sofa]
+    else:
+        targets=[c for c in clubs if c["id"] not in ids_odds]
+    if fonte in ("fisicos","sem_referencia"):
         sources=fetch_all("""SELECT id_clube::text AS externo_id,
                             MIN(clube) AS nome, COUNT(*) AS registros,
                             MIN(pais) AS pais
@@ -67,11 +73,11 @@ def listar(fonte="fisicos"):
 
 def vincular(payload):
     fonte=payload.get("fonte")
-    if fonte not in ("fisicos","api"):raise ValueError("Fonte inválida.")
+    if fonte not in ("fisicos","api","sem_referencia"):raise ValueError("Fonte inválida.")
     rows=payload.get("vinculos")
     if not isinstance(rows,list) or not 1<=len(rows)<=100:
         raise ValueError("Selecione de 1 a 100 vínculos.")
-    source="sofascore" if fonte=="fisicos" else "odds_api"
+    source="sofascore" if fonte in ("fisicos","sem_referencia") else "odds_api"
     ids=[str(x.get("externo_id","")) for x in rows]
     if len(set(ids))!=len(ids):raise ValueError("ID externo repetido.")
     available={x["externo_id"]:x for x in listar(fonte)["pendentes"]}
