@@ -40,3 +40,16 @@ padding:12px 18px;border-radius:11px;font:inherit;font-weight:800;cursor:pointer
 .int-nav a:focus-visible,.int-nav button:focus-visible{outline:2px solid var(--df-orange,#ff6b1a);outline-offset:2px}
 @media(max-width:700px){.int-hero,.int-panel{padding:18px;margin:12px 0}.int-form-grid{grid-template-columns:1fr}.int-hero h1{font-size:28px}}
 @media(prefers-reduced-motion:reduce){.int-panel *{scroll-behavior:auto}}
+
+/* Correspondências pré-selecionadas com alta confiança: chamar atenção sem
+   impedir que o usuário corrija o vínculo antes de confirmar. */
+.int-table tr.int-match-auto td{background:rgba(255,185,45,.075)}
+.int-table tr.int-match-auto td:first-child{border-left:4px solid #ffb52d}
+.int-table tr.int-match-auto .int-odds-club-id{
+ border:2px solid #ffbb32;box-shadow:0 0 0 2px rgba(255,187,50,.16);
+}
+.int-table .int-match-label{
+ display:block;color:#ffc65c;font-size:12px;font-weight:800;line-height:1.5
+}
+.int-table .int-match-label[hidden]{display:none}
+[data-theme="light"] .int-table .int-match-label{color:#895200}
