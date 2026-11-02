@@ -142,18 +142,54 @@ function formatRule(rule){
       (Number(rule.valor)?" + "+fmt(rule.valor,2):"");
   return esc(lhs+" "+(meta?.comparadores?.[rule.comparador]||rule.comparador)+" "+rhs);
 }
+function dateSaved(value){
+  if(!value)return "—";
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return "—";
+  return new Intl.DateTimeFormat("pt-BR",{
+    timeZone:"America/Sao_Paulo",
+    day:"2-digit",month:"2-digit",year:"numeric",
+    hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+  }).format(date).replace(", "," às ");
+}
 function renderSaved(){
-  $("#ns-saved-list").innerHTML=stored.length?stored.map(s=>
-    '<article class="ns-saved-item ns-db-card"><div class="ns-db-top"><div><strong>'+esc(s.nome)+'</strong>'+
-    '<small>'+esc(meta?.objetivos?.[s.objetivo]||s.objetivo)+' · '+esc(s.jogos)+
-    ' jogos · '+esc(s.corte)+' · Versão '+esc(s.versao)+'</small></div>'+
-    '<div class="ns-actions"><button type="button" data-edit="'+s.id+'">Editar regras</button></div></div>'+
-    '<details><summary>Visualizar regras ('+s.condicoes.length+')</summary>'+
-    '<ol class="ns-db-rules">'+s.condicoes.map(r=>'<li>'+formatRule(r)+'</li>').join("")+'</ol>'+
-    '</details></article>').join(""):
-    '<p class="x1-help">Nenhuma estratégia salva no banco. Crie uma em Simular estratégia.</p>';
+  const target=$("#ns-saved-list");
+  if(!stored.length){
+    target.innerHTML='<div class="ns-saved-empty"><strong>Nenhuma estratégia cadastrada no Supabase.</strong>'+
+      '<p>Para aparecer nesta lista, salve uma estratégia em “Simular estratégia”. Se você tinha métodos antigos, abra o Nostradamus no mesmo navegador em que foram criados para tentar importar os dados.</p></div>';
+    return;
+  }
+  target.innerHTML='<div class="ns-saved-count">'+stored.length+
+    (stored.length===1?" estratégia cadastrada":" estratégias cadastradas")+'</div>'+
+    '<div class="ns-saved-table-wrap"><table class="ns-saved-table" aria-label="Estratégias salvas no Supabase">'+
+    '<thead><tr><th scope="col">Estratégia</th><th scope="col">Data de criação</th>'+
+    '<th scope="col">Última atualização</th><th scope="col">Objetivo</th>'+
+    '<th scope="col">Ações</th></tr></thead><tbody>'+
+    stored.map(s=>'<tr><td><div class="ns-strategy-name">'+esc(s.nome)+'</div>'+
+      '<span class="ns-strategy-sub">'+esc(s.jogos)+" jogos · "+
+        s.condicoes.length+' regra(s) · Versão '+esc(s.versao)+'</span></td>'+
+      '<td><time datetime="'+esc(s.criado_em||"")+'">'+esc(dateSaved(s.criado_em))+'</time></td>'+
+      '<td><time datetime="'+esc(s.atualizado_em||"")+'">'+esc(dateSaved(s.atualizado_em))+'</time></td>'+
+      '<td>'+esc(meta?.objetivos?.[s.objetivo]||s.objetivo)+'</td>'+
+      '<td><div class="ns-saved-row-actions"><button type="button" data-rules="'+s.id+
+        '" aria-controls="ns-rules-'+s.id+'" aria-expanded="false">Ver regras</button>'+
+        '<button type="button" data-edit="'+s.id+'">Editar</button></div></td></tr>'+
+      '<tr class="ns-saved-details" id="ns-rules-'+s.id+'" hidden><td colspan="5">'+
+      '<div class="ns-saved-details-title">Condições · '+esc(s.nome)+'</div>'+
+      '<ol class="ns-db-rules">'+s.condicoes.map(r=>'<li>'+formatRule(r)+'</li>').join("")+'</ol>'+
+      '</td></tr>').join("")+'</tbody></table></div>';
 }
 $("#ns-saved-list").addEventListener("click",event=>{
+  const rules=event.target.closest("[data-rules]");
+  if(rules){
+    const panel=document.getElementById("ns-rules-"+rules.dataset.rules);
+    if(!panel)return;
+    const isOpen=rules.getAttribute("aria-expanded")==="true";
+    panel.hidden=isOpen;
+    rules.setAttribute("aria-expanded",String(!isOpen));
+    rules.textContent=isOpen?"Ver regras":"Ocultar regras";
+    return;
+  }
   const edit=event.target.closest("[data-edit]");
   if(!edit)return;
   const s=stored.find(row=>String(row.id)===edit.dataset.edit);

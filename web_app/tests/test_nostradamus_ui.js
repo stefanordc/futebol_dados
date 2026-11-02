@@ -48,3 +48,20 @@ const summaryRender=src.slice(src.indexOf("function show(response){"),src.indexO
 assert.ok(!summaryRender.includes("fmt(r.unidades,2)"),"Remover resultado financeiro da tabela resumo");
 assert.ok(src.includes('fmt(r.historico_mandante,0)') && src.includes('fmt(r.historico_visitante,0)'),
   "Detalhamento informa quantos jogos entraram no histórico");
+
+/* Estratégias persistidas: lista mostra datas do Supabase e não do corte. */
+assert.ok(src.includes('Data de criação'),"Lista deve mostrar data de criação");
+assert.ok(src.includes('Última atualização'),"Lista deve mostrar data da última edição");
+assert.ok(src.includes('s.criado_em'),"Data de criação deve vir do banco");
+assert.ok(src.includes('s.atualizado_em'),"Última edição deve vir do banco");
+assert.ok(src.includes('data-rules') && src.includes('data-edit'),
+  "Lista precisa manter visualizar regras e editar");
+assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
+  "Exibir timestamp no fuso brasileiro");
+assert.ok(!src.includes('localStorage.setItem(store'),
+  "Salvar estratégias exclusivamente no banco");
+assert.ok(html.includes('nostradamus-list-v7'),
+  "Forçar atualização do navegador com versionamento de estáticos");
+const py=fs.readFileSync("queries_estrategias.py","utf8");
+assert.ok(py.includes('ORDER BY criado_em DESC'),
+  "Listar as estratégias por criação mais recente");
