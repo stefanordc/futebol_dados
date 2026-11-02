@@ -112,6 +112,24 @@ def api_integracoes_vincular(request: Request, payload: dict):
         raise HTTPException(status_code=409,detail=str(exc)) from exc
 
 
+@app.get("/api/integracoes/odds/chave")
+def api_integracoes_chave_status(request: Request, base: str):
+    _integracoes_somente_local(request)
+    try:
+        return queries_integracoes.status_chave(base)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.delete("/api/integracoes/odds/chave")
+def api_integracoes_chave_excluir(request: Request, base: str):
+    _integracoes_somente_local(request)
+    try:
+        return queries_integracoes.excluir_chave(base)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
 @app.post("/api/integracoes/odds/preview")
 def api_integracoes_odds_preview(request: Request, payload: dict):
     _integracoes_somente_local(request)
