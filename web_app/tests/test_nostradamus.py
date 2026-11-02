@@ -91,7 +91,7 @@ class TestNostradamus(TestCase):
                          "indiferente")
         cond=ns._valid_conditions([base])[0]
         home={"xg":1.5}
-        away={"xg":0.8}
+        away={"xg":1.2}
         # Condição sem campo de mando continua sem restringir partidas antigas.
         self.assertIsNotNone(ns._evaluate_condition(cond,home,away,True))
         self.assertIsNotNone(ns._evaluate_condition(cond,home,away,False))
