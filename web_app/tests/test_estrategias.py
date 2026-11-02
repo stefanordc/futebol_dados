@@ -28,6 +28,25 @@ class TestEstratégias(TestCase):
         body["condicoes"]=[{"metrica":"xg","comparador":"gt","margem":0.4}]
         self.assertEqual(st._validate(body)["condicoes"][0]["valor"],0.4)
 
+    def test_salva_multiplas_ligas_sem_perder_legado(self):
+        body={**valid(),"campeonato_id":None,"campeonato_ids":[4,2]}
+        result=st._validate(body)
+        self.assertEqual(result["campeonato_id"],None)
+        self.assertEqual(result["campeonato_ids"],[2,4])
+        self.assertEqual(st._params(result)[5],[2,4])
+        self.assertIn("campeonato_ids",st.COLS)
+        self.assertTrue(any("campeonato_ids=%s" in str(x)
+                            for x in st.editar.__code__.co_consts))
+        old={**valid(),"campeonato_id":7}
+        old_result=st._validate(old)
+        self.assertEqual(old_result["campeonato_ids"],[7])
+        self.assertEqual(old_result["campeonato_id"],7)
+        all_result=st._validate(valid())
+        self.assertEqual(all_result["campeonato_ids"],[])
+        for invalid in ([1,1],[0],[True],["1"],list(range(1,34))):
+            with self.subTest(invalid=invalid),self.assertRaises(ValueError):
+                st._validate({**valid(),"campeonato_ids":invalid})
+
     def test_condicao_com_valor_absoluto(self):
         body=valid()
         body["condicoes"]=[{"lado":"visitante","metrica":"gols_sofridos",
