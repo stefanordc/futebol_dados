@@ -40,6 +40,62 @@ class TestNostradamus(TestCase):
         self.start=self.cutoff-timedelta(days=12)
         self.rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0) for i in range(10)]
 
+    def test_mando_filtra_favorito_e_zebra_independente_de_casa_fora(self):
+        partidas=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+                  for i in range(10)]
+        for i,g in enumerate(partidas):
+            g["api_odd_1_ft"]=1.50 if i<7 else 4.20
+            g["api_odd_2_ft"]=4.20 if i<7 else 1.50
+        criterio={"lado":"favorito","mando_preferido":"mandante",
+                  "metrica":"pontos_jogo","comparador":"ge",
+                  "referencia":"valor","valor":0}
+        mandante=ns.testar(config(self.cutoff,goal="over_25",
+                                    conditions=[criterio]),rows=partidas)
+        self.assertEqual(mandante["entradas"],2)
+        self.assertTrue(all(detail["condicoes"][0]["mando"]=="mandante"
+            for detail in mandante["resultados"][0]["jogos"]))
+        criterio["mando_preferido"]="visitante"
+        visitante=ns.testar(config(self.cutoff,goal="over_25",
+                                     conditions=[criterio]),rows=partidas)
+        self.assertEqual(visitante["entradas"],3)
+        self.assertTrue(all(detail["condicoes"][0]["mando"]=="visitante"
+            for detail in visitante["resultados"][0]["jogos"]))
+        criterio["mando_preferido"]="indiferente"
+        indiscriminado=ns.testar(config(self.cutoff,goal="over_25",
+                                        conditions=[criterio]),rows=partidas)
+        self.assertEqual(indiscriminado["entradas"],5)
+        criterio["lado"]="zebra"
+        criterio["mando_preferido"]="mandante"
+        self.assertEqual(ns.testar(config(self.cutoff,goal="over_25",
+            conditions=[criterio]),rows=partidas)["entradas"],3)
+        criterio["mando_preferido"]="visitante"
+        self.assertEqual(ns.testar(config(self.cutoff,goal="over_25",
+            conditions=[criterio]),rows=partidas)["entradas"],2)
+
+    def test_mando_indiferente_e_padrao_salvo_e_ambos_fica_indiferente(self):
+        base={"lado":"favorito","metrica":"xg","comparador":"gt",
+              "referencia":"valor","valor":1}
+        normalized=ns._valid_conditions([base])[0]
+        self.assertEqual(normalized["mando_preferido"],"indiferente")
+        self.assertEqual(ns._valid_conditions(
+            [{**base,"mando_preferido":"visitante"}])[0]["mando_preferido"],
+            "visitante")
+        for invalid in ("casa","fora",None,False,1,[],{}):
+            with self.subTest(invalid=invalid),self.assertRaises(ValueError):
+                ns._valid_conditions([{**base,"mando_preferido":invalid}])
+        both={**base,"lado":"ambos","mando_preferido":"mandante"}
+        with self.assertRaisesRegex(ValueError,"Indiferente"):
+            ns._valid_conditions([both])
+        both["mando_preferido"]="indiferente"
+        self.assertEqual(ns._valid_conditions([both])[0]["mando_preferido"],
+                         "indiferente")
+        cond=ns._valid_conditions([base])[0]
+        home={"xg":1.5}
+        away={"xg":0.8}
+        # Condição sem campo de mando continua sem restringir partidas antigas.
+        self.assertIsNotNone(ns._evaluate_condition(cond,home,away,True))
+        self.assertIsNotNone(ns._evaluate_condition(cond,home,away,False))
+
     def test_ambos_exige_duas_equipes_acima_do_limite(self):
         rule_both={"lado":"ambos","metrica":"xg","comparador":"ge",
                    "referencia":"valor","valor":0.7}
