@@ -6,13 +6,13 @@
 <p>Consulte uma API CSV ou JSON, confira clubes, ajuste informações e selecione as colunas antes de importar para a tabela odds.</p>
 <div class="x1-nav"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus</a><a href="/apostas/galileu">Galileu</a><a href="/vincular-clubes">Vincular Clubes</a></div></section>
 <nav class="int-nav" aria-label="Seções Nostradamus"><a href="/apostas/nostradamus">Simular estratégia</a><a href="/apostas/nostradamus?aba=salvas">Estratégias salvas</a><a href="/apostas/nostradamus/conectar-api" aria-current="page">Conectar API</a></nav>
-<section class="int-panel"><h2>1. Configurar a API</h2><p class="int-muted">A FutPythonTrader é autorizada por padrão. Para outras APIs, configure o domínio HTTPS em <code>ODDS_API_ALLOWED_HOSTS</code> no .env. A chave é usada somente na consulta e nunca é gravada no banco.</p>
+<section class="int-panel"><h2>1. Configurar a API</h2><p class="int-muted">A FutPythonTrader é autorizada por padrão. Para outras APIs, configure o domínio HTTPS em <code>ODDS_API_ALLOWED_HOSTS</code> no .env. A chave pode ser guardada no Gerenciador de Credenciais do Windows, vinculada ao usuário local. Ela nunca é gravada no Supabase nem devolvida à interface.</p>
 <form id="int-api-form" class="int-form-grid">
 <label>URL base da API (HTTPS)<input id="int-api-base" type="url" value="https://futpythontrader.com.br" placeholder="https://futpythontrader.com.br" autocomplete="off" required></label>
 <label>Caminho da API<input id="int-api-path" type="text" value="/api/download/brazil/serie-a-betano/2026" required></label>
 <label>Chave de API<input id="int-api-key" type="password" autocomplete="off" placeholder="Opcional se a API for pública"></label>
 <label>Tipo de autenticação<select id="int-api-header"><option value="api_key" selected>FutPythonTrader · api_key na URL</option><option value="x-api-key">x-api-key no cabeçalho</option><option value="Authorization">Authorization: Bearer</option></select></label>
-<div class="int-form-actions"><button type="submit" class="int-primary">Consultar API · Prévia</button></div></form></section>
+<div class="int-form-actions"><label class="int-credential-check"><input type="checkbox" id="int-api-save-key" checked> Salvar a chave com segurança no Windows depois de consultar a API</label><p class="int-muted" id="int-api-key-status" role="status"></p><button type="button" id="int-api-delete-key">Excluir chave salva</button> <button type="submit" class="int-primary">Consultar API · Prévia</button></div></form></section>
 <div id="int-api-preview" hidden>
 <section class="int-panel"><h2>2. Revisar metadados</h2><p class="int-muted" id="int-api-count"></p>
 <div class="int-form-grid"><label>Temporada<input id="int-season" required></label><label>Campeonato<input id="int-league" required></label><label>País<input id="int-country" required></label></div><p id="int-country-catalog" class="int-muted" role="status" aria-live="polite"></p></section>
@@ -21,13 +21,13 @@
 <section class="int-panel"><h2>4. Selecionar colunas para inserir</h2>
 <p class="int-muted">Na primeira importação, selecionamos dados da partida e odds. Mercados de handicap asiático (AH) e europeu (EH) são excluídos, inclusive quando estavam selecionados anteriormente. Colunas Bookie, estatísticas e horário ficam desmarcadas. Depois, sua última seleção é reutilizada automaticamente. A origem de cada odd é preservada quando informada pela API.</p>
 <p class="int-muted"><strong>Casas preferidas:</strong> Bet365 e Pinnacle (também Pinacle). O CSV informa uma casa por mercado; só é possível preferir essas casas quando a fonte realmente disponibiliza suas cotações. Outras odds não serão substituídas por preços inventados.</p>
-<p class="int-muted"><strong>Lay simulado:</strong> cada odd numérica selecionada gera <code>Lay_Simulado_NOME_DA_COLUNA</code> dentro de <code>odds.dados</code>. Usa um spread hipotético mínimo de um tick da escada da Betfair, sem preço executável nem liquidez verificada; comissão de 4,5% nas simulações.</p>
+<p class="int-muted"><strong>Lay simulado:</strong> cada odd numérica selecionada gera uma coluna <code>lay_nome_da_odd</code>. Usa um spread hipotético mínimo de um tick da escada da Betfair, sem preço executável nem liquidez verificada; comissão de 4,5% nas simulações.</p>
 <div class="int-flex"><span id="int-api-selected-count" class="int-muted"></span><div class="int-flex">
 <button id="int-api-reset" type="button">Restaurar seleção sugerida</button>
 <button id="int-api-select-all" type="button">Marcar todas</button>
 <button id="int-api-clear" type="button">Desmarcar todas</button></div></div>
 <div id="int-api-columns" class="int-columns"></div><details><summary>Exemplo da primeira linha retornada</summary><pre id="int-api-example"></pre></details></section>
-<section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação grava um lote no banco e os registros de odds em uma única transação. Nenhum registro será criado durante a prévia.</p>
+<section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação salva uma coluna SQL para cada dado selecionado. Partidas já existentes serão ignoradas, sem criar lotes duplicados. Nenhum registro será criado durante a prévia.</p>
 <button id="int-import" class="int-primary" type="button">Confirmar e importar para o Supabase</button></section></div>
 <section class="int-panel"><h2>Histórico de importações</h2><div id="int-import-history" class="int-muted">Consultando…</div></section>
-<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=6" defer></script></body></html>
+<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=7" defer></script></body></html>

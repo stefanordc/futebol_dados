@@ -22,6 +22,8 @@ import socket
 import time
 
 from psycopg2.extras import Json
+from psycopg2 import sql
+import keyring
 from db import fetch_all, get_conn
 from queries_vinculos import _suggest, key
 
@@ -335,6 +337,95 @@ def _enriquecer_lay(row,columns):
         selected["_bookmakers_das_odds"]=bookmakers
     return selected
 
+# Credenciais ficam no cofre de senhas do sistema operacional,
+# sob o usuário Windows que iniciou este servidor. Nunca no JavaScript ou Supabase.
+_KEYRING_SERVICE="DadosFutebol - API de odds"
+
+def _chave_armazenada(host):
+    try:
+        return keyring.get_password(_KEYRING_SERVICE,host)
+    except Exception:
+        return None
+
+def status_chave(base):
+    _,host=_url(str(base),"/api/download")
+    return {"salva":bool(_chave_armazenada(host))}
+
+def excluir_chave(base):
+    _,host=_url(str(base),"/api/download")
+    try:
+        if _chave_armazenada(host):
+            keyring.delete_password(_KEYRING_SERVICE,host)
+    except Exception as exc:
+        raise ValueError("Não foi possível excluir a chave do cofre do sistema.") from exc
+    return {"salva":False}
+
+def _nome_coluna(source):
+    if not isinstance(source,str) or not SAFE_KEY.fullmatch(source):
+        raise ValueError("Nome de coluna inválido.")
+    name=source.lower()
+    if name.startswith("lay_simulado_"):
+        name="lay_"+name[len("lay_simulado_"):]
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}",name):
+        raise ValueError("Nome de coluna incompatível com PostgreSQL.")
+    return name
+
+def _tipo_coluna(source):
+    name=_nome_coluna(source)
+    if name=="date": return "date"
+    if name in ("home_score","away_score"): return "integer"
+    if name.startswith("lay_") or _is_odd_column(source): return "numeric(12,4)"
+    return "text"
+
+def _valor_coluna(source,value):
+    if value in (None,""):return None
+    name=_nome_coluna(source)
+    if name=="date":
+        value=str(value).strip()
+        for fmt in ("%d/%m/%Y","%d-%m-%Y","%Y-%m-%d"):
+            try:return datetime.strptime(value,fmt).date()
+            except ValueError:pass
+        return None
+    if _tipo_coluna(source)=="integer":
+        try:return int(value) if re.fullmatch(r"[+-]?\d+",str(value).strip()) else None
+        except (ValueError,TypeError):return None
+    if _tipo_coluna(source)=="numeric(12,4)":
+        try:
+            n=Decimal(str(value).replace(",","."))
+            return n if n.is_finite() else None
+        except (InvalidOperation,ValueError,TypeError):
+            return None
+    return str(value)[:1000]
+
+def _linha_colunas(row,selected):
+    """Transforma campos CSV e odds Lay em colunas físicas PostgreSQL."""
+    out={}
+    for source in selected:
+        if _is_handicap_column(source):continue
+        out[_nome_coluna(source)]=_valor_coluna(source,row.get(source))
+        if _is_odd_column(source):
+            lay=_simulated_lay(row.get(source))
+            if lay is not None:
+                out["lay_"+_nome_coluna(source)]=Decimal(str(lay))
+            bookie=_bookmaker_column(source)
+            if bookie and row.get(bookie):
+                out["bookie_"+_nome_coluna(source)]=str(row[bookie])[:200]
+    return out
+
+def _preparar_colunas(cur,colunas):
+    """Cria campos novos de uma API autorizada sem usar SQL interpolado."""
+    if not colunas:return
+    if len(colunas)>700:raise ValueError("Número de colunas acima do limite de segurança.")
+    alteracoes=[]
+    for name,typ in sorted(colunas.items()):
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}",name):
+            raise ValueError("Nome de coluna inválido.")
+        if typ not in ("text","date","integer","numeric(12,4)"):
+            raise ValueError("Tipo de coluna não suportado.")
+        alteracoes.append(sql.SQL("ADD COLUMN IF NOT EXISTS {} {}").format(
+            sql.Identifier(name),sql.SQL(typ)))
+    cur.execute(sql.SQL("ALTER TABLE public.odds ") + sql.SQL(", ").join(alteracoes))
+
 def preview(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
     base=str(payload.get("base",""))
@@ -346,6 +437,10 @@ def preview(payload):
         raise ValueError("Método de autenticação inválido.")
     if not isinstance(api_key,str) or len(api_key)>1024 or "\n" in api_key or "\r" in api_key:
         raise ValueError("Chave de API inválida.")
+    nova_chave=api_key.strip()
+    if not nova_chave:
+        api_key=_chave_armazenada(host) or ""
+    salvar=payload.get("salvar_chave",False) is True
     headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.1"}
     if api_key:
         if header=="api_key":
@@ -367,6 +462,11 @@ def preview(payload):
     except (URLError,TimeoutError,OSError):
         raise ValueError("Falha ao consultar a API. Confira host, chave e caminho.") from None
     rows=_parse_response(raw,content_type)
+    if nova_chave and salvar:
+        try:
+            keyring.set_password(_KEYRING_SERVICE,host,nova_chave)
+        except Exception as exc:
+            raise ValueError("A consulta funcionou, mas não foi possível guardar a chave no cofre do sistema.") from exc
     if not rows or len(rows)>LIMIT_ROWS:
         raise ValueError("Prévia aceita entre 1 e 5.000 partidas por importação.")
     if any(not isinstance(row,dict) for row in rows):
@@ -387,7 +487,7 @@ def preview(payload):
     token=secrets.token_urlsafe(24)
     _PREVIEWS[token]={"rows":rows,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
-    return {"preview_id":token,"colunas":columns,"colunas_marcadas":selected,
+    return {"preview_id":token,"colunas":columns,"chave_salva":bool(_chave_armazenada(host)),"colunas_marcadas":selected,
             "selecao_origem":"ultima_importacao" if saved is not None else "recomendada",
             "temporada":season,"campeonato":league,
             **revisao,"total":len(rows),
@@ -404,7 +504,8 @@ def importar(payload):
         _PREVIEWS.pop(token,None)
         raise ValueError("Prévia expirada. Consulte a API novamente.")
     columns=payload.get("colunas")
-    if not isinstance(columns,list) or not columns or len(columns)!=len(set(columns)) or any(c not in prev["columns"] or _is_handicap_column(c) for c in columns):
+    if (not isinstance(columns,list) or not columns or len(columns)!=len(set(columns))
+        or any(c not in prev["columns"] or _is_handicap_column(c) for c in columns)):
         raise ValueError("Escolha colunas existentes na prévia.")
     aliases=payload.get("clubes")
     if not isinstance(aliases,list):raise ValueError("Revise os nomes dos clubes.")
@@ -412,6 +513,11 @@ def importar(payload):
     if {x.get("original") for x in aliases if isinstance(x,dict)}!=names or len(aliases)!=len(names):
         raise ValueError("A lista de clubes mudou desde a prévia.")
     country=payload.get("pais") or prev["country"]
+    league=payload.get("campeonato") or prev["league"]
+    season=payload.get("temporada") or prev["season"]
+    for field,val in (("país",country),("campeonato",league),("temporada",season)):
+        if not isinstance(val,str) or not 1<=len(val.strip())<=100:
+            raise ValueError(f"Informe {field}.")
     valid_ids={c["id"] for c in _catalogo_pais(country)}
     normalized={}
     for x in aliases:
@@ -423,54 +529,83 @@ def importar(payload):
         elif type(cid) is not int or cid not in valid_ids:
             raise ValueError("Clube não pertence ao país selecionado. Revise a vinculação.")
         normalized[x["original"]]=(name.strip(),cid)
-    league=payload.get("campeonato") or prev["league"]
-    season=payload.get("temporada") or prev["season"]
-    for field,val in (("país",country),("campeonato",league),("temporada",season)):
-        if not isinstance(val,str) or not 1<=len(val.strip())<=100:
-            raise ValueError(f"Informe {field}.")
-    # Não compartilhar tokens de consulta depois da confirmação.
+    prepared=[]
+    column_types={}
+    for idx,row in enumerate(prev["rows"],start=1):
+        values=_linha_colunas(row,columns)
+        prepared.append((idx,row,values))
+        for source in columns:
+            column_types[_nome_coluna(source)]=_tipo_coluna(source)
+            if _is_odd_column(source):
+                column_types["lay_"+_nome_coluna(source)]="numeric(12,4)"
+                column_types["bookie_"+_nome_coluna(source)]="text"
+    # Para repetir a importação, o índice único em (fonte, temporada, partida_externa_id)
+    # impede duplicação mesmo com duas requisições simultâneas.
+    inserted=0
+    ignored=0
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""INSERT INTO odds_importacoes
-              (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
-              VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-              (prev["host"],prev["path"],country,league,season,Json(columns),len(prev["rows"])))
+            _preparar_colunas(cur,column_types)
+            cur.execute("""INSERT INTO public.odds_importacoes
+                (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
+                VALUES (%s,%s,%s,%s,%s,%s,0) RETURNING id""",
+                (prev["host"],prev["path"],country,league,season,Json(columns)))
             batch=cur.fetchone()["id"]
-            for i,row in enumerate(prev["rows"],start=1):
+            for i,row,values in prepared:
                 h=_pick(row,HOME_KEYS)
                 a=_pick(row,AWAY_KEYS)
                 home,home_id=normalized.get(h,(h,None))
                 away,away_id=normalized.get(a,(a,None))
-                eid=_pick(row,ID_KEYS)
+                external=_pick(row,ID_KEYS)
                 dt=_parse_game_date(row)
-                chosen=_enriquecer_lay(row,columns)
-                cur.execute("""INSERT INTO odds
-                    (importacao_id,linha_origem,fonte,partida_externa_id,temporada,
-                     campeonato,pais,data_jogo,mandante,visitante,mandante_id,
-                     visitante_id,dados)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (batch,i,prev["host"],eid,season,league,country,dt,home,away,
-                     home_id,away_id,Json(chosen)))
-            # Ligações explícitas com clubes_fontes. Não substitui mapeamento.
-            for original,(display,cid) in normalized.items():
-                if cid is None:continue
-                eid="odds:"+prev["host"]+":"+original.strip().lower()
-                cur.execute("""INSERT INTO clubes_fontes
-                  (clube_id,fonte,id_externo,nome_externo)
-                  VALUES (%s,'odds_api',%s,%s)
-                  ON CONFLICT (fonte,id_externo) DO NOTHING
-                  RETURNING clube_id""",(cid,eid,original))
-                result=cur.fetchone()
-                if not result:
-                    cur.execute("""SELECT clube_id FROM clubes_fontes
-                                   WHERE fonte='odds_api' AND id_externo=%s""",(eid,))
-                    existing=cur.fetchone()
-                    if not existing or existing["clube_id"]!=cid:
-                        raise ValueError("Vínculo divergente já existente. Revise os clubes.")
-        conn.commit()
+                standard={
+                    "importacao_id":batch,"linha_origem":i,
+                    "fonte":prev["host"],"partida_externa_id":external,
+                    "temporada":season,"campeonato":league,"pais":country,
+                    "data_jogo":dt,"mandante":home,"visitante":away,
+                    "mandante_id":home_id,"visitante_id":away_id,
+                    "lay_origem":"estimado_um_tick",
+                    "lay_precificacao_real":False,
+                    "lay_liquidez_verificada":False,
+                    "lay_comissao_pct":Decimal("4.5")
+                }
+                standard.update(values)
+                keys=list(standard)
+                query=sql.SQL("""INSERT INTO public.odds ({}) VALUES ({})
+                    ON CONFLICT DO NOTHING RETURNING id""").format(
+                    sql.SQL(",").join(map(sql.Identifier,keys)),
+                    sql.SQL(",").join([sql.Placeholder() for _ in keys]))
+                cur.execute(query,[standard[k] for k in keys])
+                if cur.fetchone():
+                    inserted+=1
+                else:
+                    ignored+=1
+            if inserted:
+                cur.execute("UPDATE public.odds_importacoes SET total_registros=%s WHERE id=%s",
+                            (inserted,batch))
+                for original,(display,cid) in normalized.items():
+                    if cid is None:continue
+                    eid="odds:"+prev["host"]+":"+original.strip().lower()
+                    cur.execute("""INSERT INTO public.clubes_fontes
+                      (clube_id,fonte,id_externo,nome_externo)
+                      VALUES (%s,'odds_api',%s,%s)
+                      ON CONFLICT (fonte,id_externo) DO NOTHING
+                      RETURNING clube_id""",(cid,eid,original))
+                    linked=cur.fetchone()
+                    if not linked:
+                        cur.execute("""SELECT clube_id FROM public.clubes_fontes
+                                     WHERE fonte='odds_api' AND id_externo=%s""",(eid,))
+                        existing=cur.fetchone()
+                        if not existing or existing["clube_id"]!=cid:
+                            raise ValueError("Vínculo divergente já existente. Revise os clubes.")
+                conn.commit()
+            else:
+                # Não criar histórico fictício de lote sem registros novos.
+                conn.rollback()
+                batch=None
     _PREVIEWS.pop(token,None)
-    return {"importacao_id":batch,"inseridos":len(prev["rows"]),"colunas":columns,
-            "lay":"simulado_um_tick","comissao_pct":4.5}
+    return {"importacao_id":batch,"inseridos":inserted,"ignorados":ignored,
+            "colunas":columns,"lay":"estimado_um_tick","comissao_pct":4.5}
 
 def ultimas():
     return fetch_all("""SELECT id,origem,caminho,pais,campeonato,temporada,

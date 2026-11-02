@@ -260,6 +260,59 @@ class TestIntegracoes(TestCase):
         self.assertEqual([c for c in selected if c in ["Home","Away"]],
                          ["Home","Away"])
 
+    def test_fisico_colunas_e_nomenclatura_lay(self):
+        row={"Match_ID":"zoPwpY9j","Date":"25/02/2026",
+             "Home_Score":"2","Odd_1_FT":"2.10","Bookie_1X2_FT":"bet365",
+             "Home":"Gremio","Away":"Atletico-MG"}
+        result=qi._linha_colunas(row,[
+            "Match_ID","Date","Home_Score","Odd_1_FT","Home","Away"])
+        self.assertEqual(result["match_id"],"zoPwpY9j")
+        self.assertEqual(result["home_score"],2)
+        self.assertEqual(result["date"].isoformat(),"2026-02-25")
+        self.assertEqual(result["odd_1_ft"],qi.Decimal("2.10"))
+        self.assertEqual(result["lay_odd_1_ft"],qi.Decimal("2.12"))
+        self.assertEqual(result["bookie_odd_1_ft"],"bet365")
+        self.assertNotIn("Lay_Simulado_Odd_1_FT",result)
+
+    def test_importacao_sem_dados_novos_nao_registra_lote(self):
+        qi._PREVIEWS["repetido"]={"criado":qi.time.monotonic(),
+          "host":"api.exemplo.com","path":"/api/download/brazil/serie-a-betano/2026",
+          "season":"2026","league":"Serie A Betano","country":"Brasil",
+          "columns":["Home","Away","Odd_1_FT"],
+          "rows":[{"Home":"Flamengo","Away":"Atlético","Odd_1_FT":"1.80"}]}
+        fake=MagicMock()
+        cur=fake.cursor.return_value.__enter__.return_value
+        cur.fetchone.side_effect=[{"id":10},None]
+        @contextmanager
+        def conn():yield fake
+        with patch.object(qi,"get_conn",conn),patch.object(qi,"fetch_all",return_value=CLUBS):
+            result=qi.importar({"preview_id":"repetido",
+                "colunas":["Home","Away","Odd_1_FT"],
+                "clubes":[{"original":"Flamengo","padronizado":"Flamengo","clube_id":1},
+                           {"original":"Atlético","padronizado":"Atlético","clube_id":2}]})
+        self.assertEqual(result["inseridos"],0)
+        self.assertEqual(result["ignorados"],1)
+        self.assertIsNone(result["importacao_id"])
+        fake.rollback.assert_called_once()
+        fake.commit.assert_not_called()
+
+    def test_chave_salva_no_cofre_apos_previa(self):
+        payload={"matches":[{"Home":"Flamengo","Away":"Atlético","Odd_1_FT":"1.8"}]}
+        opener=MagicMock()
+        opener.open.return_value=Response(payload)
+        with patch.object(qi,"build_opener",return_value=opener),\
+             patch.object(qi.socket,"getaddrinfo",
+                 return_value=[(2,1,6,"",("8.8.8.8",443))]),\
+             patch.object(qi,"fetch_all",return_value=CLUBS),\
+             patch.object(qi.keyring,"set_password") as save,\
+             patch.object(qi.keyring,"get_password",return_value=None):
+            qi.preview({"base":"https://futpythontrader.com.br",
+              "caminho":"/api/download/brazil/serie-a-betano/2026",
+              "chave":"TESTE_NAO_REAL","cabecalho":"api_key",
+              "salvar_chave":True})
+        save.assert_called_once_with(qi._KEYRING_SERVICE,
+                                     "futpythontrader.com.br","TESTE_NAO_REAL")
+
     def test_importacao_atomica_commit_sem_chave(self):
         qi._PREVIEWS.clear()
         qi._PREVIEWS["abc"]={"criado":qi.time.monotonic(),"host":"api.exemplo.com",
@@ -269,7 +322,7 @@ class TestIntegracoes(TestCase):
          {"home_team":"Flamengo","away_team":"Atlético","odds":1.75}]}
         fake=MagicMock()
         cursor=fake.cursor.return_value.__enter__.return_value
-        cursor.fetchone.side_effect=[{"id":5},{"clube_id":1},{"clube_id":2}]
+        cursor.fetchone.side_effect=[{"id":5},{"id":99},{"clube_id":1},{"clube_id":2}]
         @contextmanager
         def conn():yield fake
         with patch.object(qi,"get_conn",conn),patch.object(qi,"fetch_all",

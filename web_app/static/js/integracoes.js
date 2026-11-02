@@ -71,6 +71,24 @@
  }
  if(location.pathname!=="/apostas/nostradamus/conectar-api")return;
  let data=null;
+ async function keyStatus(){
+   const base=$("#int-api-base").value.trim();
+   const status=$("#int-api-key-status");
+   try{
+     const r=await request("/api/integracoes/odds/chave?base="+encodeURIComponent(base));
+     status.textContent=r.salva?"Chave salva com segurança no Windows.":"Nenhuma chave salva neste computador.";
+   }catch(error){status.textContent="Não foi possível consultar o status da chave.";}
+ }
+ $("#int-api-delete-key").addEventListener("click",async()=>{
+   if(!confirm("Excluir do Windows a chave salva para esta API?"))return;
+   try{
+     await request("/api/integracoes/odds/chave?base="+encodeURIComponent($("#int-api-base").value),{method:"DELETE"});
+     $("#int-api-key").value="";
+     await keyStatus();
+   }catch(error){show(error.message,true);}
+ });
+ $("#int-api-base").addEventListener("change",keyStatus);
+ keyStatus();
  const COLUMNS_KEY="df_odds_ultima_selecao_v2";
  function rememberColumns(){
    const checkboxes=$$("#int-api-columns input[type=checkbox]");
@@ -239,9 +257,10 @@
    try{
      const result=await request("/api/integracoes/odds/preview",json({
        base:$("#int-api-base").value,caminho:$("#int-api-path").value,
-       chave:$("#int-api-key").value,cabecalho:$("#int-api-header").value
+       chave:$("#int-api-key").value,salvar_chave:$("#int-api-save-key").checked,cabecalho:$("#int-api-header").value
      }));
      $("#int-api-key").value="";data=result;
+     await keyStatus();
      renderPreview();$("#int-import").disabled=false;show("Prévia recebida. Revise os clubes e colunas antes de confirmar.");
    }catch(e){show(e.message,true);}
    finally{submit.disabled=false;}
@@ -277,7 +296,11 @@
        preview_id:data.preview_id,colunas:columns,clubes:clubs,
        temporada:$("#int-season").value,campeonato:$("#int-league").value,pais:$("#int-country").value
      }));
-     rememberColumns();show("Importação #"+result.importacao_id+" concluída: "+result.inseridos+" registros gravados.");
+     rememberColumns();
+     const mensagem=result.inseridos
+       ? "Importação #"+result.importacao_id+": "+result.inseridos+" novos registros, "+result.ignorados+" repetidos ignorados."
+       : "Nenhum registro novo. "+result.ignorados+" partidas já estavam cadastradas.";
+     show(mensagem);
      data=null;$("#int-api-preview").hidden=true;await history();
    }catch(e){show(e.message,true);}
    finally{btn.disabled=false;}
