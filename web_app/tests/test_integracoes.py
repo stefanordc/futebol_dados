@@ -57,6 +57,11 @@ class TestIntegracoes(TestCase):
         self.assertEqual(qi._metadata("/api/download/brazil/serie-a-betano/2026"),
                          ("2026","Serie A Betano","Brasil"))
 
+    def test_clubes_em_json_aninhado(self):
+        row={"teams":{"home":{"name":"Flamengo"},"away":{"name":"Atlético"}}}
+        self.assertEqual(qi._pick(row,qi.HOME_KEYS),"Flamengo")
+        self.assertEqual(qi._pick(row,qi.AWAY_KEYS),"Atlético")
+
     def test_bloqueia_hosts_desconhecidos_e_privados(self):
         with patch.dict(qi.os.environ,{"ODDS_API_ALLOWED_HOSTS":"api.exemplo.com"}):
             with self.assertRaises(ValueError):

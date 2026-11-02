@@ -28,8 +28,8 @@ LIMIT_ROWS=500
 TTL=1200
 SAFE_KEY=re.compile(r"^[a-zA-Z0-9_.-]{1,100}$")
 PRIVATE_FIELD=re.compile(r"(api[_-]?key|token|password|secret|authorization|cookie)",re.I)
-HOME_KEYS=("home_team","homeTeam","home_name","homeName","home","mandante","team1","time_casa")
-AWAY_KEYS=("away_team","awayTeam","away_name","awayName","away","visitante","team2","time_fora")
+HOME_KEYS=("home_team","homeTeam","home_name","homeName","home","mandante","team1","time_casa","teams.home.name","participants.home.name","competitors.home.name")
+AWAY_KEYS=("away_team","awayTeam","away_name","awayName","away","visitante","team2","time_fora","teams.away.name","participants.away.name","competitors.away.name")
 ID_KEYS=("id","match_id","event_id","fixture_id","game_id","matchId")
 DATE_KEYS=("date","start_time","startTime","commence_time","kickoff","utcDate","data","datetime")
 
@@ -38,7 +38,9 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def _pick(row,keys):
     for k in keys:
-        val=row.get(k)
+        val=row
+        for part in k.split("."):
+            val=val.get(part) if isinstance(val,dict) else None
         if isinstance(val,dict):
             val=val.get("name") or val.get("nome") or val.get("shortName")
         if val is not None and str(val).strip():return str(val).strip()

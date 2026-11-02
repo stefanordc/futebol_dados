@@ -368,7 +368,7 @@ async function init(){
     conditionLine();
     await fetchSaved();
     await importLegacy();
-    setTab("simular");
+    setTab(new URLSearchParams(location.search).get("aba")==="salvas"?"salvas":"simular");
   }catch(e){say(e.message,true);}
 }
 init();
