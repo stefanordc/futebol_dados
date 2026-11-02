@@ -40,6 +40,77 @@ class TestNostradamus(TestCase):
         self.start=self.cutoff-timedelta(days=12)
         self.rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0) for i in range(10)]
 
+    def test_ambos_exige_duas_equipes_acima_do_limite(self):
+        rule_both={"lado":"ambos","metrica":"xg","comparador":"ge",
+                   "referencia":"valor","valor":0.7}
+        output=ns.testar(config(self.cutoff,goal="over_25",
+                                 conditions=[rule_both]),rows=self.rows)
+        self.assertEqual(output["entradas"],5)
+        detail=output["resultados"][0]["jogos"][0]["condicoes"][0]
+        self.assertEqual(detail["mando"],"ambos")
+        self.assertEqual(detail["observado_mandante"],1.5)
+        self.assertEqual(detail["observado_visitante"],0.7)
+        rule_both["valor"]=1.0
+        self.assertEqual(ns.testar(config(self.cutoff,goal="over_25",
+            conditions=[rule_both]),rows=self.rows)["entradas"],0)
+        with self.assertRaisesRegex(ValueError,"Ambos requer"):
+            ns._valid_conditions([{**rule_both,"referencia":"adversario"}])
+
+    def test_odds_minimas_maximas_mercado_independente_objetivo(self):
+        jogos=[game(i,self.start+timedelta(days=i),gf=2,ga=1) for i in range(10)]
+        for i,row in enumerate(jogos):
+            row["api_over_ft_2_5"]=round(1.30+0.1*i,2)
+        odd_cond={"tipo":"odd","mercado":"over_25","odd_min":1.80,
+                  "odd_max":2.10}
+        output=ns.testar(config(self.cutoff,goal="ambos_marcam",
+                                 conditions=[odd_cond]),rows=jogos)
+        self.assertEqual(output["entradas"],4)
+        detail=output["resultados"][0]["jogos"][0]["condicoes"][0]
+        self.assertEqual(detail["tipo"],"odd")
+        self.assertEqual(detail["mercado"],"over_25")
+        self.assertAlmostEqual(detail["odd"],1.8)
+        self.assertEqual(detail["fonte"],"api_casa")
+        # Sem limite superior e sem cotação o critério não aceita a partida.
+        del odd_cond["odd_max"]
+        self.assertEqual(ns.testar(config(self.cutoff,goal="ambos_marcam",
+            conditions=[odd_cond]),rows=jogos)["entradas"],5)
+        for row in jogos[5:]:
+            row["api_over_ft_2_5"]=None
+        self.assertEqual(ns.testar(config(self.cutoff,goal="ambos_marcam",
+            conditions=[odd_cond]),rows=jogos)["entradas"],0)
+
+    def test_odd_favorito_nao_usa_preco_ficticio_e_lay_e_estimado(self):
+        jogos=[game(i,self.start+timedelta(days=i),gf=2,ga=0) for i in range(10)]
+        for row in jogos:
+            row.update(api_odd_1_ft=1.60,api_odd_2_ft=4.30,
+                       api_lay_odd_1_ft=1.61)
+        cond={"tipo":"odd","mercado":"back_favorito",
+              "odd_min":1.60,"odd_max":1.70}
+        output=ns.testar(config(self.cutoff,goal="over_25",odd=8.0,
+                                 conditions=[cond]),rows=jogos)
+        self.assertEqual(output["entradas"],5)
+        self.assertAlmostEqual(output["resultados"][0]["jogos"][0]["condicoes"][0]["odd"],1.6)
+        cond["mercado"]="lay_favorito"
+        lay=ns.testar(config(self.cutoff,goal="over_25",
+                            conditions=[cond]),rows=jogos)
+        self.assertEqual(lay["entradas"],5)
+        self.assertEqual(lay["resultados"][0]["jogos"][0]["condicoes"][0]["fonte"],
+                         "lay_estimado")
+        cond["odd_min"]=1.7
+        self.assertEqual(ns.testar(config(self.cutoff,goal="over_25",
+            conditions=[cond]),rows=jogos)["entradas"],0)
+
+    def test_rejeita_filtro_odd_sem_mercado_ou_limites_validos(self):
+        valid={"tipo":"odd","mercado":"over_25","odd_min":1.6}
+        self.assertEqual(ns._valid_conditions([valid])[0]["odd_min"],1.6)
+        for changes in ({"mercado":"fake"},{"mercado":None},
+                        {"odd_min":None},{"odd_min":0.99},
+                        {"odd_min":float("nan")},{"odd_min":True},
+                        {"odd_min":4.1,"odd_max":3.9},
+                        {"odd_max":1001}):
+            with self.subTest(changes=changes),self.assertRaises(ValueError):
+                ns._valid_conditions([{**valid,**changes}])
+
     def test_indicadores_fisicos_e_diferencas_por_partida(self):
         jogos=[]
         for i in range(10):

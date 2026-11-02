@@ -198,3 +198,14 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-league-actions .ns-league-select-all:disabled{opacity:.5;cursor:not-allowed}
 .ns-league-actions .ns-league-select-all:focus-visible{
   outline:2px solid var(--df-orange);outline-offset:2px}
+
+/* Tipos de critério: indicador por equipe ou faixa de odd de um mercado. */
+.ns-condition .ns-kind-field{grid-column:1/-1}
+.ns-condition .ns-odd-criterion[hidden],
+.ns-condition .ns-stat-criterion[hidden]{display:none!important}
+.ns-condition .ns-odd-criterion{grid-column:auto}
+.ns-condition .ns-odd-criterion:first-of-type{grid-column:1/3}
+.ns-condition .ns-odd-min,.ns-condition .ns-odd-max{font-variant-numeric:tabular-nums}
+@media(max-width:800px){
+  .ns-condition .ns-odd-criterion{grid-column:1/-1}
+}

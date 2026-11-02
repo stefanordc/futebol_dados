@@ -174,6 +174,7 @@ def nostradamus_metadata():
        "metricas":queries_nostradamus.METRICAS,
        "comparadores":queries_nostradamus.COMPARADORES,
        "objetivos":queries_nostradamus.MERCADOS,
+       "mercados_odd":queries_nostradamus.ODD_FILTER_MARKETS,
        "ligas":queries_nostradamus.ligas_disponiveis(),
     }
 
