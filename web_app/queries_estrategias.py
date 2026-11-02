@@ -16,7 +16,7 @@ COLS="""id,nome,objetivo,corte,jogos,campeonato_id,condicoes,
 BASE=f"SELECT {COLS} FROM public.nostradamus_estrategias"
 
 def listar():
-    return fetch_all(BASE+" ORDER BY atualizado_em DESC, id DESC")
+    return fetch_all(BASE+" ORDER BY criado_em DESC, id DESC")
 
 def _validate(body):
     if not isinstance(body,dict):raise ValueError("Dados inválidos.")

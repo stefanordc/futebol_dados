@@ -104,3 +104,39 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-db-rules{margin:4px 0;padding-left:24px;display:grid;gap:8px;color:var(--df-text);
   font-size:13px;line-height:1.6}
 .ns-db-rules li{padding-left:5px}
+
+/* Estratégias salvas: tabela com datas reais e regras expansíveis. */
+.ns-saved-count{color:var(--df-secondary);font-size:13px;font-weight:600;margin:14px 0 10px}
+.ns-saved-table-wrap{max-width:100%;overflow-x:auto;border:1px solid var(--df-border);
+  border-radius:12px;background:var(--df-surface)}
+.ns-saved-table{width:100%;min-width:790px;border-collapse:collapse;
+  font-variant-numeric:tabular-nums;table-layout:auto}
+.ns-saved-table th{padding:14px 16px;text-align:left;background:var(--df-raised);
+  border-bottom:1px solid var(--df-border);font-size:12px;letter-spacing:.02em;
+  color:var(--df-secondary);font-weight:750;white-space:nowrap}
+.ns-saved-table td{padding:16px;border-bottom:1px solid var(--df-border);
+  color:var(--df-text);font-size:13px;vertical-align:middle}
+.ns-saved-table tr:last-child td{border-bottom:0}
+.ns-saved-table tbody>tr:not(.ns-saved-details):hover{background:var(--df-raised)}
+.ns-saved-table th:nth-child(1){width:30%}
+.ns-saved-table th:nth-child(2),.ns-saved-table th:nth-child(3){width:18%}
+.ns-saved-table th:nth-child(4){width:17%}
+.ns-saved-table th:nth-child(5){width:17%}
+.ns-strategy-name{font-size:15px;font-weight:750;overflow-wrap:anywhere}
+.ns-strategy-sub{display:block;margin-top:7px;font-size:12px;color:var(--df-secondary)}
+.ns-saved-table time{white-space:nowrap;font-size:13px;font-variant-numeric:tabular-nums}
+.ns-saved-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ns-saved-row-actions button{background:var(--df-raised);border:1px solid var(--df-border);
+  color:var(--df-text);padding:9px 11px;border-radius:9px;cursor:pointer;
+  font:inherit;font-weight:650;white-space:nowrap}
+.ns-saved-row-actions button[data-edit]{border-color:var(--df-orange);color:var(--df-orange)}
+.ns-saved-row-actions button:hover{filter:brightness(1.13)}
+.ns-saved-row-actions button:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+.ns-saved-details[hidden]{display:none!important}
+.ns-saved-details>td{background:var(--df-raised);padding:17px 24px}
+.ns-saved-details-title{font-size:13px;font-weight:750;color:var(--df-secondary)}
+.ns-saved-empty{padding:24px;border:1px dashed var(--df-border);
+  background:var(--df-raised);border-radius:12px;line-height:1.6}
+.ns-saved-empty strong{color:var(--df-text)}
+.ns-saved-empty p{color:var(--df-secondary);font-size:13px;margin:7px 0 0}
+@media(max-width:790px){.ns-saved-table-wrap{margin:0 -4px}.ns-saved-table td{padding:13px}}
