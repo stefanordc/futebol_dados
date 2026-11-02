@@ -109,9 +109,10 @@ def _metadata(path):
     parts=[p for p in path.split("/") if p]
     year=next((p for p in reversed(parts) if re.fullmatch(r"20\d{2}(?:[-/]20\d{2})?",p)),None)
     country=next((p.title() for p in parts if p.lower() in
-                  ("brazil","brasil","england","spain","italy","germany","france")),None)
+                  ("brazil","brasil","england","spain","italy","germany","france","bulgaria")),None)
     country={"Brazil":"Brasil","England":"Inglaterra","Spain":"Espanha",
-             "Italy":"Itália","Germany":"Alemanha","France":"França"}.get(country,country)
+             "Italy":"Itália","Germany":"Alemanha","France":"França",
+             "Bulgaria":"Bulgária"}.get(country,country)
     league=parts[-2].replace("-"," ").title() if len(parts)>=2 and year else None
     return year,league,country
 
