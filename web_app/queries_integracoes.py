@@ -196,10 +196,10 @@ def revisar_clubes(payload):
 MATCH_COLUMNS={"Match_ID","Country","Season","Div","League","Date","Round",
                "Home","Away","Home_Score","Away_Score"}
 ODDS_COLUMN=re.compile(
-    r"^(?:Odd_[12X]_(?:FT|HT)|Over_(?:FT|HT)_\\d+_\\d+|"
-    r"Under_(?:FT|HT)_\\d+_\\d+|BTTS_(?:Yes|No)|DC_(?:1X|12|X2)|"
-    r"CS_\\d+_\\d+|AH_(?:Home|Away)_(?:neg|pos)_\\d+(?:_\\d+)?|"
-    r"EH_(?:Home|Draw|Away)_(?:neg_)?\\d+|odds?)$",
+    r"^(?:Odd_[12X]_(?:FT|HT)|Over_(?:FT|HT)_\d+_\d+|"
+    r"Under_(?:FT|HT)_\d+_\d+|BTTS_(?:Yes|No)|DC_(?:1X|12|X2)|"
+    r"CS_\d+_\d+|AH_(?:Home|Away)_(?:neg|pos)_\d+(?:_\d+)?|"
+    r"EH_(?:Home|Draw|Away)_(?:neg_)?\d+|odds?)$",
     re.I
 )
 FAVORITE_BOOKMAKERS=("bet365","pinnacle","pinacle")
