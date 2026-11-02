@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-select-all-v4'),
+assert.ok(html.includes('nostradamus-ambos-odd-v4'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -112,3 +112,23 @@ assert.ok(src.includes('setLeagues(ids);'),"Seleção em lote deve usar a mesma 
 assert.ok(src.includes('allButton.disabled=total===0||ids.length===total;'),
   "Ação deve desabilitar sem ligas disponíveis ou após selecionar todas");
 assert.ok(css.includes('.ns-league-actions'),"Ações em lote devem ter layout próprio");
+
+/* Mapeamento legado e regras de odd com mercado explícito. */
+assert.ok(src.includes('const legacyRole={mandante:"favorito",visitante:"zebra"}'),
+ "O editor converte estratégias antigas ao abrir");
+assert.ok(src.includes('ambos:"Ambos (cada equipe)"'),
+ "Equipe analisada deve oferecer Ambos");
+assert.ok(src.includes('data.tipo||"indicador"'),
+ "Cada condição alterna entre estatística e odd");
+assert.ok(src.includes('class="ns-odd-market"'),
+ "O usuário deve escolher o mercado da odd");
+assert.ok(src.includes('class="ns-odd-min"') && src.includes('class="ns-odd-max"'),
+ "A interface recebe odds mínima e máxima");
+assert.ok(src.includes('meta.mercados_odd||{}'),
+ "Os mercados disponíveis vêm do backend e não são inventados no navegador");
+assert.ok(src.includes('tipo:"odd",mercado:row.querySelector(".ns-odd-market").value'),
+ "Uma estratégia salva deve guardar qual mercado foi escolhido");
+assert.ok(src.includes('c.tipo==="odd"'),
+ "A tela de detalhes deve exibir os filtros de odds executados");
+assert.ok(css.includes('.ns-odd-criterion[hidden]'),
+ "Campos ocultos não devem aparecer no grid de critérios");
