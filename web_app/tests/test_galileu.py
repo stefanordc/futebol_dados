@@ -84,12 +84,13 @@ class TestGalileu(TestCase):
     def test_producao_ler_metodos_do_banco_nao_do_navegador(self):
         date_of_game=self.today+timedelta(days=1)
         history=gl._historical(date_of_game,self.past)
+        next_round=gl._schedule(date_of_game,self.future)
         db_method={**self.method,"id":7,"versao":3}
         malicious={**self.method,"nome":"Enviado pelo navegador",
                    "condicoes":[{"lado":"mandante","metrica":"xg",
                                  "comparador":"lt","referencia":"valor","valor":0}]}
         with patch.object(gl.queries_estrategias,"listar",return_value=[db_method]), \
-             patch.object(gl,"_schedule",return_value=self.future), \
+             patch.object(gl,"_schedule",return_value=next_round), \
              patch.object(gl,"_historical",return_value=history), \
              patch.object(gl,"fetch_all",return_value=[]):
             r=gl.sinais({"data":date_of_game.isoformat(),"estrategias":[malicious]})

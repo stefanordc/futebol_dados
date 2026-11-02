@@ -95,16 +95,41 @@ def editar(strategy_id,payload):
         raise ValueError("Já existe outra estratégia com esse nome.") from None
 
 def importar(payload):
-    """Migra dados antigos do navegador sem substituir entradas já existentes."""
+    """Migra estratégia antiga sem perder método homônimo com regras diferentes."""
     values=payload.get("estrategias") if isinstance(payload,dict) else None
     if not isinstance(values,list) or len(values)>50:
         raise ValueError("Importe no máximo 50 estratégias.")
-    validated=[_validate(item) for item in values]  # Tudo ou nada para dados inválidos.
+    validated=[_validate(item) for item in values]
     inserted=0
+    existing_count=0
     with get_conn() as conn:
         with conn.cursor() as cur:
-            for v in validated:
-                cur.execute(INSERT.replace(" RETURNING "+COLS,
-                    " ON CONFLICT DO NOTHING RETURNING id"),_params(v))
-                if cur.fetchone():inserted+=1
-    return {"importadas":inserted,"existentes":len(validated)-inserted}
+            for original in validated:
+                original_name=original["nome"]
+                for attempt in range(101):
+                    suffix=f" (importada {attempt})" if attempt else ""
+                    current={**original,"nome":original_name[:80-len(suffix)]+suffix}
+                    cur.execute("""SELECT objetivo,corte,jogos,campeonato_id,condicoes,
+                                          odd_hipotetica,comissao_pct
+                                   FROM public.nostradamus_estrategias
+                                   WHERE lower(btrim(nome))=lower(%s)""",(current["nome"],))
+                    old=cur.fetchone()
+                    if old:
+                        if (old["objetivo"]==current["objetivo"]
+                            and old["corte"]==current["corte"]
+                            and old["jogos"]==current["jogos"]
+                            and old["campeonato_id"]==current["campeonato_id"]
+                            and old["condicoes"]==current["condicoes"]
+                            and old["odd_hipotetica"]==current["odd_hipotetica"]
+                            and old["comissao_pct"]==current["comissao_pct"]):
+                            existing_count+=1
+                            break
+                        continue
+                    cur.execute(INSERT.replace(" RETURNING "+COLS,
+                        " ON CONFLICT DO NOTHING RETURNING id"),_params(current))
+                    if cur.fetchone():
+                        inserted+=1
+                        break
+                else:
+                    raise ValueError("Não foi possível importar duplicatas; cópia local preservada.")
+    return {"importadas":inserted,"existentes":existing_count}

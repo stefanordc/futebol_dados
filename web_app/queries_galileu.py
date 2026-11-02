@@ -154,7 +154,7 @@ def sinais(payload,fixtures=None,history=None,registered_ids=None):
     if not methods:
         return {"data":cutoff.isoformat(),"jogos":[],"total":0,
                 "metodos":0,"objetivos":ns.MERCADOS,
-                "mensagem":"Salve pelo menos uma estratégia no Nostradamus neste navegador."}
+                "mensagem":"Salve pelo menos uma estratégia no Nostradamus; os métodos são consultados no Supabase."}
     candidates=_schedule(cutoff,fixtures)
     if not candidates:
         return {"data":cutoff.isoformat(),"jogos":[],"total":0,

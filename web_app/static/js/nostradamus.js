@@ -205,7 +205,7 @@ async function importLegacy(){
   }
   try{
     const response=await api("/api/apostas/nostradamus/estrategias/importar",
-      jsonPost("POST",{estrategias:legacy.slice(0,50)}));
+      jsonPost("POST",{estrategias:legacy}));
     await fetchSaved();
     localStorage.removeItem(store);
     say("Migração concluída: "+response.importadas+" estratégia(s) enviada(s) ao Supabase. "+
