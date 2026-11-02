@@ -41,11 +41,18 @@ console.log("Validação de backtest e interface sem resumos: OK.");
 
 const html=fs.readFileSync("templates/nostradamus.html","utf8");
 const src=fs.readFileSync("static/js/nostradamus.js","utf8");
-assert.ok(!html.includes("<th>Entradas cotadas</th>"),"Remover coluna Entradas cotadas");
-assert.ok(!html.includes("<th>Resultado (u)</th>"),"Remover coluna Resultado (u)");
-assert.ok(!src.includes("fmt(r.cotadas,0)"),"Remover valores de Entradas cotadas");
+assert.ok(html.includes("<th>Entradas cotadas</th>"),"Exibir entradas com odds disponíveis");
+assert.ok(html.includes("<th>Unidades (u)</th>"),"Mostrar unidades no resumo");
+assert.ok(html.includes("<th>Resultado (R$)</th>"),"Mostrar resultado financeiro");
+assert.ok(html.includes("<th>Good run máx.</th>"),"Mostrar maior sequência boa");
+assert.ok(html.includes("<th>Bad run máx.</th>"),"Mostrar maior sequência ruim");
+assert.ok(src.includes("fmt(r.cotadas,0)"),"Exibir cobertura de odds reais da análise");
 const summaryRender=src.slice(src.indexOf("function show(response){"),src.indexOf('$("#ns-summary").addEventListener("click"'));
-assert.ok(!summaryRender.includes("fmt(r.unidades,2)"),"Remover resultado financeiro da tabela resumo");
+assert.ok(summaryRender.includes("fmt(r.unidades,2)"),"Mostrar resultado em unidades");
+assert.ok(summaryRender.includes("money(r.valor_reais)"),"Mostrar resultado financeiro em reais");
+assert.ok(summaryRender.includes("fmt(r.maior_good_run,0)"),"Mostrar good run máximo");
+assert.ok(summaryRender.includes("fmt(r.maior_bad_run,0)"),"Mostrar bad run máximo");
+assert.ok(src.includes("esc(oddLabel(r))"),"Identificar origem da cotação por partida");
 assert.ok(src.includes('fmt(r.historico_mandante,0)') && src.includes('fmt(r.historico_visitante,0)'),
   "Detalhamento informa quantos jogos entraram no histórico");
 
@@ -60,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-comissao-45'),
+assert.ok(html.includes('nostradamus-odds-reais-v1'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),

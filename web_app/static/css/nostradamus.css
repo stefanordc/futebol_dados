@@ -142,3 +142,10 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 @media(max-width:790px){.ns-saved-table-wrap{margin:0 -4px}.ns-saved-table td{padding:13px}}
 
 .ns-subtabs a.ns-subtab{text-decoration:none;display:inline-flex;align-items:center}
+
+/* Odds e saldo retrospectivo de cada entrada, com scroll horizontal. */
+.ns-table{min-width:1120px}
+.ns-table th,.ns-table td{white-space:nowrap}
+.ns-table td:nth-child(2),.ns-table th:nth-child(2){white-space:normal}
+.ns-odd-origin{font-size:10px;color:var(--df-secondary,#a4afbf);font-weight:500;margin-top:4px;white-space:normal}
+#ns-summary td:nth-child(7),#ns-summary td:nth-child(8){font-weight:800}
