@@ -146,13 +146,29 @@
      edit.append(input);
      const ref=document.createElement("td"),select=optionSelector(c,catalog);
      if(prior){
+       // Mantém a escolha anterior apenas se ela ainda pertence ao país atual.
        select.value=validIds.has(prior.clube_id)?prior.clube_id:"";
      }
+     const suggestionApplied=Boolean(c.correspondencia_automatica) &&
+       select.value===String(c.clube_id);
+     const autoLabel=element("small","","int-match-label");
+     const markAuto=(on,score)=>{
+       tr.classList.toggle("int-match-auto",on);
+       if(on){
+         autoLabel.textContent="Correspondência automática · "+score+
+           "% — confira antes de importar";
+         autoLabel.hidden=false;
+       }else{
+         autoLabel.hidden=true;
+       }
+     };
+     markAuto(suggestionApplied,c.similaridade_automatica||100);
      select.addEventListener("change",()=>{
        const chosen=catalog.find(x=>String(x.id)===select.value);
        if(chosen)input.value=chosen.clube;
+       markAuto(false,0);
      });
-     ref.append(select);
+     ref.append(select,autoLabel);
      if(c.sugestoes?.length){
        ref.append(element("small",
          "Mais próximos: "+c.sugestoes.map(x=>x.clube+" ("+x.similaridade+"%)").join(" · "),
