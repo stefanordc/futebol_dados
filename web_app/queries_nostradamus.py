@@ -353,6 +353,11 @@ def _valid_conditions(conditions):
         if tipo!="indicador" or c.get("metrica") not in METRICAS or c.get("comparador") not in COMPARADORES:
             raise ValueError("Métrica ou comparador inválido.")
         lado=c.get("lado","mandante")
+        mando=c.get("mando_preferido","indiferente")
+        if mando not in ("mandante","visitante","indiferente"):
+            raise ValueError("Escolha Mandante, Visitante ou Indiferente para o mando.")
+        if lado=="ambos" and mando!="indiferente":
+            raise ValueError("Para Ambos, o mando deve ser Indiferente, pois as duas equipes são avaliadas.")
         referencia=c.get("referencia","visitante")
         metrica_ref=c.get("metrica_ref",c["metrica"])
         if lado not in ("mandante","visitante","favorito","zebra","ambos"):
@@ -380,7 +385,8 @@ def _valid_conditions(conditions):
             if valor is None or not -10000<=valor<=10000:
                 raise ValueError("Valor de comparação inválido.")
         parsed.append({
-            "tipo":"indicador","lado":lado,"metrica":c["metrica"],"comparador":c["comparador"],
+            "tipo":"indicador","lado":lado,"mando_preferido":mando,
+            "metrica":c["metrica"],"comparador":c["comparador"],
             "referencia":referencia,"metrica_ref":metrica_ref,"valor":valor
         })
     return parsed
@@ -443,6 +449,7 @@ def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
                 _compare(observed_away,reference,cond["comparador"])):
             return None
         return {"tipo":"indicador","lado":"ambos","mando":"ambos",
+                "mando_preferido":"indiferente",
                 "metrica":cond["metrica"],"nome":METRICAS[cond["metrica"]],
                 "comparador":COMPARADORES[cond["comparador"]],
                 "observado":None,"observado_mandante":round(observed_home,3),
@@ -452,6 +459,9 @@ def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
                 "valor":reference}
     side=_role_to_side(cond["lado"],favorite_home)
     if side is None:
+        return None
+    requested=cond.get("mando_preferido","indiferente")
+    if requested!="indiferente" and requested!=side:
         return None
     observed=teams[side].get(cond["metrica"])
     if cond["referencia"]=="valor":
@@ -471,7 +481,8 @@ def _evaluate_condition(cond,home_stats,away_stats,favorite_home=None):
     if not _compare(observed,reference,cond["comparador"]):
         return None
     return {
-        "tipo":"indicador","lado":cond["lado"],"mando":side,"metrica":cond["metrica"],
+        "tipo":"indicador","lado":cond["lado"],"mando":side,
+        "mando_preferido":requested,"metrica":cond["metrica"],
         "nome":METRICAS[cond["metrica"]],"comparador":COMPARADORES[cond["comparador"]],
         "observado":round(observed,3),"comparado":round(reference,3),
         "referencia":cond["referencia"],"nome_ref":ref_name,
@@ -747,6 +758,9 @@ def testar(payload,rows=None):
                     "a odd de empate (X) não classifica times. Preços iguais ou ausentes "
                     "não permitem classificar favorito/zebra; essas partidas são ignoradas "
                     "quando o filtro ou mercado depende da classificação. "
+                    "O mando escolhido em condições Favorito/Zebra restringe a seleção "
+                    "a partidas nas quais essa equipe atua como mandante ou visitante; "
+                    "Indiferente aceita ambos os mandos. "
                     "A opção Ambos exige que cada equipe satisfaça o mesmo limite "
                     "do indicador. Filtros de odd usam exclusivamente a cotação "
                     "do mercado escolhido, sem substituir pela odd hipotética; "
