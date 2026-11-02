@@ -1,6 +1,7 @@
 """Testes das integrações sem consultar API real e sem gravar dados reais."""
 import io
 import json
+from pathlib import Path
 from contextlib import contextmanager
 from unittest import TestCase
 from unittest.mock import patch,MagicMock
@@ -171,11 +172,64 @@ class TestIntegracoes(TestCase):
                  "Odd_1_FT","Odd_X_FT","Over_FT_2_5","BTTS_Yes","CS_1_0",
                  "AH_Home_neg_0_5","EH_Home_neg_1","xG_Home_FT"]
         result=qi._default_columns(columns)
-        for name in ("Match_ID","Home","Away","Odd_1_FT","CS_1_0",
-                     "AH_Home_neg_0_5","EH_Home_neg_1"):
+        for name in ("Match_ID","Home","Away","Odd_1_FT","CS_1_0"):
             self.assertIn(name,result)
-        for name in ("Time","Bookie_1X2_FT","xG_Home_FT"):
+        for name in ("Time","Bookie_1X2_FT","xG_Home_FT",
+                     "AH_Home_neg_0_5","EH_Home_neg_1"):
             self.assertNotIn(name,result)
+
+    def test_autopreenchimento_de_clubes_com_estado(self):
+        catalogo=[
+            {"id":7,"clube":"Chapecoense","pais":"Brasil"},
+            {"id":8,"clube":"Bragantino","pais":"Brasil"},
+            {"id":9,"clube":"Corinthians","pais":"Brasil"},
+            {"id":10,"clube":"Coritiba","pais":"Brasil"},
+            {"id":99,"clube":"Alavés","pais":"Espanha"},
+        ]
+        with patch.object(qi,"fetch_all",return_value=catalogo):
+            result=qi._clubes_preview([
+                {"Home":"Chapecoense-SC","Away":"Bragantino"},
+                {"Home":"Corinthians","Away":"Coritiba"},
+            ],"Brazil")
+        self.assertEqual(len(result["catalogo"]),4)
+        chapecoense=next(c for c in result["clubes"]
+                          if c["original"]=="Chapecoense-SC")
+        self.assertEqual(chapecoense["clube_id"],7)
+        self.assertEqual(chapecoense["padronizado"],"Chapecoense")
+        self.assertTrue(chapecoense["correspondencia_automatica"])
+        self.assertEqual(chapecoense["similaridade_automatica"],98)
+        self.assertTrue(all(c["clube_id"] is not None for c in result["clubes"]))
+        self.assertTrue(all(c["correspondencia_automatica"] for c in result["clubes"]))
+
+    def test_handicap_removido_da_previa_historico_e_importacao(self):
+        cols=["Match_ID","Home","Away","Odd_1_FT","AH_Home_neg_1_5",
+              "Bookie_AH_neg_1_5","EH_Home_neg_1","Bookie_EH_neg_1"]
+        self.assertEqual(qi._default_columns(cols),
+                         ["Match_ID","Home","Away","Odd_1_FT"])
+        with patch.object(qi,"fetch_all",return_value=[{"colunas":cols}]):
+            self.assertEqual(qi._last_columns(),
+                             ["Match_ID","Home","Away","Odd_1_FT"])
+        qi._PREVIEWS["handicap"]={
+            "criado":qi.time.monotonic(),
+            "columns":cols,
+            "rows":[{"Home":"Bragantino","Away":"Corinthians"}],
+            "country":"Brasil","league":"Serie A","season":"2026"
+        }
+        with self.assertRaisesRegex(ValueError,"Escolha colunas existentes"):
+            qi.importar({"preview_id":"handicap",
+                         "colunas":["AH_Home_neg_1_5"],"clubes":[]})
+        self.assertTrue(qi._is_handicap_column("Bookie_EH_neg_1"))
+        self.assertFalse(qi._is_handicap_column("Odd_1_FT"))
+
+    def test_checkbox_usa_lista_e_destaque_e_renderiza(self):
+        js=(Path(__file__).resolve().parents[1]/"static"/"js"/"integracoes.js").read_text(encoding="utf-8")
+        self.assertIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
+        self.assertIn('const total=$("#int-api-columns input[type=checkbox]").length',js)
+        self.assertIn('const selected=$("#int-api-columns input[type=checkbox]:checked").length',js)
+        self.assertIn("tr.classList.toggle(\"int-match-auto\",on)",js)
+        self.assertNotIn('const checkboxes=$("#int-api-columns input[type=checkbox]")',js)
+        self.assertNotIn('$("#int-api-columns input[type=checkbox]").forEach',js)
+        self.assertNotIn('for(const tr of $("#int-api-clubs tr"))',js)
 
     def test_lay_simulado_escada_e_fonte_preferida(self):
         self.assertEqual(qi._simulated_lay("1.85"),1.86)
