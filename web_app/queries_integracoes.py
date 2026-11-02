@@ -170,24 +170,32 @@ def _clubes_preview(rows,pais):
         iguais=por_nome.get(key(nome),[])
         igual=iguais[0] if len(iguais)==1 else None
         sugestoes=_suggest(nome,catalogo)
-        # Preenche apenas se a similaridade é alta e a melhor opção é inequívoca.
-        # A confirmação da importação continua sob controle do usuário.
+        # Sufixos de UF em clubes brasileiros (Chapecoense-SC -> Chapecoense)
+        # não devem impedir correspondências fortes, desde que inequívocas.
+        uf={"ac","al","ap","am","ba","ce","df","es","go","ma","mt","ms",
+            "mg","pa","pb","pr","pe","pi","rj","rn","rs","ro","rr","sc",
+            "sp","se","to"}
+        partes=key(nome).split()
+        sem_uf=" ".join(partes[:-1]) if (
+            _pais_normalizado(pais)=="brasil" and len(partes)>1
+            and partes[-1] in uf) else ""
+        candidatas=por_nome.get(sem_uf,[]) if sem_uf else []
+        por_uf=candidatas[0] if len(candidatas)==1 else None
         principal=sugestoes[0] if sugestoes else None
         segundo=sugestoes[1] if len(sugestoes)>1 else None
-        auto=igual is not None or (
-            principal is not None and principal["similaridade"]>=95
-            and (segundo is None or principal["similaridade"]-segundo["similaridade"]>=5)
-        )
-        escolhido=igual if igual else (
+        forte=(principal is not None and principal["similaridade"]>=95 and
+               (segundo is None or principal["similaridade"]-segundo["similaridade"]>=5))
+        escolhido=igual or por_uf or (
             next((c for c in catalogo if c["id"]==principal["id"]),None)
-            if auto and principal else None
+            if forte else None
         )
+        confianca=100 if igual else (98 if por_uf else (
+            principal["similaridade"] if escolhido and principal else None))
         resultados.append({"original":nome,
                            "padronizado":escolhido["clube"] if escolhido else nome,
                            "clube_id":escolhido["id"] if escolhido else None,
                            "correspondencia_automatica":bool(escolhido),
-                           "similaridade_automatica":100 if igual else (
-                               principal["similaridade"] if escolhido and principal else None),
+                           "similaridade_automatica":confianca,
                            "sugestoes":sugestoes})
     return {"catalogo":catalogo,"clubes":resultados,"pais":pais}
 
