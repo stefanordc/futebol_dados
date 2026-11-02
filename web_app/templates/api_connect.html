@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
-<title>Conectar API | Dados Futebol</title><link rel="stylesheet" href="/static/css/app.css?v=28"><link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/integracoes.css?v=3"></head>
+<title>Conectar API | Dados Futebol</title><link rel="stylesheet" href="/static/css/app.css?v=28"><link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/integracoes.css?v=4"></head>
 <body><a class="df-skip" href="#main-content">Pular para o conteúdo</a><div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage"><header id="df-topbar-mount"></header><main id="main-content" class="match-wrap df-common-page x1-main">
 <section class="int-hero"><p class="int-eyebrow">NOSTRADAMUS · FONTE EXTERNA</p><h1>Conectar API</h1>
 <p>Consulte uma API CSV ou JSON, confira clubes, ajuste informações e selecione as colunas antes de importar para a tabela odds.</p>
@@ -15,7 +15,25 @@
 <small>Separe por vírgula, ponto e vírgula ou quebra de linha. O último segmento da URL será substituído por cada temporada. Limite: 12 temporadas por consulta. Deixe vazio para consultar somente a temporada da URL.</small></label>
 <label>Chave de API<input id="int-api-key" type="password" autocomplete="off" placeholder="Opcional se a API for pública"></label>
 <label>Tipo de autenticação<select id="int-api-header"><option value="api_key" selected>FutPythonTrader · api_key na URL</option><option value="x-api-key">x-api-key no cabeçalho</option><option value="Authorization">Authorization: Bearer</option></select></label>
-<div class="int-form-actions"><label class="int-credential-check"><input type="checkbox" id="int-api-save-key" checked> Salvar a chave com segurança no Windows depois de consultar a API</label><p class="int-muted" id="int-api-key-status" role="status"></p><button type="button" id="int-api-delete-key">Excluir chave salva</button> <button type="submit" class="int-primary">Consultar API · Prévia</button></div></form></section>
+<div class="int-form-actions int-credential-card">
+  <div class="int-credential-heading">
+    <span class="int-credential-icon" aria-hidden="true">◆</span>
+    <div>
+      <h3>Proteção da chave de API</h3>
+      <p class="int-muted">A chave é guardada no Gerenciador de Credenciais do Windows, depois de uma consulta válida. Não é salva no Supabase.</p>
+    </div>
+  </div>
+  <label class="int-save-switch" for="int-api-save-key">
+    <input type="checkbox" id="int-api-save-key" checked>
+    <span class="int-switch-track" aria-hidden="true"></span>
+    <span class="int-switch-text">Salvar chave neste computador <small>Ativar para reutilizar nas próximas consultas</small></span>
+  </label>
+  <div class="int-credential-status" id="int-api-key-status" role="status" aria-live="polite">Verificando a chave salva…</div>
+  <div class="int-credential-buttons">
+    <button type="button" id="int-api-delete-key" class="int-delete-key" disabled>Excluir chave salva</button>
+    <button type="submit" class="int-primary int-preview-submit">Consultar API · Prévia</button>
+  </div>
+</div></form></section>
 <div id="int-api-preview" hidden>
 <section class="int-panel"><h2>2. Revisar metadados</h2><p class="int-muted" id="int-api-count"></p>
 <div id="int-season-results" class="int-season-results" aria-live="polite" hidden></div>
@@ -34,4 +52,20 @@
 <section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação salva uma coluna SQL para cada dado selecionado. Partidas já existentes serão ignoradas, sem criar lotes duplicados. Nenhum registro será criado durante a prévia.</p>
 <button id="int-import" class="int-primary" type="button">Confirmar e importar para o Supabase</button></section></div>
 <section class="int-panel"><h2>Histórico de importações</h2><div id="int-import-history" class="int-muted">Consultando…</div></section>
-<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=8" defer></script></body></html>
+<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="int-import-loader" class="int-loader-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="int-loader-title" aria-describedby="int-loader-text" tabindex="-1">
+  <div class="int-loader-panel">
+    <div class="int-loader-header">
+      <span class="int-loader-label"><span class="int-loader-led" aria-hidden="true"></span>NOSTRADAMUS / IMPORTADOR</span>
+      <span id="int-loader-clock" class="int-loader-clock" aria-label="Tempo decorrido">00:00</span>
+    </div>
+    <div class="int-loader-emblem" aria-hidden="true"><span>DF</span><i></i><i></i></div>
+    <h2 id="int-loader-title">Sincronizando partidas</h2>
+    <p id="int-loader-text">Enviando informações para o Supabase. Não feche esta página.</p>
+    <div class="int-loader-terminal" aria-hidden="true">
+      <div class="int-loader-terminal-head"><span>DATABASE / SUPABASE</span><span class="int-loader-live">PROCESSANDO</span></div>
+      <div id="int-loader-console" class="int-loader-console"></div>
+    </div>
+    <div class="int-loader-progress" role="progressbar" aria-label="Importação em andamento, progresso indeterminado"><span class="int-loader-progress-bar"></span></div>
+    <p class="int-loader-note">Progresso indeterminado: a barra indica atividade e não a porcentagem gravada. A confirmação aparece quando o servidor responder.</p>
+  </div>
+</div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=9" defer></script></body></html>
