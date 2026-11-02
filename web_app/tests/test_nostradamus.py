@@ -257,6 +257,106 @@ class TestNostradamus(TestCase):
         self.assertIn("j.campeonato_id = ANY(%s::integer[])",sql)
         self.assertEqual(params[1],[1,2])
 
+    def test_favorito_zebra_exige_odds_1_e_2_reais_e_distintas(self):
+        self.assertTrue(ns._favorite_home({"api_odd_1_ft":1.45,"api_odd_2_ft":6.2}))
+        self.assertFalse(ns._favorite_home({"api_odd_1_ft":5.8,"api_odd_2_ft":1.9}))
+        for row in (
+            {"api_odd_1_ft":2.5,"api_odd_2_ft":2.5},
+            {"api_odd_1_ft":None,"api_odd_2_ft":3.2},
+            {"api_odd_1_ft":0.0,"api_odd_2_ft":3.2},
+            {"api_odd_1_ft":float("nan"),"api_odd_2_ft":3.2},
+            {"odd_casa":1.6,"odd_fora":4.1},
+        ):
+            self.assertIsNone(ns._favorite_home(row))
+        self.assertEqual(ns._role_to_side("favorito",False),"visitante")
+        self.assertEqual(ns._role_to_side("zebra",False),"mandante")
+        self.assertEqual(ns._role_to_side("favorito",True),"mandante")
+        self.assertEqual(ns._role_to_side("zebra",True),"visitante")
+
+    def test_condicoes_favorito_zebra_recalculam_com_o_mando(self):
+        rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+              for i in range(10)]
+        for i,r in enumerate(rows):
+            r["api_odd_1_ft"],r["api_odd_2_ft"] = (
+                (1.5,4.2) if i<7 else (4.2,1.5))
+        condition={"lado":"favorito","metrica":"gols_feitos","comparador":"gt",
+                   "referencia":"valor","valor":1.5}
+        res=ns.testar(config(self.cutoff,conditions=[condition]),rows=rows)
+        self.assertEqual(res["entradas"],2)
+        self.assertTrue(all(j["condicoes"][0]["mando"]=="mandante"
+                            for j in res["resultados"][0]["jogos"]))
+        condition={"lado":"zebra","metrica":"gols_feitos","comparador":"lt",
+                   "referencia":"valor","valor":1.0}
+        res=ns.testar(config(self.cutoff,conditions=[condition]),rows=rows)
+        self.assertEqual(res["entradas"],2)
+        self.assertTrue(all(j["condicoes"][0]["mando"]=="visitante"
+                            for j in res["resultados"][0]["jogos"]))
+
+    def test_back_favorito_e_zebra_com_odds_especificas_do_time(self):
+        rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+              for i in range(10)]
+        for i,r in enumerate(rows):
+            r["api_odd_1_ft"],r["api_odd_2_ft"] = (
+                (1.6,3.4) if i<7 else (4.5,1.8))
+            r["api_bookie_odd_1_ft"]="bet365"
+            r["api_bookie_odd_2_ft"]="pinnacle"
+        neutral={"lado":"favorito","metrica":"pontos_jogo","comparador":"ge",
+                 "referencia":"valor","valor":0}
+        fav=ns.testar(config(self.cutoff,goal="back_favorito",
+                           conditions=[neutral]),rows=rows)["resultados"][0]
+        self.assertEqual((fav["entradas"],fav["greens"],fav["reds"]),(5,2,3))
+        self.assertAlmostEqual(fav["unidades"],-1.8)
+        self.assertEqual(fav["jogos"][0]["favorito"],"Clube Casa")
+        self.assertEqual(fav["jogos"][0]["mando_favorito"],"mandante")
+        self.assertEqual(fav["jogos"][0]["odd"],1.6)
+        self.assertEqual(fav["jogos"][0]["bookmaker"],"bet365")
+        self.assertEqual(fav["jogos"][2]["favorito"],"Clube Fora")
+        self.assertEqual(fav["jogos"][2]["mando_favorito"],"visitante")
+        self.assertEqual(fav["jogos"][2]["placar_favorito"],"0x2")
+        self.assertEqual(fav["jogos"][2]["odd"],1.8)
+        self.assertEqual(fav["jogos"][2]["bookmaker"],"pinnacle")
+        zebra=ns.testar(config(self.cutoff,goal="back_zebra",
+                             conditions=[neutral]),rows=rows)["resultados"][0]
+        self.assertEqual((zebra["greens"],zebra["reds"]),(3,2))
+        self.assertAlmostEqual(zebra["unidades"],8.5)
+        self.assertEqual(zebra["jogos"][0]["odd"],3.4)
+        self.assertEqual(zebra["jogos"][2]["odd"],4.5)
+
+    def test_ignora_empates_e_odds_ausentes_sem_inventar_classificacao(self):
+        rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+              for i in range(10)]
+        for r in rows:
+            r["api_odd_1_ft"]=2.0
+            r["api_odd_2_ft"]=4.0
+        rows[7]["api_odd_2_ft"]=2.0
+        rows[8]["api_odd_2_ft"]=None
+        neutral={"lado":"favorito","metrica":"pontos_jogo","comparador":"ge",
+                 "referencia":"valor","valor":0}
+        out=ns.testar(config(self.cutoff,goal="lay_zebra",
+                             conditions=[neutral]),rows=rows)
+        self.assertEqual(out["sem_classificacao"],2)
+        self.assertEqual(out["entradas"],3)
+        self.assertEqual(out["resultados"][0]["cotadas"],0)
+        # Estratégia legada continua calculável com dados sem Match Odds:
+        old=ns.testar(config(self.cutoff,goal="back_mandante"),rows=self.rows)
+        self.assertEqual(old["entradas"],5)
+
+    def test_referencia_adversario_aplica_time_oposto_do_favorito(self):
+        c={"lado":"favorito","metrica":"gols_feitos","comparador":"gt",
+           "referencia":"adversario"}
+        normalized=ns._valid_conditions([c])[0]
+        home=ns._history_item(game(2,self.start,gf=3,ga=1),"home")
+        away=ns._history_item(game(2,self.start,gf=3,ga=1),"away")
+        home={"gols_feitos":3}
+        away={"gols_feitos":1}
+        self.assertEqual(ns._evaluate_condition(normalized,home,away,True)["mando"],"mandante")
+        self.assertIsNone(ns._evaluate_condition(normalized,home,away,False))
+        other={"lado":"zebra","metrica":"gols_feitos","comparador":"gt",
+               "referencia":"favorito","metrica_ref":"gols_feitos","valor":0}
+        parsed=ns._valid_conditions([other])[0]
+        self.assertEqual(parsed["referencia"],"favorito")
+        self.assertIsNone(ns._evaluate_condition(parsed,home,away,True))
+
     def test_entradas_sem_preco_nao_inventam_lucro(self):
         r=ns.testar(config(self.cutoff),rows=self.rows)["resultados"][0]
         self.assertEqual(r["entradas"],5)

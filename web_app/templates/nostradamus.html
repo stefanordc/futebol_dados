@@ -42,12 +42,12 @@
   </div>
 </div>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
-<label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Mandante com xG superior"></label>
+<label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Favorito com xG superior"></label>
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%) — fixa<input id="ns-comissao" type="number" inputmode="decimal" min="4.5" max="4.5" step="0.1" value="4.5" readonly aria-readonly="true" title="Configuração fixa de 4,5% nas simulações"></label>
 </div>
-<div class="ns-info">Cada entrada cotada representa R$ 100 (1 unidade). O Nostradamus prioriza odds de casas importadas no Supabase, com correspondência exata de clubes, data, liga e temporada. Odds importadas historicamente não têm comprovação de disponibilidade pré-jogo; Lay é estimado, não executável. A odd hipotética opcional substitui o preço do banco para simulação. Sem cotação, não atribuimos ganho financeiro.</div>
-<div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>mandante ou visitante</strong> e o indicador. Depois selecione <strong>Valor absoluto</strong> (ex.: gols sofridos do visitante &gt; 1,5) ou <strong>Mesmo indicador do adversário</strong> (ex.: xG do mandante &gt; xG do visitante). No segundo caso, não é necessário informar números nem ajustes. Até 10 condições.</p></div></div>
+<div class="ns-info">Cada entrada cotada representa R$ 100 (1 unidade). O Nostradamus classifica Favorito e Zebra pelas odds de vitória dos times no Match Odds do Supabase, com correspondência exata de clubes, data, liga e temporada. Empates nas odds ou ausência de preços não são classificados. Odds importadas historicamente não têm comprovação de disponibilidade pré-jogo; Lay é estimado, não executável. A odd hipotética opcional substitui o preço do banco para simulação. Sem cotação, não atribuimos ganho financeiro.</div>
+<div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>favorito ou zebra</strong> e o indicador. O favorito é quem possui a <strong>menor odd de vitória no Match Odds (1 e 2)</strong>, independentemente do mando. A indicação <strong>(Mandante)</strong> ou <strong>(Visitante)</strong> aparecerá ao lado de cada equipe no resultado. Depois selecione <strong>Valor absoluto</strong> (ex.: gols sofridos da zebra &gt; 1,5) ou <strong>Mesmo indicador do adversário</strong> (ex.: xG do favorito &gt; xG da zebra). No segundo caso, não é necessário informar números nem ajustes. Até 10 condições.</p></div></div>
 <div id="ns-conditions" class="ns-conditions"></div>
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
@@ -60,5 +60,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-multiliguas-v2" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-favorito-zebra-v3" defer></script>
 </body></html>
