@@ -27,12 +27,22 @@ CREATE TABLE IF NOT EXISTS public.odds (
  visitante text,
  mandante_id integer REFERENCES public.clubes(id) ON DELETE SET NULL,
  visitante_id integer REFERENCES public.clubes(id) ON DELETE SET NULL,
- dados jsonb NOT NULL DEFAULT '{}'::jsonb,
+ lay_origem text,
+ lay_precificacao_real boolean NOT NULL DEFAULT false,
+ lay_liquidez_verificada boolean NOT NULL DEFAULT false,
+ lay_comissao_pct numeric(5,2),
  criado_em timestamptz NOT NULL DEFAULT now(),
  atualizado_em timestamptz NOT NULL DEFAULT now(),
- CONSTRAINT odds_dados_obj CHECK (jsonb_typeof(dados)='object'),
  CONSTRAINT odds_importacao_linha_unique UNIQUE(importacao_id,linha_origem)
 );
+-- Cada campo da API selecionado passa a ser coluna física (adicionado
+-- pelo importador de forma validada). Nenhum JSON de odds nesta tabela.
+CREATE UNIQUE INDEX IF NOT EXISTS odds_fonte_temporada_id_unique
+ ON public.odds(fonte,temporada,partida_externa_id)
+ WHERE nullif(btrim(partida_externa_id),'') IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS odds_sem_id_jogo_unique
+ ON public.odds(fonte,temporada,campeonato,data_jogo,mandante,visitante)
+ NULLS NOT DISTINCT WHERE nullif(btrim(partida_externa_id),'') IS NULL;
 CREATE INDEX IF NOT EXISTS odds_por_campeonato_temporada ON public.odds(campeonato,temporada);
 CREATE INDEX IF NOT EXISTS odds_por_data_jogo ON public.odds(data_jogo);
 CREATE INDEX IF NOT EXISTS odds_por_mandante ON public.odds(mandante_id);
