@@ -216,13 +216,14 @@ class TestNostradamus(TestCase):
         partidas=[{**g} for g in self.rows]
         for i in range(5,10):
             partidas[i].update(api_odd_1_ft=2.10,api_lay_odd_1_ft=2.12)
-        partidas[7]["gols_casa"]=3
-        partidas[7]["gols_fora"]=0
+        for i in (5,6,8,9):
+            partidas[i]["gols_casa"]=0
+            partidas[i]["gols_fora"]=1
         out=ns.testar(config(self.cutoff,goal="lay_mandante"),rows=partidas)
         summary=out["resultados"][0]
         self.assertEqual(summary["cotadas"],5)
         self.assertTrue(all(j["tipo_odd"]=="lay_estimado" for j in summary["jogos"]))
-        self.assertAlmostEqual(summary["unidades"],round(5*(0.955/1.12)-5,3))
+        self.assertAlmostEqual(summary["unidades"],round(4*(0.955/1.12)-1,3))
         self.assertIsNone(ns._odds_for_game(
             {"api_odd_1_ft":2.1,"data":self.start},
             "lay_mandante",None)[0])
