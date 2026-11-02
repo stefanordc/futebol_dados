@@ -27,12 +27,15 @@ const metricOpts=(data,value)=>{
 };
 function normalizeCondition(item={}){
   // Regras antigas com "margem" continuam interpretadas exatamente como eram.
-  const lado=item.lado==="visitante"?"visitante":"mandante";
+  const oldRecord=Object.keys(item).length>0;
+  const lado=["favorito","zebra","mandante","visitante"].includes(item.lado)
+    ?item.lado:(oldRecord?"mandante":"favorito");
   const metrica=item.metrica||"xg";
-  const referencia=item.referencia||(Object.hasOwn(item,"metrica")?"visitante":"valor");
+  const opponent=lado==="mandante"?"visitante":lado==="visitante"?"mandante":
+    lado==="favorito"?"zebra":"favorito";
+  const referencia=item.referencia||(oldRecord?"visitante":"valor");
   const metricaRef=item.metrica_ref||metrica;
-  const valor=item.valor??item.margem??(Object.keys(item).length?0:"");
-  const opponent=lado==="mandante"?"visitante":"mandante";
+  const valor=item.valor??item.margem??(oldRecord?0:"");
   let modo;
   if(referencia==="valor")modo="valor";
   else if(referencia==="adversario"||
@@ -74,7 +77,9 @@ function conditionLine(item={}){
   if(data.modo==="legado")modes.legado="Regra personalizada (salva anteriormente)";
   div.innerHTML=
     '<label>Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
-      opts({mandante:"Mandante",visitante:"Visitante"},data.lado)+'</select></label>'+
+      opts({...{favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)"},
+        ...(["mandante","visitante"].includes(data.lado)
+          ?{mandante:"Mandante (estratégia antiga)",visitante:"Visitante (estratégia antiga)"}:{})},data.lado)+'</select></label>'+
     '<label>Indicador<select class="ns-metric" aria-label="Indicador">'+
       metricOpts(meta.metricas,data.metrica)+'</select></label>'+
     '<label>Comparador<select class="ns-comparison" aria-label="Comparador">'+
@@ -171,7 +176,7 @@ function restore(saved){
   $("#ns-janela").value=saved.jogos||"20";
   setLeagues(Array.isArray(saved.campeonato_ids)&&saved.campeonato_ids.length
     ?saved.campeonato_ids:(saved.campeonato_id?[saved.campeonato_id]:[]));
-  $("#ns-objetivo").value=saved.objetivo||"back_mandante";
+  $("#ns-objetivo").value=saved.objetivo||"back_favorito";
   $("#ns-odd").value=saved.odd_hipotetica??"";
   $("#ns-comissao").value="4.5";
   $("#ns-conditions").innerHTML="";
@@ -192,12 +197,19 @@ document.querySelector(".ns-subtabs").addEventListener("click",event=>{
   const btn=event.target.closest("[data-ns-tab]");
   if(btn)setTab(btn.dataset.nsTab);
 });
+function roleLabel(role,mando){
+  if(role==="favorito"||role==="zebra"){
+    const name=role==="favorito"?"Favorito":"Zebra";
+    return name+(mando?" ("+(mando==="mandante"?"Mandante":"Visitante")+")":" (pela odd)");
+  }
+  return role==="visitante"?"Visitante (estratégia antiga)":"Mandante (estratégia antiga)";
+}
 function formatRule(rule){
-  const lhs=(rule.lado==="visitante"?"Visitante":"Mandante")+" · "+
+  const lhs=roleLabel(rule.lado)+" · "+
     (meta?.metricas?.[rule.metrica]||rule.metrica);
   const rhs=rule.referencia==="valor"?fmt(rule.valor,2):
     rule.referencia==="adversario"?"mesmo indicador do adversário":
-      (rule.referencia==="visitante"?"Visitante":"Mandante")+" · "+
+      roleLabel(rule.referencia)+" · "+
       (meta?.metricas?.[rule.metrica_ref||rule.metrica]||rule.metrica_ref)+
       (Number(rule.valor)?" + "+fmt(rule.valor,2):"");
   return esc(lhs+" "+(meta?.comparadores?.[rule.comparador]||rule.comparador)+" "+rhs);
@@ -352,19 +364,33 @@ $("#ns-save").addEventListener("click",async ()=>{
   }catch(e){say(e.message,true);}
   finally{btn.disabled=false;btn.textContent=editing?"Salvar alterações":"Salvar estratégia";}
 });
+function matchLabel(r){
+  if(r.favorito){
+    return '<strong>Favorito ('+esc(r.mando_favorito==="mandante"?"Mandante":"Visitante")+'): '+
+      esc(r.favorito)+'</strong> · <strong>Zebra ('+
+      esc(r.mando_zebra==="mandante"?"Mandante":"Visitante")+'): '+
+      esc(r.zebra)+'</strong>'+
+      '<div class="ns-match-odds">Match Odds: favorito '+fmt(r.odd_favorito,2)+
+      ' · zebra '+fmt(r.odd_zebra,2)+'</div>';
+  }
+  return '<strong>Sem classificação por odds</strong> · '+esc(r.mandante)+
+    ' (mandante) × '+esc(r.visitante)+' (visitante)';
+}
 function details(rows){
   if(!rows.length)return '<p class="x1-help">Nenhuma partida passou pelas condições.</p>';
   return '<div class="ns-scroll"><table class="ns-table"><thead><tr><th>Data</th><th>Jogo</th><th>Placar</th><th>Resultado</th><th>Odd / origem</th><th>Unidades (u)</th><th>Resultado (R$)</th></tr></thead><tbody>'+
-  rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td><strong>'+esc(r.mandante)+' × '+esc(r.visitante)+'</strong>'+
+  rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td>'+matchLabel(r)+
     '<div class="ns-history-size">Histórico anterior: '+fmt(r.historico_mandante,0)+' jogos do mandante · '+fmt(r.historico_visitante,0)+' do visitante</div>'+
     '<div class="ns-match-conditions">'+(r.condicoes||[]).map(c=>
-      '<div><b>'+esc(c.lado==="visitante"?"Visitante":"Mandante")+'</b> · '+esc(c.nome)+
+      '<div><b>'+esc(roleLabel(c.lado,c.mando))+'</b> · '+esc(c.nome)+
       ': <b>'+fmt(c.observado,2)+'</b> '+esc(c.comparador)+
       ' <b>'+fmt(c.comparado,2)+'</b> ('+
       (c.referencia==="valor"?"valor absoluto":c.referencia==="adversario"?
       "mesmo indicador do adversário":esc(c.referencia)+" · "+esc(c.nome_ref)+
       (Number(c.valor)?" + ajuste "+fmt(c.valor,2):""))+')</div>').join("")+'</div></td>'+
-    '<td>'+esc(r.placar)+'</td><td class="'+(r.green?"ns-green":"ns-red")+'">'+(r.green?"Green":"Red")+'</td>'+
+    '<td>'+esc(r.placar_favorito||r.placar)+
+    '<div class="ns-match-odds">'+(r.favorito?"Favorito × zebra":"Mandante × visitante")+
+    '</div></td><td class="'+(r.green?"ns-green":"ns-red")+'">'+(r.green?"Green":"Red")+'</td>'+
     '<td>'+fmt(r.odd,2)+(r.tipo_odd?
         '<div class="ns-odd-origin">'+esc(oddLabel(r))+
         (r.bookmaker?' · '+esc(r.bookmaker):'')+'</div>':"")+'</td>'+
@@ -390,7 +416,10 @@ function show(response){
     '<td class="ns-red">'+fmt(r.maior_bad_run,0)+'</td></tr>').join(""):
     '<tr><td colspan="12">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
   $("#ns-details").innerHTML="";
-  say("Análise concluída: "+response.entradas+" entradas históricas em "+response.resultados.length+" campeonato(s). Expanda uma liga para conferir as condições e o histórico de cada jogo.");
+  say("Análise concluída: "+response.entradas+" entradas históricas em "+response.resultados.length+
+    " campeonato(s). "+(response.sem_classificacao?
+      response.sem_classificacao+" partida(s) sem favorito/zebra definido pelas odds foram desconsideradas. ":"")+
+    "Expanda uma liga para conferir a classificação e o histórico de cada jogo.");
 }
 $("#ns-summary").addEventListener("click",e=>{
   const btn=e.target.closest("[data-expand]");if(!btn||!loaded)return;
@@ -425,7 +454,19 @@ async function init(){
     const response=await fetch("/api/apostas/nostradamus/metadata");
     if(!response.ok)throw new Error("Não foi possível carregar os indicadores.");
     meta=await response.json();
-    $("#ns-objetivo").innerHTML=opts(meta.objetivos,"back_mandante");
+    const entries=Object.entries(meta.objetivos);
+    const favoriteMarkets=Object.fromEntries(entries.filter(([k])=>
+      ["back_favorito","lay_favorito","back_zebra","lay_zebra"].includes(k)));
+    const legacyMarkets=Object.fromEntries(entries.filter(([k])=>
+      ["back_mandante","lay_mandante","back_visitante","lay_visitante",
+       "lay_goleada_mandante","lay_goleada_visitante"].includes(k)));
+    const otherMarkets=Object.fromEntries(entries.filter(([k])=>
+      !(k in favoriteMarkets)&&!(k in legacyMarkets)));
+    $("#ns-objetivo").innerHTML='<optgroup label="Favorito e zebra">'+
+      opts(favoriteMarkets,"back_favorito")+'</optgroup>'+
+      '<optgroup label="Outros mercados">'+opts(otherMarkets,"back_favorito")+'</optgroup>'+
+      '<optgroup label="Estratégias antigas (mando fixo)">'+
+      opts(legacyMarkets,"back_favorito")+'</optgroup>';
     $("#ns-league-items").innerHTML=(meta.ligas||[]).map(c=>
       '<label class="ns-league-option"><input type="checkbox" value="'+Number(c.id)+
       '" data-nome="'+esc(c.nome)+'"><span>'+esc(c.nome)+'</span></label>').join("");
