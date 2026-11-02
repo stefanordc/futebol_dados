@@ -117,14 +117,8 @@ def _historical(target_date,rows=None):
         d=_date(row["data"])
         if d>=horizon or row.get("gols_casa") is None or row.get("gols_fora") is None:
             continue
-        for side,club,gf,ga in (
-            ("home",row["casa_id"],row["gols_casa"],row["gols_fora"]),
-            ("away",row["fora_id"],row["gols_fora"],row["gols_casa"]),
-        ):
-            item={"gf":int(gf),"ga":int(ga)}
-            for field in ("xg","xgot","chutes","chutes_certos","passes_certos","posse",
-                          "grandes_chances","escanteios","dribles_certos","faltas","duelos_aereos"):
-                item[field]=row.get(side+"_"+field)
+        for side,club in (("home",row["casa_id"]),("away",row["fora_id"])):
+            item=ns._history_item(row,side)
             key=(row["campeonato_id"],row["temporada"],club)
             records[key].append((d,int(row["id"]),item))
     for items in records.values():items.sort(key=lambda p:(p[0],p[1]))

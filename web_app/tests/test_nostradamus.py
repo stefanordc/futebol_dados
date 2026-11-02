@@ -40,6 +40,97 @@ class TestNostradamus(TestCase):
         self.start=self.cutoff-timedelta(days=12)
         self.rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0) for i in range(10)]
 
+    def test_indicadores_fisicos_e_diferencas_por_partida(self):
+        jogos=[]
+        for i in range(10):
+            r=game(i,self.start+timedelta(days=i),gf=2,ga=0)
+            r.update(home_km=112,away_km=103,home_sprints=148,away_sprints=122)
+            jogos.append(r)
+        conds=[
+            {"lado":"mandante","metrica":"km","comparador":"gt","referencia":"adversario"},
+            {"lado":"mandante","metrica":"sprints_diff","comparador":"ge",
+             "referencia":"valor","valor":20},
+            {"lado":"visitante","metrica":"km_diff","comparador":"lt",
+             "referencia":"valor","valor":0},
+        ]
+        data=ns.testar(config(self.cutoff,conditions=conds),rows=jogos)
+        self.assertEqual(data["entradas"],5)
+        for entry in data["resultados"][0]["jogos"]:
+            detail=entry["condicoes"]
+            self.assertEqual(detail[0]["observado"],112)
+            self.assertEqual(detail[0]["comparado"],103)
+            self.assertEqual(detail[1]["observado"],26)
+            self.assertEqual(detail[2]["observado"],-9)
+
+    def test_dados_fisicos_faltantes_nao_viram_zero(self):
+        records=[ns._history_item(game(i,self.start+timedelta(days=i)), "home")
+                 for i in range(5)]
+        for r in records:
+            self.assertIsNone(r["km"])
+            self.assertIsNone(r["sprints"])
+            self.assertIsNone(r["km_diff"])
+        physical=ns._stats(records,5)
+        self.assertIsNone(physical["km"])
+        self.assertIsNone(physical["sprints"])
+        self.assertIsNone(physical["km_diff"])
+        r=game(55,self.start)
+        r.update(home_km=120,away_km=None,home_sprints=0,away_sprints=130)
+        item=ns._history_item(r,"home")
+        self.assertEqual(item["km"],120)
+        self.assertIsNone(item["km_diff"])
+        self.assertIsNone(item["sprints"])
+        self.assertIsNone(item["sprints_diff"])
+
+    def test_cobertura_fisica_exige_60_porcento_no_recorte(self):
+        rows=[]
+        for i in range(5):
+            row=game(i,self.start+timedelta(days=i))
+            row.update(home_km=112 if i<2 else None,
+                       away_km=100 if i<2 else None,
+                       home_sprints=120 if i<2 else None,
+                       away_sprints=110 if i<2 else None)
+            rows.append(ns._history_item(row,"home"))
+        stats=ns._stats(rows,5)
+        self.assertIsNone(stats["km"])
+        self.assertIsNone(stats["sprints"])
+        self.assertIsNone(stats["km_diff"])
+        row=game(5,self.start+timedelta(days=5))
+        row.update(home_km=110,away_km=100,home_sprints=120,away_sprints=110)
+        rows[2]=ns._history_item(row,"home")
+        stats=ns._stats(rows,5)
+        self.assertAlmostEqual(stats["km"],(112*2+110)/3)
+        self.assertAlmostEqual(stats["km_diff"],(12*2+10)/3)
+
+    def test_fisicos_apenas_partidas_anteriores_e_mesmo_dia_excluido(self):
+        rowlist=[]
+        for i in range(7):
+            match=game(i,self.start+timedelta(days=i),gf=1,ga=0)
+            # A partir do 6º jogo, dados físicos são favoráveis ao visitante;
+            # o filtro de 5 jogos anteriores deve reagir apenas no dia seguinte.
+            if i<6:
+                match.update(home_km=110,away_km=90,home_sprints=150,away_sprints=110)
+            else:
+                match.update(home_km=30,away_km=190,home_sprints=50,away_sprints=240)
+            rowlist.append(match)
+        # No jogo 7, histórico anterior tem 5 registros positivos;
+        # o registro do próprio jogo (i=6) não pode entrar na condição.
+        cfg=config(self.cutoff,conditions=[{"lado":"mandante","metrica":"km",
+                 "comparador":"gt","referencia":"adversario"}],window="5")
+        result=ns.testar(cfg,rows=rowlist)
+        self.assertEqual(result["entradas"],2)
+        self.assertTrue(all(x["condicoes"][0]["observado"]==110 for x in result["resultados"][0]["jogos"]))
+
+    def test_sql_fisicos_somente_id_sofascore_com_clube_mapeado(self):
+        self.assertIn("j.id_sofascore IS NULL OR fh.id_jogo=j.id_sofascore",ns.RAW)
+        self.assertIn("fa.id_jogo=fh.id_jogo",ns.RAW)
+        self.assertIn("hsrc.id_externo=fh.id_clube::text",ns.RAW)
+        self.assertIn("asrc.id_externo=fa.id_clube::text",ns.RAW)
+        self.assertIn("fh.temporada=j.temporada",ns.RAW)
+        self.assertIn("fh.data=j.data",ns.RAW)
+        self.assertIn("CASE c.nome WHEN 'LaLiga' THEN 'Espanhol'",ns.RAW)
+        self.assertIn("HAVING COUNT(*)=1",ns.RAW)
+        self.assertIn("j.data<CURRENT_DATE",ns.RAW)
+
     def test_no_futuro_e_sem_odd_pos_jogo(self):
         rows=self.rows+[game(15,date.today()+timedelta(days=1)),
                         game(16,date.today())]

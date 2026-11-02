@@ -12,6 +12,15 @@ const prior=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
 $("#ns-corte").value=[prior.getFullYear(),String(prior.getMonth()+1).padStart(2,"0"),String(prior.getDate()).padStart(2,"0")].join("-");
 const say=(s,error=false)=>{status.innerHTML='<div class="x1-message '+(error?"error":"info")+'">'+esc(s)+'</div>';};
 const opts=(data,value)=>Object.entries(data).map(([id,n])=>'<option value="'+esc(id)+'" '+(value===id?'selected':'')+'>'+esc(n)+'</option>').join("");
+const metricOpts=(data,value)=>{
+  const normal={},physical={};
+  Object.entries(data).forEach(([id,name])=>{
+    if(name.startsWith("Dados físicos · "))physical[id]=name.slice("Dados físicos · ".length);
+    else normal[id]=name;
+  });
+  return '<optgroup label="Estatísticas de jogo">'+opts(normal,value)+'</optgroup>'+
+         '<optgroup label="Dados físicos">'+opts(physical,value)+'</optgroup>';
+};
 function normalizeCondition(item={}){
   // Regras antigas com "margem" continuam interpretadas exatamente como eram.
   const lado=item.lado==="visitante"?"visitante":"mandante";
@@ -63,7 +72,7 @@ function conditionLine(item={}){
     '<label>Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
       opts({mandante:"Mandante",visitante:"Visitante"},data.lado)+'</select></label>'+
     '<label>Indicador<select class="ns-metric" aria-label="Indicador">'+
-      opts(meta.metricas,data.metrica)+'</select></label>'+
+      metricOpts(meta.metricas,data.metrica)+'</select></label>'+
     '<label>Comparador<select class="ns-comparison" aria-label="Comparador">'+
       opts(meta.comparadores,data.comparador)+'</select></label>'+
     '<button type="button" class="ns-remove" aria-label="Remover condição">Remover</button>'+
@@ -75,7 +84,7 @@ function conditionLine(item={}){
     '<label class="ns-legacy-side-wrap" hidden>Referência original<select class="ns-legacy-side" aria-label="Referência original">'+
       opts({mandante:"Mandante",visitante:"Visitante"},data.referencia)+'</select></label>'+
     '<label class="ns-refmetric-wrap" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
-      opts(meta.metricas,data.metrica_ref)+'</select></label>';
+      metricOpts(meta.metricas,data.metrica_ref)+'</select></label>';
   $("#ns-conditions").appendChild(div);
   updateConditionRow(div);
   drawCount();
