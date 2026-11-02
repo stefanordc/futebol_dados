@@ -81,6 +81,23 @@ class TestGalileu(TestCase):
                 gl.sinais({"data":d.isoformat(),"estrategias":[self.method]},
                           self.future,self.past,set())
 
+    def test_producao_ler_metodos_do_banco_nao_do_navegador(self):
+        date_of_game=self.today+timedelta(days=1)
+        history=gl._historical(date_of_game,self.past)
+        db_method={**self.method,"id":7,"versao":3}
+        malicious={**self.method,"nome":"Enviado pelo navegador",
+                   "condicoes":[{"lado":"mandante","metrica":"xg",
+                                 "comparador":"lt","referencia":"valor","valor":0}]}
+        with patch.object(gl.queries_estrategias,"listar",return_value=[db_method]), \
+             patch.object(gl,"_schedule",return_value=self.future), \
+             patch.object(gl,"_historical",return_value=history), \
+             patch.object(gl,"fetch_all",return_value=[]):
+            r=gl.sinais({"data":date_of_game.isoformat(),"estrategias":[malicious]})
+        self.assertEqual(r["total"],2)
+        self.assertEqual(r["jogos"][0]["metodos"][0]["nome"],self.method["nome"])
+        self.assertEqual(r["jogos"][0]["metodos"][0]["metodo_id"],7)
+        self.assertEqual(r["jogos"][0]["metodos"][0]["metodo_versao"],3)
+
     def test_registro_e_apuracao_da_banca(self):
         rows=[
             {"id":1,"jogo_id":1,"data":self.today-timedelta(days=2),
@@ -118,8 +135,9 @@ class TestGalileu(TestCase):
 
     def test_impossivel_confirmar_se_metodo_nao_corresponde(self):
         payload={"data":(self.today+timedelta(days=1)).isoformat(),
-                 "estrategias":[self.method],
-                 "apostas":[{"jogo_id":901,"metodo_idx":9,"objetivo":"back_mandante"}]}
+                 "apostas":[{"jogo_id":901,"metodo_idx":9,
+                            "metodo_id":7,"metodo_versao":3,
+                            "objetivo":"back_mandante"}]}
         with patch.object(gl,"sinais",return_value=self.signals()):
             with self.assertRaises(ValueError):
                 gl.confirmar(payload)

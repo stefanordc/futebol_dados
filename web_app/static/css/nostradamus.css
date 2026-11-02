@@ -83,3 +83,24 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 
 /* Quantidade de partidas anteriores utilizada nas métricas de cada entrada. */
 .ns-history-size{margin:6px 0 8px;font-size:11px;color:var(--df-secondary);line-height:1.5}
+
+/* Sub-abas e gerenciamento das estratégias armazenadas no Supabase. */
+.ns-subtabs{display:flex;flex-wrap:wrap;gap:9px;margin:20px 0 14px}
+.ns-subtab{background:var(--df-raised);color:var(--df-text);border:1px solid var(--df-border);
+  border-radius:99px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+.ns-subtab.is-active{color:var(--df-orange);border-color:var(--df-orange);background:rgba(255,107,26,.1)}
+.ns-subtab:focus-visible,.ns-db-card button:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+#ns-workbench[hidden],#ns-saved[hidden],#ns-editing[hidden]{display:none!important}
+.ns-editing{padding:14px 16px;border:1px solid var(--df-orange);border-radius:12px;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.ns-editing button{border:1px solid var(--df-border);border-radius:9px;background:var(--df-raised);
+  padding:9px 14px;color:var(--df-text);cursor:pointer}
+.ns-db-card{display:block!important;margin:10px 0;padding:18px;border:1px solid var(--df-border);
+  border-radius:12px;background:var(--df-raised)}
+.ns-db-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.ns-db-card strong{color:var(--df-text);font-size:15px}
+.ns-db-card small{display:block;margin-top:6px;color:var(--df-secondary);font-size:12px}
+.ns-db-card summary{cursor:pointer;padding:12px 0;color:var(--df-orange);font-weight:700;font-size:13px}
+.ns-db-rules{margin:4px 0;padding-left:24px;display:grid;gap:8px;color:var(--df-text);
+  font-size:13px;line-height:1.6}
+.ns-db-rules li{padding-left:5px}

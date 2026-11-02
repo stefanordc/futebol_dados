@@ -20,6 +20,7 @@ import queries_x1
 import queries_x1_analise
 import queries_x1_texto
 import queries_nostradamus
+import queries_estrategias
 import queries_galileu
 import queries_tecnico_avancadas
 
@@ -120,6 +121,35 @@ def api_galileu_confirmar(payload: dict):
 @app.get("/api/apostas/galileu/relatorio")
 def api_galileu_relatorio():
     return queries_galileu.relatorio()
+
+
+@app.get("/api/apostas/nostradamus/estrategias")
+def nostradamus_estrategias_listar():
+    return queries_estrategias.listar()
+
+
+@app.post("/api/apostas/nostradamus/estrategias")
+def nostradamus_estrategias_criar(payload: dict):
+    try:
+        return queries_estrategias.criar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.patch("/api/apostas/nostradamus/estrategias/{estrategia_id}")
+def nostradamus_estrategias_editar(estrategia_id: int,payload: dict):
+    try:
+        return queries_estrategias.editar(estrategia_id,payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/nostradamus/estrategias/importar")
+def nostradamus_estrategias_importar(payload: dict):
+    try:
+        return queries_estrategias.importar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
 @app.get("/apostas/x1")

@@ -5,7 +5,7 @@ const $=q=>document.querySelector(q);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=(v,d=1)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const store="df_nostradamus_estrategias_v1",status=$("#ns-feedback");
-let meta=null,loaded=null,stored=[];
+let meta=null,loaded=null,stored=[],editing=null;
 const today=new Date(),localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
 $("#ns-corte").max=localToday;
 const prior=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
@@ -118,19 +118,103 @@ function restore(saved){
   (saved.condicoes||[]).slice(0,10).forEach(conditionLine);
   if(!$("#ns-conditions").children.length)conditionLine();
 }
-function renderSaved(){
-  $("#ns-saved-list").innerHTML=stored.length?stored.map((s,i)=>
-    '<div class="ns-saved-item"><div><strong>'+esc(s.nome)+'</strong>'+
-    '<small>'+esc(meta?.objetivos?.[s.objetivo]||s.objetivo)+' · '+esc(s.jogos)+' jogos · '+esc(s.corte)+'</small></div>'+
-    '<div class="ns-actions"><button type="button" data-load="'+i+'">Carregar</button>'+
-    '<button type="button" data-delete="'+i+'" aria-label="Excluir '+esc(s.nome)+'">Excluir</button></div></div>').join(""):
-    '<p class="x1-help">Nenhuma estratégia salva neste navegador.</p>';
+function setTab(tab){
+  const saved=tab==="salvas";
+  $("#ns-workbench").hidden=saved;
+  $("#ns-saved").hidden=!saved;
+  document.querySelectorAll("[data-ns-tab]").forEach(b=>{
+    const active=b.dataset.nsTab===tab;
+    b.classList.toggle("is-active",active);
+    b.setAttribute("aria-selected",String(active));
+  });
 }
-$("#ns-saved-list").addEventListener("click",e=>{
-  const load=e.target.closest("[data-load]"),del=e.target.closest("[data-delete]");
-  if(load){restore(stored[Number(load.dataset.load)]);say("Estratégia carregada.");}
-  if(del){stored.splice(Number(del.dataset.delete),1);localStorage.setItem(store,JSON.stringify(stored));renderSaved();}
+document.querySelector(".ns-subtabs").addEventListener("click",event=>{
+  const btn=event.target.closest("[data-ns-tab]");
+  if(btn)setTab(btn.dataset.nsTab);
 });
+function formatRule(rule){
+  const lhs=(rule.lado==="visitante"?"Visitante":"Mandante")+" · "+
+    (meta?.metricas?.[rule.metrica]||rule.metrica);
+  const rhs=rule.referencia==="valor"?fmt(rule.valor,2):
+    rule.referencia==="adversario"?"mesmo indicador do adversário":
+      (rule.referencia==="visitante"?"Visitante":"Mandante")+" · "+
+      (meta?.metricas?.[rule.metrica_ref||rule.metrica]||rule.metrica_ref)+
+      (Number(rule.valor)?" + "+fmt(rule.valor,2):"");
+  return esc(lhs+" "+(meta?.comparadores?.[rule.comparador]||rule.comparador)+" "+rhs);
+}
+function renderSaved(){
+  $("#ns-saved-list").innerHTML=stored.length?stored.map(s=>
+    '<article class="ns-saved-item ns-db-card"><div class="ns-db-top"><div><strong>'+esc(s.nome)+'</strong>'+
+    '<small>'+esc(meta?.objetivos?.[s.objetivo]||s.objetivo)+' · '+esc(s.jogos)+
+    ' jogos · '+esc(s.corte)+' · Versão '+esc(s.versao)+'</small></div>'+
+    '<div class="ns-actions"><button type="button" data-edit="'+s.id+'">Editar regras</button></div></div>'+
+    '<details><summary>Visualizar regras ('+s.condicoes.length+')</summary>'+
+    '<ol class="ns-db-rules">'+s.condicoes.map(r=>'<li>'+formatRule(r)+'</li>').join("")+'</ol>'+
+    '</details></article>').join(""):
+    '<p class="x1-help">Nenhuma estratégia salva no banco. Crie uma em Simular estratégia.</p>';
+}
+$("#ns-saved-list").addEventListener("click",event=>{
+  const edit=event.target.closest("[data-edit]");
+  if(!edit)return;
+  const s=stored.find(row=>String(row.id)===edit.dataset.edit);
+  if(!s)return;
+  editing={id:s.id,versao:s.versao};
+  restore(s);
+  $("#ns-editing").hidden=false;
+  $("#ns-editing-name").textContent="Editando: "+s.nome+" (versão "+s.versao+")";
+  $("#ns-save").textContent="Salvar alterações";
+  setTab("simular");
+  say("Altere as condições e clique em Salvar alterações.");
+  $("#ns-form").scrollIntoView({behavior:"smooth",block:"start"});
+});
+function resetEditing(){
+  editing=null;
+  $("#ns-editing").hidden=true;
+  $("#ns-save").textContent="Salvar estratégia";
+  $("#ns-nome").value="";
+  $("#ns-conditions").innerHTML="";
+  conditionLine();
+}
+$("#ns-new").addEventListener("click",resetEditing);
+$("#ns-create").addEventListener("click",()=>{
+  resetEditing();
+  setTab("simular");
+  $("#ns-nome").focus();
+});
+async function api(url,options){
+  const r=await fetch(url,options);
+  const data=await r.json();
+  if(!r.ok)throw Error(typeof data.detail==="string"?data.detail:"Falha ao consultar o banco.");
+  return data;
+}
+const jsonPost=(method,data)=>({method,headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+async function fetchSaved(){
+  const data=await api("/api/apostas/nostradamus/estrategias");
+  stored=Array.isArray(data)?data:[];
+  renderSaved();
+}
+async function importLegacy(){
+  const original=localStorage.getItem(store);
+  if(!original)return;
+  let legacy;
+  try{legacy=JSON.parse(original);}
+  catch(e){say("Estratégias antigas não estão em JSON válido; preservadas no navegador.",true);return;}
+  if(!Array.isArray(legacy)||!legacy.length){
+    localStorage.removeItem(store);
+    return;
+  }
+  try{
+    const response=await api("/api/apostas/nostradamus/estrategias/importar",
+      jsonPost("POST",{estrategias:legacy.slice(0,50)}));
+    await fetchSaved();
+    localStorage.removeItem(store);
+    say("Migração concluída: "+response.importadas+" estratégia(s) enviada(s) ao Supabase. "+
+      response.existentes+" já existia(m).");
+  }catch(e){
+    say("Não foi possível migrar as estratégias antigas: "+e.message+
+      ". A cópia antiga foi preservada até concluir a importação.",true);
+  }
+}
 $("#ns-add").addEventListener("click",()=>{if($("#ns-conditions").children.length<10)conditionLine();});
 $("#ns-conditions").addEventListener("change",e=>{
   const row=e.target.closest(".ns-condition");
@@ -140,16 +224,27 @@ $("#ns-conditions").addEventListener("click",e=>{
   const btn=e.target.closest(".ns-remove");
   if(btn&&$("#ns-conditions").children.length>1){btn.closest(".ns-condition").remove();drawCount();}
 });
-$("#ns-save").addEventListener("click",()=>{
+$("#ns-save").addEventListener("click",async ()=>{
   if(!meta)return;
-  const v=values();if(!v.nome){say("Informe um nome apenas para salvar a estratégia.",true);$("#ns-nome").focus();return;}
+  const v=values();
+  if(!v.nome){say("Informe um nome para salvar no Supabase.",true);$("#ns-nome").focus();return;}
   if(!v.corte||!v.condicoes.length||v.condicoes.some(missingConditionValue)){
-    say("Preencha a data e os valores das condições que usam Valor absoluto.",true);return;
+    say("Preencha a data e valores numéricos das condições com Valor absoluto.",true);return;
   }
-  if(stored.length>=50){say("Limite de 50 estratégias locais.",true);return;}
-  stored.push(v);
-  try{localStorage.setItem(store,JSON.stringify(stored));renderSaved();say("Estratégia salva neste navegador.");}
-  catch(e){say("Armazenamento local indisponível: "+e.message,true);}
+  const btn=$("#ns-save");btn.disabled=true;btn.textContent="Salvando no banco…";
+  try{
+    const endpoint=editing?
+      "/api/apostas/nostradamus/estrategias/"+editing.id:
+      "/api/apostas/nostradamus/estrategias";
+    const saved=await api(endpoint,jsonPost(editing?"PATCH":"POST",
+      editing?{...v,versao:editing.versao}:v));
+    editing=null;
+    $("#ns-editing").hidden=true;
+    await fetchSaved();
+    setTab("salvas");
+    say("Estratégia "+saved.nome+" salva no Supabase.");
+  }catch(e){say(e.message,true);}
+  finally{btn.disabled=false;btn.textContent=editing?"Salvar alterações":"Salvar estratégia";}
 });
 function details(rows){
   if(!rows.length)return '<p class="x1-help">Nenhuma partida passou pelas condições.</p>';
@@ -218,9 +313,9 @@ async function init(){
     $("#ns-campeonato").innerHTML='<option value="">Todos os campeonatos</option>'+
       (meta.ligas||[]).map(c=>'<option value="'+Number(c.id)+'">'+esc(c.nome)+'</option>').join("");
     conditionLine();
-    try{const saved=JSON.parse(localStorage.getItem(store)||"[]");stored=Array.isArray(saved)?saved.slice(0,50):[];}
-    catch{stored=[];}
-    renderSaved();
+    await fetchSaved();
+    await importLegacy();
+    setTab("simular");
   }catch(e){say(e.message,true);}
 }
 init();

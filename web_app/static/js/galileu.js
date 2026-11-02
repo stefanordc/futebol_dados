@@ -8,14 +8,8 @@ const DAY=864e5;
 const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
 const iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
 $("#gl-date").min=iso(tomorrow);$("#gl-date").value=iso(tomorrow);
-let strategies=[],games=[];
+let games=[];
 const status=(message,error=false)=>{$("#gl-notice").innerHTML='<p class="gl-alert '+(error?"gl-error":"")+'">'+escapeHTML(message)+'</p>';};
-function loadMethods(){
-  try {
-    const data=JSON.parse(localStorage.getItem("df_nostradamus_estrategias_v1")||"[]");
-    return Array.isArray(data)?data.filter(s=>s&&typeof s.nome==="string"&&s.nome.trim()&&Array.isArray(s.condicoes)).slice(0,50):[];
-  }catch(e){status("Não foi possível ler os métodos salvos: "+e.message,true);return [];}
-}
 const json=async (url,options)=>{
   const response=await fetch(url,options);
   const body=await response.json();
@@ -119,16 +113,14 @@ $("#gl-content").addEventListener("change",e=>{
 });
 async function search(e){
   e?.preventDefault();
-  strategies=loadMethods();
-  $("#gl-method-count").textContent=strategies.length+" método(s) salvo(s)";
   games=[];render();
-  if(!strategies.length){status("Nenhum método salvo encontrado. Salve estratégias no Nostradamus, neste mesmo navegador.",true);return;}
   const date=$("#gl-date").value;
   const button=$("#gl-filter button[type=submit]");button.disabled=true;button.textContent="Consultando…";
   status("Verificando a próxima rodada e o histórico anterior a cada jogo.");
   try{
-    const data=await post("/api/apostas/galileu/sinais",{data:date,estrategias:strategies});
+    const data=await post("/api/apostas/galileu/sinais",{data:date});
     markets=data.objetivos||{};
+    $("#gl-method-count").textContent=data.metodos+" método(s) no banco";
     games=data.jogos||[];
     render();
     status(data.mensagem+" Encontrados "+games.length+" confronto(s) elegíveis.");
@@ -142,6 +134,8 @@ $("#gl-confirm").addEventListener("click",async ()=>{
     return {
       jogo_id:Number(card.dataset.id),
       metodo_idx:Number(card.querySelector(".gl-method").value),
+      metodo_id:games.find(g=>g.jogo_id===Number(card.dataset.id)).metodos.find(m=>m.metodo_idx===Number(card.querySelector(".gl-method").value)).metodo_id,
+      metodo_versao:games.find(g=>g.jogo_id===Number(card.dataset.id)).metodos.find(m=>m.metodo_idx===Number(card.querySelector(".gl-method").value)).metodo_versao,
       objetivo:card.querySelector(".gl-market").value
     };
   });
@@ -152,7 +146,7 @@ $("#gl-confirm").addEventListener("click",async ()=>{
   const btn=$("#gl-confirm");btn.disabled=true;btn.textContent="Registrando…";
   try {
     const data=await post("/api/apostas/galileu/confirmar",{
-       data:$("#gl-date").value,estrategias:strategies,apostas:selected
+       data:$("#gl-date").value,apostas:selected
     });
     status(data.mensagem+" ("+data.registradas+" entrada(s)).");
     await refreshBank();

@@ -8,7 +8,7 @@
 
 ## Persistência e imutabilidade
 - Nova tabela `public.galileu_apostas` (DDL em `web_app/sql/galileu_apostas.sql`) com `UNIQUE(jogo_id)` para evitar duplicar a entrada no mesmo confronto.
-- Cada linha armazena o nome do método, objetivo original, mercado escolhido, **snapshot das condições**, clubes, competição, amostra histórica e timestamp. Os métodos salvos continuam locais no Nostradamus; para outro navegador, salve novamente.
+- Cada linha armazena o nome do método, objetivo original, mercado escolhido, **snapshot das condições**, clubes, competição, amostra histórica e timestamp. Os métodos são persistidos no Supabase e consultados pelo backend na avaliação e confirmação.
 - Um trigger impede operações SQL `UPDATE` e `DELETE` sobre linhas já registradas; a API não fornece nenhuma operação de reversão. Administradores do banco ainda podem alterar o esquema ou remover a tabela, portanto “imutável” refere-se à aplicação e à proteção operacional das linhas, não a impossibilidade criptográfica absoluta.
 - RLS ativado; nenhum acesso direto da Data API é concedido a `anon` ou `authenticated`. O backend Python grava usando a conexão existente `SUPABASE_DB_URL`. **Produto para uso local, sem autenticação multiusuário**.
 - Para evitar registrar partida já iniciada, exige **data > hoje (America/Sao_Paulo)**, porque o banco atual registra somente a data do jogo, não horário de kickoff. Na revalidação, a transação bloqueia a linha do jogo e rejeita placares já registrados.
@@ -32,4 +32,4 @@
 1. Rode a migration `web_app/sql/galileu_apostas.sql` no Supabase (já preparada para projeto conectado).
 2. Atualize `main` localmente com `git pull --ff-only origin main` (salve modificações locais primeiro).
 3. Reinicie `python app.py`; acesse `http://127.0.0.1:8000/apostas/galileu`.
-4. Salve pelo menos uma estratégia no Nostradamus, no mesmo navegador e domínio.
+4. Salve pelo menos uma estratégia no Nostradamus. As estratégias antigas armazenadas no navegador serão importadas ao abrir o Nostradamus uma vez.

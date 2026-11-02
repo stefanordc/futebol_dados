@@ -5,6 +5,9 @@ on:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/tests/test_nostradamus.py'
       - 'web_app/static/js/nostradamus.js'
+      - 'web_app/queries_estrategias.py'
+      - 'web_app/tests/test_estrategias.py'
+      - 'web_app/templates/nostradamus.html'
       - 'web_app/tests/test_nostradamus_ui.js'
       - 'web_app/static/js/league.js'
       - '.github/workflows/test-nostradamus.yml'
@@ -14,6 +17,9 @@ on:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/tests/test_nostradamus.py'
       - 'web_app/static/js/nostradamus.js'
+      - 'web_app/queries_estrategias.py'
+      - 'web_app/tests/test_estrategias.py'
+      - 'web_app/templates/nostradamus.html'
       - 'web_app/tests/test_nostradamus_ui.js'
       - '.github/workflows/test-nostradamus.yml'
 jobs:
@@ -27,7 +33,7 @@ jobs:
       - name: Instalar dependências do servidor
         run: python -m pip install -r web_app/requirements.txt
       - name: Verificar sintaxe Python
-        run: python -m compileall -q web_app/app.py web_app/queries_nostradamus.py
+        run: python -m compileall -q web_app/app.py web_app/queries_nostradamus.py web_app/queries_estrategias.py
       - name: Verificar sintaxe JavaScript
         run: |
           node --check web_app/static/js/nostradamus.js
@@ -39,3 +45,6 @@ jobs:
       - name: Regressão das condições no navegador
         working-directory: web_app
         run: node tests/test_nostradamus_ui.js
+      - name: Estratégias no banco — validações
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_estrategias.py' -v
