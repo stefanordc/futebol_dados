@@ -121,6 +121,15 @@ def api_integracoes_odds_preview(request: Request, payload: dict):
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
+@app.post("/api/integracoes/odds/clubes")
+def api_integracoes_odds_clubes(request: Request, payload: dict):
+    _integracoes_somente_local(request)
+    try:
+        return queries_integracoes.revisar_clubes(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
 @app.post("/api/integracoes/odds/importar")
 def api_integracoes_odds_importar(request: Request, payload: dict):
     _integracoes_somente_local(request)
