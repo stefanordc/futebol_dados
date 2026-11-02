@@ -577,10 +577,10 @@ def testar(payload,rows=None):
         rec["campeonato"]=league_name
         rec["win_rate"]=round(100*rec["greens"]/rec["entradas"],2) if rec["entradas"] else 0
         rec["odd_media"]=round(rec["odds_soma"]/rec["cotadas"],2) if rec["cotadas"] else None
+        # Calcula o valor médio antes de arredondar unidades, evitando centavos artificiais.
+        rec["lucro_medio_entrada"]=round(rec["unidades"]*100/rec["cotadas"],2) if rec["cotadas"] else None
         rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
         rec["valor_reais"]=round(rec["unidades"]*100,2) if rec["cotadas"] else None
-        # Sem odd, o saldo é desconhecido: não contabilizar entrada sem cotação como R$ 0.
-        rec["lucro_medio_entrada"]=round(rec["unidades"]*100/rec["cotadas"],2) if rec["cotadas"] else None
         del rec["odds_soma"]
         del rec["good_run"]
         del rec["bad_run"]
