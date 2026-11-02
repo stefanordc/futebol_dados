@@ -99,7 +99,7 @@ const values=()=>({
   jogos:$("#ns-janela").value,campeonato_id:$("#ns-campeonato").value?Number($("#ns-campeonato").value):null,
   objetivo:$("#ns-objetivo").value,
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
-  comissao_pct:Number($("#ns-comissao").value),
+  comissao_pct:4.5,
   condicoes:[...$("#ns-conditions").children].map(row=>{
     const mode=row.querySelector(".ns-reference").value;
     const base={
@@ -122,7 +122,7 @@ function restore(saved){
   $("#ns-campeonato").value=saved.campeonato_id||"";
   $("#ns-objetivo").value=saved.objetivo||"back_mandante";
   $("#ns-odd").value=saved.odd_hipotetica??"";
-  $("#ns-comissao").value=saved.comissao_pct??2;
+  $("#ns-comissao").value="4.5";
   $("#ns-conditions").innerHTML="";
   (saved.condicoes||[]).slice(0,10).forEach(conditionLine);
   if(!$("#ns-conditions").children.length)conditionLine();
