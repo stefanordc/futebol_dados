@@ -578,10 +578,16 @@ def importar(payload):
         raise ValueError("A lista de clubes mudou desde a prévia.")
     country=payload.get("pais") or prev["country"]
     league=payload.get("campeonato") or prev["league"]
-    season=payload.get("temporada") or prev["season"]
+    multi=bool(prev.get("row_seasons") and len(set(prev["row_seasons"]))>1)
+    season=prev["season"] if multi else (payload.get("temporada") or prev["season"])
     for field,val in (("país",country),("campeonato",league),("temporada",season)):
         if not isinstance(val,str) or not 1<=len(val.strip())<=100:
             raise ValueError(f"Informe {field}.")
+    row_seasons=prev.get("row_seasons")
+    if row_seasons is None:
+        row_seasons=[season]*len(prev["rows"])
+    if len(row_seasons)!=len(prev["rows"]):
+        raise ValueError("A prévia possui temporadas inconsistentes.")
     valid_ids={c["id"] for c in _catalogo_pais(country)}
     normalized={}
     for x in aliases:
@@ -593,60 +599,80 @@ def importar(payload):
         elif type(cid) is not int or cid not in valid_ids:
             raise ValueError("Clube não pertence ao país selecionado. Revise a vinculação.")
         normalized[x["original"]]=(name.strip(),cid)
-    prepared=[]
+    prepared=OrderedDict()
     column_types={}
-    for idx,row in enumerate(prev["rows"],start=1):
+    for idx,(row,row_season) in enumerate(zip(prev["rows"],row_seasons),start=1):
+        # Uma temporada por registro: nunca confiar apenas no campo Season do CSV.
+        target_season=row_season if multi else season
+        if not isinstance(target_season,str) or not TEMPORADA_PATTERN.fullmatch(target_season):
+            raise ValueError("Temporada inválida encontrada na prévia.")
         values=_linha_colunas(row,columns)
-        prepared.append((idx,row,values))
+        prepared.setdefault(target_season,[]).append((idx,row,values))
         for source in columns:
             column_types[_nome_coluna(source)]=_tipo_coluna(source)
             if _is_odd_column(source):
                 column_types["lay_"+_nome_coluna(source)]="numeric(12,4)"
                 column_types["bookie_"+_nome_coluna(source)]="text"
-    # Para repetir a importação, o índice único em (fonte, temporada, partida_externa_id)
-    # impede duplicação mesmo com duas requisições simultâneas.
     inserted=0
     ignored=0
+    importacoes=[]
     with get_conn() as conn:
         with conn.cursor() as cur:
             _preparar_colunas(cur,column_types)
-            cur.execute("""INSERT INTO public.odds_importacoes
-                (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
-                VALUES (%s,%s,%s,%s,%s,%s,0) RETURNING id""",
-                (prev["host"],prev["path"],country,league,season,Json(columns)))
-            batch=cur.fetchone()["id"]
-            for i,row,values in prepared:
-                h=_pick(row,HOME_KEYS)
-                a=_pick(row,AWAY_KEYS)
-                home,home_id=normalized.get(h,(h,None))
-                away,away_id=normalized.get(a,(a,None))
-                external=_pick(row,ID_KEYS)
-                dt=_parse_game_date(row)
-                standard={
-                    "importacao_id":batch,"linha_origem":i,
-                    "fonte":prev["host"],"partida_externa_id":external,
-                    "temporada":season,"campeonato":league,"pais":country,
-                    "data_jogo":dt,"mandante":home,"visitante":away,
-                    "mandante_id":home_id,"visitante_id":away_id,
-                    "lay_origem":"estimado_um_tick",
-                    "lay_precificacao_real":False,
-                    "lay_liquidez_verificada":False,
-                    "lay_comissao_pct":Decimal("4.5")
-                }
-                standard.update(values)
-                keys=list(standard)
-                query=sql.SQL("""INSERT INTO public.odds ({}) VALUES ({})
-                    ON CONFLICT DO NOTHING RETURNING id""").format(
-                    sql.SQL(",").join(map(sql.Identifier,keys)),
-                    sql.SQL(",").join([sql.Placeholder() for _ in keys]))
-                cur.execute(query,[standard[k] for k in keys])
-                if cur.fetchone():
-                    inserted+=1
+            for target_season,partidas in prepared.items():
+                target_path=prev.get("paths",{}).get(target_season,prev["path"])
+                cur.execute("""INSERT INTO public.odds_importacoes
+                    (origem,caminho,pais,campeonato,temporada,colunas,total_registros)
+                    VALUES (%s,%s,%s,%s,%s,%s,0) RETURNING id""",
+                    (prev["host"],target_path,country,league,target_season,Json(columns)))
+                batch=cur.fetchone()["id"]
+                current_inserted=0
+                current_ignored=0
+                for line,(i,row,values) in enumerate(partidas,start=1):
+                    h=_pick(row,HOME_KEYS)
+                    a=_pick(row,AWAY_KEYS)
+                    home,home_id=normalized.get(h,(h,None))
+                    away,away_id=normalized.get(a,(a,None))
+                    external=_pick(row,ID_KEYS)
+                    dt=_parse_game_date(row)
+                    standard={
+                        "importacao_id":batch,"linha_origem":line,
+                        "fonte":prev["host"],"partida_externa_id":external,
+                        "temporada":target_season,"campeonato":league,"pais":country,
+                        "data_jogo":dt,"mandante":home,"visitante":away,
+                        "mandante_id":home_id,"visitante_id":away_id,
+                        "lay_origem":"estimado_um_tick",
+                        "lay_precificacao_real":False,
+                        "lay_liquidez_verificada":False,
+                        "lay_comissao_pct":Decimal("4.5")
+                    }
+                    # Os metadados autorizados da URL e os nomes padronizados
+                    # prevalecem sobre campos homônimos de CSV não confiável.
+                    for name,value in values.items():
+                        if name not in standard:standard[name]=value
+                    keys=list(standard)
+                    query=sql.SQL("""INSERT INTO public.odds ({}) VALUES ({})
+                        ON CONFLICT DO NOTHING RETURNING id""").format(
+                        sql.SQL(",").join(map(sql.Identifier,keys)),
+                        sql.SQL(",").join([sql.Placeholder() for _ in keys]))
+                    cur.execute(query,[standard[k] for k in keys])
+                    if cur.fetchone():
+                        current_inserted+=1
+                    else:
+                        current_ignored+=1
+                inserted+=current_inserted
+                ignored+=current_ignored
+                if current_inserted:
+                    cur.execute("UPDATE public.odds_importacoes SET total_registros=%s WHERE id=%s",
+                                (current_inserted,batch))
+                    importacoes.append({"temporada":target_season,"importacao_id":batch,
+                                       "inseridos":current_inserted,"ignorados":current_ignored})
                 else:
-                    ignored+=1
+                    # Evitar lotes vazios mesmo se outras temporadas forem novas.
+                    cur.execute("DELETE FROM public.odds_importacoes WHERE id=%s",(batch,))
+                    importacoes.append({"temporada":target_season,"importacao_id":None,
+                                       "inseridos":0,"ignorados":current_ignored})
             if inserted:
-                cur.execute("UPDATE public.odds_importacoes SET total_registros=%s WHERE id=%s",
-                            (inserted,batch))
                 for original,(display,cid) in normalized.items():
                     if cid is None:continue
                     eid="odds:"+prev["host"]+":"+original.strip().lower()
@@ -664,12 +690,14 @@ def importar(payload):
                             raise ValueError("Vínculo divergente já existente. Revise os clubes.")
                 conn.commit()
             else:
-                # Não criar histórico fictício de lote sem registros novos.
                 conn.rollback()
-                batch=None
     _PREVIEWS.pop(token,None)
-    return {"importacao_id":batch,"inseridos":inserted,"ignorados":ignored,
+    completed=[x for x in importacoes if x["importacao_id"] is not None]
+    return {"importacao_id":completed[0]["importacao_id"] if len(completed)==1 else None,
+            "importacoes":importacoes,"inseridos":inserted,"ignorados":ignored,
+            "temporadas_resultado":prev.get("temporadas_resultado",[]),
             "colunas":columns,"lay":"estimado_um_tick","comissao_pct":4.5}
+
 
 def ultimas():
     return fetch_all("""SELECT id,origem,caminho,pais,campeonato,temporada,
