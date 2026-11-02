@@ -41,7 +41,7 @@ console.log("Validação de backtest e interface sem resumos: OK.");
 
 const html=fs.readFileSync("templates/nostradamus.html","utf8");
 const src=fs.readFileSync("static/js/nostradamus.js","utf8");
-assert.ok(!html.includes("<th>Entradas cotadas</th>"),"Remover coluna Entradas cotadas");
+assert.ok(html.includes("<th>Entradas cotadas</th>"),"Exibir entradas com odds disponíveis");
 assert.ok(html.includes("<th>Unidades (u)</th>"),"Mostrar unidades no resumo");
 assert.ok(html.includes("<th>Resultado (R$)</th>"),"Mostrar resultado financeiro");
 assert.ok(html.includes("<th>Good run máx.</th>"),"Mostrar maior sequência boa");
