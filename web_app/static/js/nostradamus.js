@@ -117,6 +117,10 @@ function drawLeagues(){
     ids.length===total?"Todos os "+total+" campeonatos":
     ids.length+" campeonatos selecionados";
   $("#ns-league-all").classList.toggle("is-active",!ids.length);
+  const allButton=$("#ns-league-select-all");
+  allButton.disabled=total===0||ids.length===total;
+  allButton.setAttribute("aria-label",total>0?
+    "Selecionar todos os "+total+" campeonatos":"Nenhum campeonato disponível");
 }
 function setLeagues(ids){
   const wanted=new Set(Array.isArray(ids)?ids.map(Number):[]);
@@ -138,6 +142,12 @@ $("#ns-league-all").addEventListener("click",()=>{
   setLeagues([]);
   closeLeagues();
   $("#ns-league-trigger").focus();
+});
+$("#ns-league-select-all").addEventListener("click",()=>{
+  const ids=[...document.querySelectorAll("#ns-league-items input[type=checkbox]")]
+    .map(input=>Number(input.value));
+  setLeagues(ids);
+  // Mantém a lista aberta para verificar que todos os clubes foram marcados.
 });
 $("#ns-league-items").addEventListener("change",drawLeagues);
 document.addEventListener("click",event=>{

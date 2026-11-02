@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-multiliguas-v2">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-select-all-v4">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -35,7 +35,10 @@
       <span id="ns-league-summary">Todos os campeonatos</span><span aria-hidden="true">▾</span>
     </button>
     <div id="ns-league-options" class="ns-league-options" hidden>
-      <button id="ns-league-all" class="ns-league-all" type="button">Todos os campeonatos</button>
+      <div class="ns-league-actions">
+        <button id="ns-league-all" class="ns-league-all" type="button" title="Remover as marcações e analisar todas as ligas">Sem filtro (todos)</button>
+        <button id="ns-league-select-all" class="ns-league-select-all" type="button" title="Marcar todas as caixas de seleção">Selecionar todos</button>
+      </div>
       <div id="ns-league-items" class="ns-league-items" role="group" aria-label="Selecione um ou mais campeonatos"></div>
       <div class="ns-league-hint">Marque quantos campeonatos desejar.</div>
     </div>
@@ -60,5 +63,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-favorito-zebra-v3" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-select-all-v4" defer></script>
 </body></html>

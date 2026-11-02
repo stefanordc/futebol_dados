@@ -180,3 +180,21 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   accent-color:var(--df-orange)}
 .ns-league-hint{border-top:1px solid var(--df-border);padding:9px 13px;
   color:var(--df-secondary);font-size:11px}
+
+
+/* Ações em lote dentro do menu suspenso de campeonatos. */
+.ns-league-actions{display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;padding:9px 10px;border-bottom:1px solid var(--df-border)}
+.ns-league-actions .ns-league-all,.ns-league-actions .ns-league-select-all{
+  display:block;width:100%;min-height:38px;padding:9px 8px;border:1px solid var(--df-border);
+  border-radius:8px;background:transparent;color:var(--df-text);
+  font:inherit;font-size:12px;font-weight:750;text-align:center;cursor:pointer}
+.ns-league-actions .ns-league-all:hover,
+.ns-league-actions .ns-league-all.is-active{background:rgba(255,114,35,.13);color:var(--df-orange)}
+.ns-league-actions .ns-league-select-all{
+  border-color:var(--df-orange);color:var(--df-orange)}
+.ns-league-actions .ns-league-select-all:hover:not(:disabled){
+  background:rgba(255,114,35,.16)}
+.ns-league-actions .ns-league-select-all:disabled{opacity:.5;cursor:not-allowed}
+.ns-league-actions .ns-league-select-all:focus-visible{
+  outline:2px solid var(--df-orange);outline-offset:2px}

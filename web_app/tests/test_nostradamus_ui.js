@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-favorito-zebra-v3'),
+assert.ok(html.includes('nostradamus-select-all-v4'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -101,3 +101,14 @@ assert.ok(js.includes('r.placar_favorito||r.placar'),"Placar segue a ordem favor
 assert.ok(js.includes('saved.objetivo||"back_favorito"'),"Estratégia nova inicia no favorito");
 assert.ok(js.includes('estratégia antiga'),"Preservar identificação dos mercados legados");
 assert.ok(html.includes('menor odd de vitória no Match Odds'),"Explicar critério de odds");
+
+/* A ação em lote não substitui nem altera a lógica dos filtros individuais. */
+assert.ok(html.includes('id="ns-league-select-all"'),"Botão Selecionar todos deve existir");
+assert.ok(html.includes('>Selecionar todos</button>'),"Rótulo deve ser explícito");
+assert.ok(html.includes('Sem filtro (todos)'),"Permitir limpar filtros e usar todas as ligas");
+assert.ok(src.includes('$("#ns-league-select-all").addEventListener("click"'),
+  "Clique deve selecionar todas as ligas");
+assert.ok(src.includes('setLeagues(ids);'),"Seleção em lote deve usar a mesma função das escolhas individuais");
+assert.ok(src.includes('allButton.disabled=total===0||ids.length===total;'),
+  "Ação deve desabilitar sem ligas disponíveis ou após selecionar todas");
+assert.ok(css.includes('.ns-league-actions'),"Ações em lote devem ter layout próprio");
