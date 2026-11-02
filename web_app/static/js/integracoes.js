@@ -73,7 +73,7 @@
  let data=null;
  const COLUMNS_KEY="df_odds_ultima_selecao_v2";
  function rememberColumns(){
-   const checkboxes=$("#int-api-columns input[type=checkbox]");
+   const checkboxes=$$("#int-api-columns input[type=checkbox]");
    const active=checkboxes.filter(cb=>cb.checked).map(cb=>cb.value);
    try{localStorage.setItem(COLUMNS_KEY,JSON.stringify(active));}catch(error){}
    updateColumnCount();
@@ -85,8 +85,8 @@
    }catch(error){return null;}
  }
  function updateColumnCount(){
-   const total=$("#int-api-columns input[type=checkbox]").length;
-   const selected=$("#int-api-columns input[type=checkbox]:checked").length;
+   const total=$$("#int-api-columns input[type=checkbox]").length;
+   const selected=$$("#int-api-columns input[type=checkbox]:checked").length;
    const counter=$("#int-api-selected-count");
    if(counter)counter.textContent=selected+" de "+total+" colunas selecionadas";
  }
@@ -120,7 +120,7 @@
  function renderClubRows(clubs,catalog,keepEdits){
    const body=$("#int-api-clubs");
    const previous=new Map();
-   if(keepEdits)for(const tr of $("#int-api-clubs tr")){
+   if(keepEdits)for(const tr of $$("#int-api-clubs tr")){
      previous.set(tr.dataset.original,{
        nome:$(".int-standard",tr)?.value,
        clube_id:$(".int-odds-club-id",tr)?.value
@@ -146,13 +146,29 @@
      edit.append(input);
      const ref=document.createElement("td"),select=optionSelector(c,catalog);
      if(prior){
+       // Mantém a escolha anterior apenas se ela ainda pertence ao país atual.
        select.value=validIds.has(prior.clube_id)?prior.clube_id:"";
      }
+     const suggestionApplied=Boolean(c.correspondencia_automatica) &&
+       select.value===String(c.clube_id);
+     const autoLabel=element("small","","int-match-label");
+     const markAuto=(on,score)=>{
+       tr.classList.toggle("int-match-auto",on);
+       if(on){
+         autoLabel.textContent="Correspondência automática · "+score+
+           "% — confira antes de importar";
+         autoLabel.hidden=false;
+       }else{
+         autoLabel.hidden=true;
+       }
+     };
+     markAuto(suggestionApplied,c.similaridade_automatica||100);
      select.addEventListener("change",()=>{
        const chosen=catalog.find(x=>String(x.id)===select.value);
        if(chosen)input.value=chosen.clube;
+       markAuto(false,0);
      });
-     ref.append(select);
+     ref.append(select,autoLabel);
      if(c.sugestoes?.length){
        ref.append(element("small",
          "Mais próximos: "+c.sugestoes.map(x=>x.clube+" ("+x.similaridade+"%)").join(" · "),
@@ -233,17 +249,17 @@
  $("#int-api-reset").addEventListener("click",()=>{
    if(!data)return;
    const marked=new Set(data.colunas_marcadas||data.colunas);
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=marked.has(cb.value);});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=marked.has(cb.value);});
    rememberColumns();
  });
  $("#int-api-select-all").addEventListener("click",()=>{
    if(!data)return;
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=true;});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=true;});
    rememberColumns();
  });
  $("#int-api-clear").addEventListener("click",()=>{
    if(!data)return;
-   $("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=false;});
+   $$("#int-api-columns input[type=checkbox]").forEach(cb=>{cb.checked=false;});
    rememberColumns();
  });
  $("#int-import").addEventListener("click",async()=>{

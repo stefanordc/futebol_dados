@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem('df_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()</script>
-<title>Conectar API | Dados Futebol</title><link rel="stylesheet" href="/static/css/app.css?v=28"><link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/integracoes.css?v=1"></head>
+<title>Conectar API | Dados Futebol</title><link rel="stylesheet" href="/static/css/app.css?v=28"><link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/integracoes.css?v=2"></head>
 <body><a class="df-skip" href="#main-content">Pular para o conteúdo</a><div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage"><header id="df-topbar-mount"></header><main id="main-content" class="match-wrap df-common-page x1-main">
 <section class="int-hero"><p class="int-eyebrow">NOSTRADAMUS · FONTE EXTERNA</p><h1>Conectar API</h1>
 <p>Consulte uma API CSV ou JSON, confira clubes, ajuste informações e selecione as colunas antes de importar para a tabela odds.</p>
@@ -16,10 +16,10 @@
 <div id="int-api-preview" hidden>
 <section class="int-panel"><h2>2. Revisar metadados</h2><p class="int-muted" id="int-api-count"></p>
 <div class="int-form-grid"><label>Temporada<input id="int-season" required></label><label>Campeonato<input id="int-league" required></label><label>País<input id="int-country" required></label></div><p id="int-country-catalog" class="int-muted" role="status" aria-live="polite"></p></section>
-<section class="int-panel"><h2>3. Padronizar os clubes</h2><p class="int-muted">Edite o nome padronizado e escolha, se desejar, um clube da tabela clubes. As sugestões não são aplicadas sem sua confirmação.</p>
+<section class="int-panel"><h2>3. Padronizar os clubes</h2><p class="int-muted">Os nomes com correspondência alta (95% ou mais e sem ambiguidade) já são preenchidos e destacados em amarelo. Revise as sugestões antes de confirmar a importação; é possível alterar cada vínculo manualmente.</p>
 <div class="int-scroll"><table class="int-table"><thead><tr><th>Nome da API</th><th>Nome padronizado (editável)</th><th>Clube existente / sugestão</th></tr></thead><tbody id="int-api-clubs"></tbody></table></div></section>
 <section class="int-panel"><h2>4. Selecionar colunas para inserir</h2>
-<p class="int-muted">Na primeira importação, selecionamos dados da partida e odds; colunas Bookie, estatísticas e horário ficam desmarcadas. Depois, sua última seleção é reutilizada automaticamente. A origem de cada odd é preservada quando informada pela API.</p>
+<p class="int-muted">Na primeira importação, selecionamos dados da partida e odds. Mercados de handicap asiático (AH) e europeu (EH) são excluídos, inclusive quando estavam selecionados anteriormente. Colunas Bookie, estatísticas e horário ficam desmarcadas. Depois, sua última seleção é reutilizada automaticamente. A origem de cada odd é preservada quando informada pela API.</p>
 <p class="int-muted"><strong>Casas preferidas:</strong> Bet365 e Pinnacle (também Pinacle). O CSV informa uma casa por mercado; só é possível preferir essas casas quando a fonte realmente disponibiliza suas cotações. Outras odds não serão substituídas por preços inventados.</p>
 <p class="int-muted"><strong>Lay simulado:</strong> cada odd numérica selecionada gera <code>Lay_Simulado_NOME_DA_COLUNA</code> dentro de <code>odds.dados</code>. Usa um spread hipotético mínimo de um tick da escada da Betfair, sem preço executável nem liquidez verificada; comissão de 4,5% nas simulações.</p>
 <div class="int-flex"><span id="int-api-selected-count" class="int-muted"></span><div class="int-flex">
@@ -30,4 +30,4 @@
 <section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação grava um lote no banco e os registros de odds em uma única transação. Nenhum registro será criado durante a prévia.</p>
 <button id="int-import" class="int-primary" type="button">Confirmar e importar para o Supabase</button></section></div>
 <section class="int-panel"><h2>Histórico de importações</h2><div id="int-import-history" class="int-muted">Consultando…</div></section>
-<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=5" defer></script></body></html>
+<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=6" defer></script></body></html>
