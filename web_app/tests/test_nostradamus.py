@@ -59,7 +59,7 @@ class TestNostradamus(TestCase):
     def test_odds_minimas_maximas_mercado_independente_objetivo(self):
         jogos=[game(i,self.start+timedelta(days=i),gf=2,ga=1) for i in range(10)]
         for i,row in enumerate(jogos):
-            row["api_over_ft_2_5"]=1.50+0.1*i
+            row["api_over_ft_2_5"]=round(1.30+0.1*i,2)
         odd_cond={"tipo":"odd","mercado":"over_25","odd_min":1.80,
                   "odd_max":2.10}
         output=ns.testar(config(self.cutoff,goal="ambos_marcam",
