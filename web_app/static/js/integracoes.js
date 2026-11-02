@@ -71,24 +71,103 @@
  }
  if(location.pathname!=="/apostas/nostradamus/conectar-api")return;
  let data=null;
+ let keyStatusVersion=0;
+ function updateKeyUI(saved,error=false){
+   const status=$("#int-api-key-status");
+   const deleteButton=$("#int-api-delete-key");
+   status.classList.toggle("is-saved",saved&&!error);
+   status.classList.toggle("is-empty",!saved&&!error);
+   status.classList.toggle("is-error",error);
+   status.textContent=error
+     ?"Não foi possível verificar a chave salva."
+     :saved
+       ?"Chave salva no Gerenciador de Credenciais do Windows."
+       :"Nenhuma chave salva neste computador.";
+   deleteButton.disabled=!saved||error;
+ }
  async function keyStatus(){
+   const version=++keyStatusVersion;
    const base=$("#int-api-base").value.trim();
    const status=$("#int-api-key-status");
+   status.textContent="Verificando a chave salva…";
+   $("#int-api-delete-key").disabled=true;
    try{
-     const r=await request("/api/integracoes/odds/chave?base="+encodeURIComponent(base));
-     status.textContent=r.salva?"Chave salva com segurança no Windows.":"Nenhuma chave salva neste computador.";
-   }catch(error){status.textContent="Não foi possível consultar o status da chave.";}
+     const result=await request("/api/integracoes/odds/chave?base="+encodeURIComponent(base));
+     if(version!==keyStatusVersion)return;
+     updateKeyUI(Boolean(result.salva));
+   }catch(error){
+     if(version!==keyStatusVersion)return;
+     updateKeyUI(false,true);
+   }
  }
  $("#int-api-delete-key").addEventListener("click",async()=>{
-   if(!confirm("Excluir do Windows a chave salva para esta API?"))return;
+   const button=$("#int-api-delete-key");
+   if(button.disabled||!confirm("Excluir a chave desta API do Gerenciador de Credenciais do Windows?"))return;
+   button.disabled=true;
+   button.textContent="Excluindo chave…";
    try{
-     await request("/api/integracoes/odds/chave?base="+encodeURIComponent($("#int-api-base").value),{method:"DELETE"});
+     await request("/api/integracoes/odds/chave?base="+
+       encodeURIComponent($("#int-api-base").value.trim()),{method:"DELETE"});
      $("#int-api-key").value="";
-     await keyStatus();
+     updateKeyUI(false);
+     show("Chave excluída com sucesso do Windows.");
    }catch(error){show(error.message,true);}
+   finally{
+     button.textContent="Excluir chave salva";
+     await keyStatus();
+   }
  });
  $("#int-api-base").addEventListener("change",keyStatus);
  keyStatus();
+
+ // Tela de processamento de estilo videogame, sem inventar percentual de progresso.
+ let importTimer=null;
+ let importStarted=0;
+ let importCycle=0;
+ let importFocus=null;
+ const importMessages=[
+   "Solicitação enviada ao importador local.",
+   "Aguardando confirmação de gravação do Supabase.",
+   "Aguarde: a verificação de duplicidades acontece no servidor.",
+   "A operação pode demorar com várias temporadas.",
+   "A confirmação aparecerá quando o servidor responder."
+ ];
+ function beginImportLoader(total,seasonCount){
+   const overlay=$("#int-import-loader");
+   const consoleBox=$("#int-loader-console");
+   const text=$("#int-loader-text");
+   importFocus=document.activeElement;
+   text.textContent="Processando "+total+" partida(s) de "+seasonCount+
+     " temporada(s). Não feche a página.";
+   consoleBox.replaceChildren();
+   consoleBox.append(element("div","Iniciando importação no Supabase…","int-loader-line"));
+   overlay.hidden=false;
+   document.body.classList.add("int-loading");
+   overlay.focus();
+   importStarted=Date.now();
+   importCycle=0;
+   clearInterval(importTimer);
+   importTimer=setInterval(()=>{
+     const seconds=Math.floor((Date.now()-importStarted)/1000);
+     $("#int-loader-clock").textContent=String(Math.floor(seconds/60)).padStart(2,"0")+
+       ":"+String(seconds%60).padStart(2,"0");
+     if(seconds>0 && seconds%4===0 && importCycle!==seconds){
+       importCycle=seconds;
+       consoleBox.append(element("div",importMessages[(seconds/4-1)%importMessages.length],
+         "int-loader-line"));
+       while(consoleBox.children.length>5)consoleBox.firstChild.remove();
+     }
+   },1000);
+ }
+ function endImportLoader(){
+   clearInterval(importTimer);
+   importTimer=null;
+   const overlay=$("#int-import-loader");
+   overlay.hidden=true;
+   document.body.classList.remove("int-loading");
+   if(importFocus&&importFocus.isConnected)importFocus.focus();
+   importFocus=null;
+ }
  const COLUMNS_KEY="df_odds_ultima_selecao_v2";
  function rememberColumns(){
    const checkboxes=$$("#int-api-columns input[type=checkbox]");
@@ -318,6 +397,8 @@
        (data.temporadas_resultado||[]).filter(x=>x.status==="ok").length+
        " temporada(s), com "+columns.length+" colunas?"+avisos))return;
    const btn=$("#int-import");btn.disabled=true;
+   const seasonCount=(data.temporadas_resultado||[]).filter(x=>x.status==="ok").length||1;
+   beginImportLoader(data.total,seasonCount);
    try{
      const result=await request("/api/integracoes/odds/importar",json({
        preview_id:data.preview_id,colunas:columns,clubes:clubs,
@@ -332,7 +413,7 @@
      show(mensagem);
      data=null;$("#int-api-preview").hidden=true;await history();
    }catch(e){show(e.message,true);}
-   finally{btn.disabled=false;}
+   finally{endImportLoader();btn.disabled=false;}
  });
  history();
 })();
