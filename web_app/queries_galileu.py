@@ -16,6 +16,7 @@ from psycopg2 import errors
 
 from db import fetch_all, get_conn
 import queries_nostradamus as ns
+import queries_estrategias
 
 BRAZIL=ZoneInfo("America/Sao_Paulo")
 INITIAL_BANK=100
@@ -75,6 +76,7 @@ def _methods(raw):
             raise ValueError("Liga do método inválida.")
         normalized=ns._valid_conditions(m.get("condicoes"))
         results.append({
+            "id":m.get("id"),"versao":m.get("versao"),
             "nome":name.strip(),"objetivo":objective,
             "campeonato_id":league,"condicoes":normalized
         })
@@ -145,11 +147,14 @@ def sinais(payload,fixtures=None,history=None,registered_ids=None):
     # um jogo de hoje pode já ter começado.
     if cutoff<=today:
         raise ValueError("Escolha uma data a partir de amanhã; não há horário de início confiável.")
-    methods=_methods(payload.get("estrategias"))
+    # Em produção, métodos são obtidos exclusivamente do banco.
+    # Os fixtures de testes permitem cenários determinísticos isolados.
+    source=queries_estrategias.listar() if fixtures is None and history is None else payload.get("estrategias")
+    methods=_methods(source)
     if not methods:
         return {"data":cutoff.isoformat(),"jogos":[],"total":0,
                 "metodos":0,"objetivos":ns.MERCADOS,
-                "mensagem":"Salve pelo menos uma estratégia no Nostradamus neste navegador."}
+                "mensagem":"Salve pelo menos uma estratégia no Nostradamus; os métodos são consultados no Supabase."}
     candidates=_schedule(cutoff,fixtures)
     if not candidates:
         return {"data":cutoff.isoformat(),"jogos":[],"total":0,
@@ -189,7 +194,7 @@ def sinais(payload,fixtures=None,history=None,registered_ids=None):
                 found.append(value)
             else:
                 matched.append({
-                    "metodo_idx":mi,"nome":m["nome"],"objetivo":m["objetivo"],
+                    "metodo_idx":mi,"metodo_id":m["id"],"metodo_versao":m["versao"],"nome":m["nome"],"objetivo":m["objetivo"],
                     "objetivo_nome":ns.MERCADOS[m["objetivo"]],
                     "regras":found,
                 })
@@ -220,6 +225,8 @@ def confirmar(payload):
             raise ValueError("Identificador de partida inválido.")
         if type(x.get("metodo_idx")) is not int:
             raise ValueError("Escolha um método para cada partida.")
+        if type(x.get("metodo_id")) is not int or type(x.get("metodo_versao")) is not int:
+            raise ValueError("Atualize os métodos salvos antes de confirmar.")
         if x.get("objetivo") not in ns.MERCADOS:
             raise ValueError("Entrada inválida.")
         ids.append(x["jogo_id"])
@@ -230,7 +237,7 @@ def confirmar(payload):
     # estritamente anterior ao confronto.
     signals=sinais(payload)
     by_id={r["jogo_id"]:r for r in signals["jogos"]}
-    methods=_methods(payload.get("estrategias"))
+    methods=_methods(queries_estrategias.listar())
     confirmed=[]
     for item in selected:
         game=by_id.get(item["jogo_id"])
@@ -238,6 +245,8 @@ def confirmar(payload):
         idx=item["metodo_idx"]
         match=next((m for m in game["metodos"] if m["metodo_idx"]==idx),None)
         if match is None:raise ValueError("O método não corresponde ao jogo selecionado.")
+        if match["metodo_id"]!=item["metodo_id"] or match["metodo_versao"]!=item["metodo_versao"]:
+            raise ValueError("O método foi alterado desde a consulta. Atualize os jogos.")
         confirmed.append((game,methods[idx],item["objetivo"]))
     try:
         with get_conn() as conn:

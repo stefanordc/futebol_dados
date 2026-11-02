@@ -8,7 +8,7 @@
 - Exemplo independente: **Visitante → Gols sofridos por jogo → > → Valor fixo → 1,5**.
 - Exemplo comparativo: **Mandante → xG por jogo → > → Indicador do visitante → xG por jogo → ajuste 0**.
 - Estratégias anteriores com os campos `metrica`, `comparador`, `margem` são interpretadas como mandante x visitante + margem, sem mudar resultados; elas são migradas ao serem carregadas no formulário.
-- Configurações salvas no `localStorage` do próprio navegador (não sincronizadas com o Supabase). Limite de 50 estratégias, carregar/excluir disponíveis.
+- Estratégias salvas na tabela `public.nostradamus_estrategias` do Supabase; o navegador apenas migra estratégias anteriores uma única vez (não sincronizadas com o Supabase). Limite de 50 estratégias, carregar/excluir disponíveis.
 - Tabela por campeonato com entradas, green, red, win rate, cotadas e unidades. Expansão '+' revela até 400 partidas por liga com as métricas que atenderam os critérios.
 
 ## Segurança temporal (essencial)
@@ -49,3 +49,13 @@ Agora, **até N jogos (mínimo de 5)** significa:
 Consultas no Supabase para `j.data < 2025-01-01` confirmaram os dados das cinco ligas (Brasileiro: 380; Premier League: 188; LaLiga: 181; Serie A: 178; Bundesliga: 135) e que todas possuíam xG para os dois clubes.
 
 Também removidas as colunas de resumo **Entradas cotadas** e **Resultado (u)**, mantendo Entradas, Greens, Reds e Win rate. No detalhamento do jogo, a interface indica quantas partidas históricas de cada equipe entraram no cálculo e mantém odds opcionais para quem as informou. Retornos financeiros não entram na tabela-resumo.
+
+## Atualização — banco de estratégias (02/11/2026)
+
+- Todas as estratégias salvas agora ficam em `public.nostradamus_estrategias`, no Supabase (DDL em `web_app/sql/nostradamus_estrategias.sql`).
+- Endpoints locais: `GET /api/apostas/nostradamus/estrategias`, `POST` para criação e `PATCH /api/apostas/nostradamus/estrategias/{id}` para editar, com campo de versão obrigatório. Conflitos recebem erro, sem sobrescrever edição concorrente.
+- O Nostradamus tem as sub-abas **Simular estratégia** e **Estratégias salvas**. A segunda mostra as regras e botão **Editar regras**; a edição usa o mesmo formulário de 1–10 condições.
+- A primeira vez que a página abre após atualizar, procura a chave antiga `df_nostradamus_estrategias_v1`, importa seus itens para o servidor e remove a chave local **somente após confirmação do backend**. Se falhar, mantém a cópia local e mostra um erro. A importação ignora duplicatas de nomes no banco, sem sobrescrever estratégias.
+- O Galileu não usa mais as condições enviadas pelo navegador. Lê os métodos diretamente do banco **em toda consulta e confirmação**, verifica ID e versão selecionados e reavalia as condições antes de gravar a entrada permanente. As regras salvas na entrada permanecem fotografadas como estavam naquela confirmação.
+- RLS habilitado; nem `anon` nem `authenticated` nem `service_role` acessam diretamente essa tabela. O backend já usa `SUPABASE_DB_URL`.
+- **A aplicação é para localhost e um usuário**. Não exponha as rotas de escrita na internet sem autenticação/autorização por usuário.

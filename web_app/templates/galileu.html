@@ -34,7 +34,7 @@
    <label>Data de referência<input type="date" id="gl-date" required></label>
    <button type="submit" class="gl-primary">Buscar jogos elegíveis</button>
  </form>
- <p class="gl-note">Mostramos somente jogos sem placar cadastrados para as próximas rodadas a partir da data escolhida. Como o banco não informa o horário de início, a confirmação de entradas só é permitida a partir de amanhã. Todos os indicadores são calculados usando até 20 jogos anteriores ao confronto (mínimo cinco), sem considerar resultados posteriores.</p>
+ <p class="gl-note">Os métodos são lidos do Supabase. Mostramos somente jogos sem placar cadastrados para as próximas rodadas a partir da data escolhida. Como o banco não informa o horário de início, a confirmação de entradas só é permitida a partir de amanhã. Todos os indicadores são calculados usando até 20 jogos anteriores ao confronto (mínimo cinco), sem considerar resultados posteriores.</p>
  <div id="gl-notice" role="status" aria-live="polite"></div>
  <div id="gl-content"></div>
  <div class="gl-actions" id="gl-actions" hidden>
@@ -46,5 +46,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=galileu-v1" defer></script>
-<script src="/static/js/galileu.js?v=galileu-v1" defer></script>
+<script src="/static/js/galileu.js?v=galileu-db-v2" defer></script>
 </body></html>

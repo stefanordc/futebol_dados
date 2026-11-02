@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-historico-v5">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-db-v6">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -16,6 +16,12 @@
 <section class="x1-hero"><div class="df-eyebrow">LABORATÓRIO · ANÁLISE HISTÓRICA</div>
 <h1>Nostradamus</h1><p>Teste regras sobre partidas históricas utilizando somente informações disponíveis antes de cada jogo.</p>
 <div class="x1-nav"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus" aria-current="page">Nostradamus · Backtesting</a><a href="/apostas/galileu">Galileu · Validação</a></div></section>
+<nav class="ns-subtabs" aria-label="Seções do Nostradamus">
+<button type="button" class="ns-subtab is-active" data-ns-tab="simular" aria-selected="true">Simular estratégia</button>
+<button type="button" class="ns-subtab" data-ns-tab="salvas" aria-selected="false">Estratégias salvas</button>
+</nav>
+<div id="ns-workbench">
+<div id="ns-editing" class="ns-editing" hidden><span id="ns-editing-name"></span><button type="button" id="ns-new">Nova estratégia</button></div>
 <form id="ns-form" class="ns-panel">
 <div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período e objetivo</h2></div></div>
 <div class="ns-fields">
@@ -33,12 +39,13 @@
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
 </form>
-<div id="ns-feedback" role="status" aria-live="polite"></div>
-<section id="ns-saved" class="ns-panel"><h2>Minhas estratégias</h2><p class="x1-help">Salvas apenas neste navegador. Para compartilhar ou recuperar em outro computador é necessário exportar ou copiar as condições.</p><div id="ns-saved-list"></div></section>
 <section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+</div>
+<div id="ns-feedback" role="status" aria-live="polite"></div><section id="ns-saved" class="ns-panel" hidden><div class="ns-heading"><h2>Estratégias salvas no Supabase</h2><button type="button" class="ns-button secondary" id="ns-create">+ Nova estratégia</button></div><p class="x1-help">As regras ficam no banco de dados. Selecione uma estratégia para conferir as condições ou clique em Editar para alterar o método.</p><div id="ns-saved-list"></div></section>
+
 <p class="x1-disclaimer">Simulação histórica, não recomendação de aposta. A execução retrospectiva não demonstra lucratividade futura; dados ausentes, preço de entrada, liquidez, comissão e seleção de estratégias podem enviesar resultados. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-historico-v5" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-db-v6" defer></script>
 </body></html>

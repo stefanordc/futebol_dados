@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'web_app/queries_galileu.py'
+      - 'web_app/queries_estrategias.py'
+      - 'web_app/static/js/galileu.js'
       - 'web_app/templates/galileu*.html'
       - 'web_app/static/js/galileu*.js'
       - 'web_app/static/css/galileu.css'
@@ -12,6 +14,8 @@ on:
     branches: [main]
     paths:
       - 'web_app/queries_galileu.py'
+      - 'web_app/queries_estrategias.py'
+      - 'web_app/static/js/galileu.js'
       - 'web_app/tests/test_galileu.py'
       - '.github/workflows/test-galileu.yml'
 jobs:
