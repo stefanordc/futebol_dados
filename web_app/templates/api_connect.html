@@ -9,7 +9,7 @@
 <section class="int-panel"><h2>1. Configurar a API</h2><p class="int-muted">A FutPythonTrader é autorizada por padrão. Para outras APIs, configure o domínio HTTPS em <code>ODDS_API_ALLOWED_HOSTS</code> no .env. A chave pode ser guardada no Gerenciador de Credenciais do Windows, vinculada ao usuário local. Ela nunca é gravada no Supabase nem devolvida à interface.</p>
 <form id="int-api-form" class="int-form-grid">
 <label>URL base da API (HTTPS)<input id="int-api-base" type="url" value="https://futpythontrader.com.br" placeholder="https://futpythontrader.com.br" autocomplete="off" required></label>
-<label>Caminho da API<input id="int-api-path" type="text" value="/api/download/brazil/serie-a-betano/2026" required></label>
+<label>Caminho da API<input id="int-api-path" type="text" value="" placeholder="/api/download/pais/campeonato/temporada" autocomplete="off" required></label>
 <label class="int-season-paste">Temporadas para consultar (opcional)
 <textarea id="int-api-seasons" rows="3" maxlength="350" placeholder="Brasil: 2026, 2025, 2024, 2023, 2022, 2021&#10;Ou para temporadas divididas: 2026-2027, 2025-2026, 2024-2025"></textarea>
 <small>Separe por vírgula, ponto e vírgula ou quebra de linha. O último segmento da URL será substituído por cada temporada. Limite: 12 temporadas por consulta. Deixe vazio para consultar somente a temporada da URL.</small></label>
