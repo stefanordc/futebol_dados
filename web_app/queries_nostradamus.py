@@ -450,6 +450,32 @@ def ligas_disponiveis():
     """)
 
 
+def ligas_selecionadas(payload):
+    """Retorna lista de IDs, ou None quando o filtro significa todas as ligas.
+
+    Compatível com estratégias antigas que possuem apenas campeonato_id.
+    """
+    if not isinstance(payload,dict):
+        raise ValueError("Dados inválidos.")
+    if "campeonato_ids" in payload:
+        ids=payload["campeonato_ids"]
+        if ids is None:
+            ids=[]
+        if not isinstance(ids,list) or len(ids)>30:
+            raise ValueError("Selecione no máximo 30 campeonatos.")
+        if any(type(league) is not int or league<1 for league in ids):
+            raise ValueError("Campeonato inválido.")
+        if len(ids)!=len(set(ids)):
+            raise ValueError("Há campeonatos repetidos.")
+        return sorted(ids) if ids else None
+    old=payload.get("campeonato_id")
+    if old in (None,""):
+        return None
+    if type(old) is not int or old<1:
+        raise ValueError("Campeonato inválido.")
+    return [old]
+
+
 def testar(payload,rows=None):
     if not isinstance(payload,dict):raise ValueError("Dados inválidos.")
     cutoff=payload.get("corte")
@@ -460,9 +486,8 @@ def testar(payload,rows=None):
     if window not in ("5","10","20","temporada"):raise ValueError("Recorte inválido.")
     market=payload.get("objetivo")
     if market not in MERCADOS:raise ValueError("Selecione um objetivo válido.")
-    league=payload.get("campeonato_id")
-    if league is not None and (type(league) is not int or league<1):
-        raise ValueError("Campeonato inválido.")
+    leagues_selected=ligas_selecionadas(payload)
+    allowed=set(leagues_selected) if leagues_selected is not None else None
     conditions=_valid_conditions(payload.get("condicoes"))
     manual=payload.get("odd_hipotetica")
     if manual in (None,""):manual=None
@@ -475,9 +500,9 @@ def testar(payload,rows=None):
     commission=0.045
     args=[cutoff]
     cond=""
-    if league:
-        cond="AND j.campeonato_id=%s"
-        args.append(league)
+    if leagues_selected is not None:
+        cond="AND j.campeonato_id = ANY(%s::integer[])"
+        args.append(leagues_selected)
     if rows is None:rows=fetch_all(RAW.format(competition=cond),args)
     # Enforce all date/result gates again even with rows supplied by caller.
     filtered=[]
@@ -485,7 +510,7 @@ def testar(payload,rows=None):
     for r in rows:
         d=r["data"]
         if isinstance(d,str):d=date.fromisoformat(d)
-        if d<=cutoff and d<today and r.get("gols_casa") is not None and r.get("gols_fora") is not None and (not league or r["campeonato_id"]==league):
+        if d<=cutoff and d<today and r.get("gols_casa") is not None and r.get("gols_fora") is not None and (allowed is None or r["campeonato_id"] in allowed):
             filtered.append({**r,"data":d})
     filtered.sort(key=lambda r:(r["data"],int(r["id"])))
     histories=defaultdict(list)
@@ -554,6 +579,8 @@ def testar(payload,rows=None):
         rec["odd_media"]=round(rec["odds_soma"]/rec["cotadas"],2) if rec["cotadas"] else None
         rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
         rec["valor_reais"]=round(rec["unidades"]*100,2) if rec["cotadas"] else None
+        # Sem odd, o saldo é desconhecido: não contabilizar entrada sem cotação como R$ 0.
+        rec["lucro_medio_entrada"]=round(rec["unidades"]*100/rec["cotadas"],2) if rec["cotadas"] else None
         del rec["odds_soma"]
         del rec["good_run"]
         del rec["bad_run"]
@@ -561,6 +588,7 @@ def testar(payload,rows=None):
     recorte_descrito=("até os últimos "+window+" jogos disponíveis" if window!="temporada"
                      else "todos os jogos disponíveis da temporada")
     return {"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
+            "campeonato_ids":leagues_selected or [],
             "resultados":summary,"entradas":matched_total,
             "limite_detalhes":400,"odd_hipotetica":manual,"stake_reais":100,
             "aviso":"A data de corte limita os jogos analisados. Indicadores usam apenas "
