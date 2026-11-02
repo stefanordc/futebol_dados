@@ -60,8 +60,14 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-list-v7'),
+assert.ok(html.includes('nostradamus-commit-v8'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
   "Listar as estratégias por criação mais recente");
+
+assert.ok(src.includes('cache:"no-store"'),"Buscar estratégias sem cache do navegador");
+assert.ok(src.includes('const confirmed=stored.find('),
+ "Verificar gravação relendo o registro no Supabase antes do sucesso");
+assert.ok(src.includes('confirmada no Supabase.'),
+ "Mensagem de sucesso somente após conferência");

@@ -1,6 +1,8 @@
 """Nostradamus no Supabase: validação de CRUD, importação e versão."""
 from datetime import date, timedelta
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
 import queries_estrategias as st
 
 def valid():
@@ -43,6 +45,52 @@ class TestEstratégias(TestCase):
         ):
             with self.subTest(changes=changes),self.assertRaises(ValueError):
                 st._validate({**valid(),**changes})
+
+
+    def _fake_connection(self,fetches):
+        conn=MagicMock()
+        cursor=conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.side_effect=list(fetches)
+        @contextmanager
+        def fake():
+            try:
+                yield conn
+            finally:
+                conn.close()
+        return fake,conn,cursor
+
+    def test_criar_so_retorna_sucesso_depois_do_commit(self):
+        fake,conn,cur=self._fake_connection([{"id":123,"nome":"Mandante xG maior","versao":1}])
+        with patch.object(st,"get_conn",fake):
+            saved=st.criar(valid())
+        self.assertEqual(saved["id"],123)
+        conn.commit.assert_called_once()
+        conn.close.assert_called_once()
+
+    def test_editar_confirma_transacao_apos_atualizar(self):
+        fake,conn,cur=self._fake_connection([{"id":123,"nome":"Mandante xG maior","versao":2}])
+        with patch.object(st,"get_conn",fake):
+            saved=st.editar(123,{**valid(),"versao":1})
+        self.assertEqual(saved["versao"],2)
+        conn.commit.assert_called_once()
+        conn.close.assert_called_once()
+
+    def test_importar_confirma_transacao_uma_vez(self):
+        # Checa se INSERT foi feito e o commit ocorreu após o lote.
+        fake,conn,cur=self._fake_connection([None,{"id":555}])
+        with patch.object(st,"get_conn",fake):
+            result=st.importar({"estrategias":[valid()]})
+        self.assertEqual(result,{"importadas":1,"existentes":0})
+        conn.commit.assert_called_once()
+        conn.close.assert_called_once()
+
+    def test_falha_no_commit_nao_retorna_sucesso(self):
+        fake,conn,_=self._fake_connection([{"id":123,"nome":"Exemplo"}])
+        conn.commit.side_effect=RuntimeError("falha de persistência")
+        with patch.object(st,"get_conn",fake):
+            with self.assertRaisesRegex(RuntimeError,"falha de persistência"):
+                st.criar(valid())
+        conn.close.assert_called_once()
 
     def test_esquema_guarda_condicoes_json_e_versao_otimista(self):
         self.assertTrue(any("versao=versao+1" in str(x) for x in st.editar.__code__.co_consts))
