@@ -33,7 +33,7 @@ function normalizeCondition(item={}){
   const metrica=item.metrica||"xg";
   const opponent=lado==="mandante"?"visitante":lado==="visitante"?"mandante":
     lado==="favorito"?"zebra":"favorito";
-  const referencia=item.referencia||(oldRecord?"visitante":"valor");
+  const referencia=item.referencia||(oldRecord?(lado==="favorito"||lado==="zebra"?opponent:"visitante"):"valor");
   const metricaRef=item.metrica_ref||metrica;
   const valor=item.valor??item.margem??(oldRecord?0:"");
   let modo;
