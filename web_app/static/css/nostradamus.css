@@ -149,3 +149,34 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-table td:nth-child(2),.ns-table th:nth-child(2){white-space:normal}
 .ns-odd-origin{font-size:10px;color:var(--df-secondary,#a4afbf);font-weight:500;margin-top:4px;white-space:normal}
 #ns-summary td:nth-child(7),#ns-summary td:nth-child(8){font-weight:800}
+
+
+/* Campeonatos em seleção múltipla compacta, com checkboxes nativos. */
+.ns-league-field{display:flex;flex-direction:column;gap:8px;min-width:0;
+  color:var(--df-secondary);font-size:12px;font-weight:700}
+.ns-league-control{position:relative;min-width:0}
+.ns-league-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:45px;width:100%;padding:12px;border:1px solid var(--df-border);
+  border-radius:10px;background:var(--df-raised);color:var(--df-text);
+  font-size:13px;font-family:inherit;font-weight:700;cursor:pointer;text-align:left}
+.ns-league-trigger:hover{border-color:var(--df-orange)}
+.ns-league-trigger:focus-visible,.ns-league-all:focus-visible{
+  outline:2px solid var(--df-orange);outline-offset:2px}
+.ns-league-options{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;
+  border:1px solid var(--df-border);border-radius:10px;background:var(--df-raised);
+  box-shadow:0 15px 28px rgba(0,0,0,.35);overflow:hidden}
+.ns-league-options[hidden]{display:none!important}
+.ns-league-all{display:block;width:100%;padding:12px 13px;border:0;
+  border-bottom:1px solid var(--df-border);background:transparent;
+  color:var(--df-text);font-size:13px;font-weight:750;text-align:left;cursor:pointer}
+.ns-league-all:hover,.ns-league-all.is-active{background:rgba(255,114,35,.13);color:var(--df-orange)}
+.ns-league-items{max-height:260px;overflow-y:auto;padding:4px 0}
+.ns-league-items label.ns-league-option{display:flex;flex-direction:row;gap:10px;
+  align-items:center;min-height:37px;padding:8px 13px;color:var(--df-text);
+  cursor:pointer;font-size:13px;font-weight:550}
+.ns-league-items .ns-league-option:hover{background:rgba(255,114,35,.10)}
+.ns-league-items .ns-league-option input[type="checkbox"]{appearance:auto;
+  width:16px;min-width:16px;height:16px;min-height:16px;padding:0;margin:0;
+  accent-color:var(--df-orange)}
+.ns-league-hint{border-top:1px solid var(--df-border);padding:9px 13px;
+  color:var(--df-secondary);font-size:11px}
