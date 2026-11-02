@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-multiliguas-v2'),
+assert.ok(html.includes('nostradamus-favorito-zebra-v3'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -90,3 +90,14 @@ assert.ok(src.includes("Array.isArray(saved.campeonato_ids)"),"Restaurar estrat�
 assert.ok(src.includes("saved.campeonato_id?[saved.campeonato_id]:[]"),
   "Manter compatibilidade com estratégias antigas");
 assert.ok(src.includes("function closeLeagues()"),"Dropdown deve fechar ao usar Escape e clicar fora");
+
+/* Favorito/zebra vem de odds reais e ganha o mando como detalhe, não como regra. */
+assert.ok(js.includes('favorito:"Favorito (menor odd)"'),"Seletor deve priorizar favorito");
+assert.ok(js.includes('zebra:"Zebra (maior odd)"'),"Seletor deve priorizar zebra");
+assert.ok(js.includes('opts(favoriteMarkets,"back_favorito")'),"Back favorito é o padrão");
+assert.ok(js.includes('roleLabel(c.lado,c.mando)'),"Mostrar Favorito/Zebra (Mandante/Visitante)");
+assert.ok(js.includes('matchLabel(r)'),"Exibir favorito e zebra identificados nos detalhes");
+assert.ok(js.includes('r.placar_favorito||r.placar'),"Placar segue a ordem favorito x zebra quando possível");
+assert.ok(js.includes('saved.objetivo||"back_favorito"'),"Estratégia nova inicia no favorito");
+assert.ok(js.includes('estratégia antiga'),"Preservar identificação dos mercados legados");
+assert.ok(html.includes('menor odd de vitória no Match Odds'),"Explicar critério de odds");
