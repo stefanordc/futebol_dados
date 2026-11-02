@@ -375,9 +375,9 @@ def testar(payload,rows=None):
         manual=_n(manual)
         if manual is None or not 1.01<=manual<=1000:
             raise ValueError("Odd hipotética deve estar entre 1,01 e 1000.")
-    commission=_n(payload.get("comissao_pct",2))
-    if commission is None or not 0<=commission<=30:raise ValueError("Comissão inválida.")
-    commission/=100.0
+    # Comissão fixa solicitada para o simulador Nostradamus.
+    # Não representa a comissão contratual real da conta Betfair.
+    commission=0.045
     args=[cutoff]
     cond=""
     if league:
