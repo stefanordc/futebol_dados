@@ -46,7 +46,7 @@ assert.ok(html.includes("<th>Unidades (u)</th>"),"Mostrar unidades no resumo");
 assert.ok(html.includes("<th>Resultado (R$)</th>"),"Mostrar resultado financeiro");
 assert.ok(html.includes("<th>Good run máx.</th>"),"Mostrar maior sequência boa");
 assert.ok(html.includes("<th>Bad run máx.</th>"),"Mostrar maior sequência ruim");
-assert.ok(!src.includes("fmt(r.cotadas,0)"),"Remover valores de Entradas cotadas");
+assert.ok(src.includes("fmt(r.cotadas,0)"),"Exibir cobertura de odds reais da análise");
 const summaryRender=src.slice(src.indexOf("function show(response){"),src.indexOf('$("#ns-summary").addEventListener("click"'));
 assert.ok(summaryRender.includes("fmt(r.unidades,2)"),"Mostrar resultado em unidades");
 assert.ok(summaryRender.includes("money(r.valor_reais)"),"Mostrar resultado financeiro em reais");
