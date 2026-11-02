@@ -202,6 +202,61 @@ class TestNostradamus(TestCase):
         self.assertEqual(summary["jogos"][0]["valor_reais"],110.0)
         self.assertEqual(summary["jogos"][2]["valor_reais"],-100.0)
 
+    def test_lucro_medio_somente_sobre_entradas_cotadas(self):
+        partidas=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+                  for i in range(10)]
+        for i in (5,6,7):
+            partidas[i]["api_odd_1_ft"]=2.0
+        partidas[7]["gols_casa"]=0
+        partidas[7]["gols_fora"]=1
+        result=ns.testar(config(self.cutoff),rows=partidas)["resultados"][0]
+        self.assertEqual(result["entradas"],5)
+        self.assertEqual(result["cotadas"],3)
+        self.assertEqual(result["unidades"],1.0)
+        self.assertEqual(result["valor_reais"],100.0)
+        self.assertAlmostEqual(result["lucro_medio_entrada"],33.33)
+        partidas=[{k:v for k,v in row.items() if k!="api_odd_1_ft"} for row in partidas]
+        result=ns.testar(config(self.cutoff),rows=partidas)["resultados"][0]
+        self.assertIsNone(result["lucro_medio_entrada"])
+
+    def test_multiplos_campeonatos_mantem_historia_separada(self):
+        partidas=[]
+        for league_id in (1,2,3):
+            for i in range(10):
+                item=game(league_id*100+i,self.start+timedelta(days=i),
+                          comp=league_id,gf=2,ga=0)
+                item["campeonato"]=f"Liga {league_id}"
+                item["api_odd_1_ft"]=2.0
+                partidas.append(item)
+        cfg={**config(self.cutoff),"campeonato_ids":[1,3]}
+        out=ns.testar(cfg,rows=partidas)
+        self.assertEqual(out["campeonato_ids"],[1,3])
+        self.assertEqual(out["entradas"],10)
+        self.assertEqual([x["campeonato"] for x in out["resultados"]],
+                         ["Liga 1","Liga 3"])
+        self.assertTrue(all(x["entradas"]==5 for x in out["resultados"]))
+        all_cfg={**cfg,"campeonato_ids":[]}
+        self.assertEqual(ns.testar(all_cfg,rows=partidas)["entradas"],15)
+        legacy={**cfg,"campeonato_id":2}
+        legacy.pop("campeonato_ids")
+        self.assertEqual(ns.testar(legacy,rows=partidas)["entradas"],5)
+
+    def test_valida_lista_de_campeonatos_sem_duplicatas(self):
+        for invalid in ([1,1],[0],[True],["1"],list(range(1,33)),{},2):
+            with self.subTest(invalid=invalid),self.assertRaises(ValueError):
+                ns.ligas_selecionadas({"campeonato_ids":invalid})
+        self.assertEqual(ns.ligas_selecionadas({"campeonato_ids":[3,1]}),[1,3])
+        self.assertIsNone(ns.ligas_selecionadas({"campeonato_ids":[]}))
+        self.assertEqual(ns.ligas_selecionadas({"campeonato_id":6}),[6])
+
+    def test_sql_parametriza_filtro_de_multiplos_campeonatos(self):
+        rows=[]
+        with patch.object(ns,"fetch_all",return_value=rows) as query:
+            ns.testar({**config(self.cutoff),"campeonato_ids":[2,1]})
+        sql, params=query.call_args.args
+        self.assertIn("j.campeonato_id = ANY(%s::integer[])",sql)
+        self.assertEqual(params[1],[1,2])
+
     def test_entradas_sem_preco_nao_inventam_lucro(self):
         r=ns.testar(config(self.cutoff),rows=self.rows)["resultados"][0]
         self.assertEqual(r["entradas"],5)
