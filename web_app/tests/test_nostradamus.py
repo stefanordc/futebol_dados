@@ -175,6 +175,77 @@ class TestNostradamus(TestCase):
         self.assertEqual(lay["reds"],4)
         self.assertAlmostEqual(lay["unidades"],-3.045)  # 4,5% em 1 green, 4 reds
 
+    def test_preco_real_e_resultado_por_100_reais_com_streaks(self):
+        partidas=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+                  for i in range(10)]
+        odds=[2.10,1.70,2.00,3.00,2.25]
+        for i,odd in enumerate(odds,start=5):
+            partidas[i]["api_odd_1_ft"]=odd
+            partidas[i]["api_bookie_odd_1_ft"]="bet365"
+        partidas[7]["gols_casa"]=0
+        partidas[7]["gols_fora"]=2
+        partidas[8]["gols_casa"]=0
+        partidas[8]["gols_fora"]=1
+        out=ns.testar(config(self.cutoff),rows=partidas)
+        summary=out["resultados"][0]
+        self.assertEqual((summary["greens"],summary["reds"]),(3,2))
+        self.assertEqual(summary["win_rate"],60.0)
+        self.assertEqual(summary["cotadas"],5)
+        self.assertEqual(summary["maior_good_run"],2)
+        self.assertEqual(summary["maior_bad_run"],2)
+        self.assertEqual(summary["unidades"],1.05)
+        self.assertAlmostEqual(summary["valor_reais"],105.0)
+        self.assertAlmostEqual(summary["odd_media"],2.21)
+        self.assertEqual(out["stake_reais"],100)
+        self.assertEqual(summary["jogos"][0]["tipo_odd"],"api_casa")
+        self.assertEqual(summary["jogos"][0]["bookmaker"],"bet365")
+        self.assertEqual(summary["jogos"][0]["valor_reais"],110.0)
+        self.assertEqual(summary["jogos"][2]["valor_reais"],-100.0)
+
+    def test_entradas_sem_preco_nao_inventam_lucro(self):
+        r=ns.testar(config(self.cutoff),rows=self.rows)["resultados"][0]
+        self.assertEqual(r["entradas"],5)
+        self.assertEqual(r["maior_good_run"],5)
+        self.assertEqual(r["maior_bad_run"],0)
+        self.assertEqual(r["cotadas"],0)
+        self.assertIsNone(r["unidades"])
+        self.assertIsNone(r["valor_reais"])
+        self.assertIsNone(r["odd_media"])
+
+    def test_lay_usa_apenas_lay_estimado_identificado(self):
+        partidas=[{**g} for g in self.rows]
+        for i in range(5,10):
+            partidas[i].update(api_odd_1_ft=2.10,api_lay_odd_1_ft=2.12)
+        partidas[7]["gols_casa"]=3
+        partidas[7]["gols_fora"]=0
+        out=ns.testar(config(self.cutoff,goal="lay_mandante"),rows=partidas)
+        summary=out["resultados"][0]
+        self.assertEqual(summary["cotadas"],5)
+        self.assertTrue(all(j["tipo_odd"]=="lay_estimado" for j in summary["jogos"]))
+        self.assertAlmostEqual(summary["unidades"],round(5*(0.955/1.12)-5,3))
+        self.assertIsNone(ns._odds_for_game(
+            {"api_odd_1_ft":2.1,"data":self.start},
+            "lay_mandante",None)[0])
+        self.assertEqual(ns._odds_for_game(
+            {"api_lay_cs_1_0":8.2},"lay_1x0",None),
+            (8.2,"lay_estimado"))
+        self.assertEqual(ns._odds_for_game({"api_odd_1_ft":2.1},
+            "lay_goleada_mandante",None),(None,None))
+
+    def test_api_tem_mercados_e_pareamento_estrito_na_sql(self):
+        for fragment in ("o.mandante_id=j.casa_id",
+                         "o.visitante_id=j.fora_id",
+                         "o.data_jogo::date=j.data",
+                         "REPLACE(o.temporada,'-','/')=j.temporada",
+                         "LOWER(BTRIM(o.campeonato))=LOWER(BTRIM(c.nome))",
+                         "HAVING COUNT(*)=1",
+                         "oa.odd_1_ft AS api_odd_1_ft",
+                         "oa.lay_odd_x_ft AS api_lay_odd_x_ft"):
+            self.assertIn(fragment,ns.RAW)
+        for market in ("back_empate","over_05","over_25","under_25",
+                       "ambos_marcam","ambos_nao","lay_1x0"):
+            self.assertIn(market,ns.API_MARKETS)
+
     def test_odds_registradas_pre_jogo(self):
         x=game(20,self.start+timedelta(days=6),odd_created=datetime.combine(self.start,datetime.min.time()))
         y=game(21,self.start+timedelta(days=7),odd_created=datetime.now())
