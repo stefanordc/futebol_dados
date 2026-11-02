@@ -3,15 +3,15 @@
 <title>Conectar API | Dados Futebol</title><link rel="stylesheet" href="/static/css/app.css?v=28"><link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1"><link rel="stylesheet" href="/static/css/integracoes.css?v=1"></head>
 <body><a class="df-skip" href="#main-content">Pular para o conteúdo</a><div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage"><header id="df-topbar-mount"></header><main id="main-content" class="match-wrap df-common-page x1-main">
 <section class="int-hero"><p class="int-eyebrow">NOSTRADAMUS · FONTE EXTERNA</p><h1>Conectar API</h1>
-<p>Consulte uma API JSON, confira clubes, ajuste informações e selecione as colunas antes de importar para a tabela odds.</p>
+<p>Consulte uma API CSV ou JSON, confira clubes, ajuste informações e selecione as colunas antes de importar para a tabela odds.</p>
 <div class="x1-nav"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus</a><a href="/apostas/galileu">Galileu</a><a href="/vincular-clubes">Vincular Clubes</a></div></section>
 <nav class="int-nav" aria-label="Seções Nostradamus"><a href="/apostas/nostradamus">Simular estratégia</a><a href="/apostas/nostradamus?aba=salvas">Estratégias salvas</a><a href="/apostas/nostradamus/conectar-api" aria-current="page">Conectar API</a></nav>
-<section class="int-panel"><h2>1. Configurar a API</h2><p class="int-muted">O endereço base precisa ser HTTPS e constar em <code>ODDS_API_ALLOWED_HOSTS</code> no .env. A chave é usada somente nesta consulta e nunca é gravada no banco.</p>
+<section class="int-panel"><h2>1. Configurar a API</h2><p class="int-muted">A FutPythonTrader é autorizada por padrão. Para outras APIs, configure o domínio HTTPS em <code>ODDS_API_ALLOWED_HOSTS</code> no .env. A chave é usada somente na consulta e nunca é gravada no banco.</p>
 <form id="int-api-form" class="int-form-grid">
-<label>URL base da API (HTTPS)<input id="int-api-base" type="url" placeholder="https://api.exemplo.com" autocomplete="off" required></label>
+<label>URL base da API (HTTPS)<input id="int-api-base" type="url" value="https://futpythontrader.com.br" placeholder="https://futpythontrader.com.br" autocomplete="off" required></label>
 <label>Caminho da API<input id="int-api-path" type="text" value="/api/download/brazil/serie-a-betano/2026" required></label>
 <label>Chave de API<input id="int-api-key" type="password" autocomplete="off" placeholder="Opcional se a API for pública"></label>
-<label>Tipo de autenticação<select id="int-api-header"><option value="x-api-key">x-api-key</option><option value="Authorization">Authorization: Bearer</option></select></label>
+<label>Tipo de autenticação<select id="int-api-header"><option value="api_key" selected>FutPythonTrader · api_key na URL</option><option value="x-api-key">x-api-key no cabeçalho</option><option value="Authorization">Authorization: Bearer</option></select></label>
 <div class="int-form-actions"><button type="submit" class="int-primary">Consultar API · Prévia</button></div></form></section>
 <div id="int-api-preview" hidden>
 <section class="int-panel"><h2>2. Revisar metadados</h2><p class="int-muted" id="int-api-count"></p>
@@ -23,4 +23,4 @@
 <section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação grava um lote no banco e os registros de odds em uma única transação. Nenhum registro será criado durante a prévia.</p>
 <button id="int-import" class="int-primary" type="button">Confirmar e importar para o Supabase</button></section></div>
 <section class="int-panel"><h2>Histórico de importações</h2><div id="int-import-history" class="int-muted">Consultando…</div></section>
-<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=1" defer></script></body></html>
+<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=3" defer></script></body></html>
