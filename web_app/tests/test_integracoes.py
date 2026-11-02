@@ -165,6 +165,49 @@ class TestIntegracoes(TestCase):
                     "pais":"Brasil"})
             conn.assert_not_called()
 
+    def test_colunas_automatica_partida_e_odds(self):
+        columns=["Match_ID","Country","Season","Div","League","Date","Time",
+                 "Round","Home","Away","Home_Score","Away_Score","Bookie_1X2_FT",
+                 "Odd_1_FT","Odd_X_FT","Over_FT_2_5","BTTS_Yes","CS_1_0",
+                 "AH_Home_neg_0_5","EH_Home_neg_1","xG_Home_FT"]
+        result=qi._default_columns(columns)
+        for name in ("Match_ID","Home","Away","Odd_1_FT","CS_1_0",
+                     "AH_Home_neg_0_5","EH_Home_neg_1"):
+            self.assertIn(name,result)
+        for name in ("Time","Bookie_1X2_FT","xG_Home_FT"):
+            self.assertNotIn(name,result)
+
+    def test_lay_simulado_escada_e_fonte_preferida(self):
+        self.assertEqual(qi._simulated_lay("1.85"),1.86)
+        self.assertEqual(qi._simulated_lay("2.00"),2.02)
+        self.assertEqual(qi._simulated_lay("3.00"),3.05)
+        self.assertEqual(qi._simulated_lay("2.38",asian=True),2.39)
+        self.assertIsNone(qi._simulated_lay("1000"))
+        row={"Odd_1_FT":"1.85","Odd_X_FT":"3.10",
+             "Bookie_1X2_FT":"Bet365","Over_FT_2_5":"2.08",
+             "Bookie_OU_FT_2_5":"Pinnacle",
+             "CS_1_0":"7.5","Bookie_CS_1_0":"Outra Casa",
+             "Home":"Flamengo","xG_Home_FT":"1.5"}
+        data=qi._enriquecer_lay(row,["Home","Odd_1_FT","Odd_X_FT",
+                                      "Over_FT_2_5","CS_1_0"])
+        self.assertEqual(data["Lay_Simulado_Odd_1_FT"],1.86)
+        self.assertEqual(data["Lay_Simulado_Over_FT_2_5"],2.10)
+        self.assertEqual(data["_metodo_lay_simulado"]["comissao_pct"],4.5)
+        self.assertFalse(data["_metodo_lay_simulado"]["precificacao_real"])
+        self.assertEqual(data["_bookmakers_das_odds"]["Odd_1_FT"]["bookmaker"],"Bet365")
+        self.assertTrue(data["_bookmakers_das_odds"]["Over_FT_2_5"]["preferencial"])
+        self.assertFalse(data["_bookmakers_das_odds"]["CS_1_0"]["preferencial"])
+        self.assertNotIn("Lay_Simulado_Home",data)
+
+    def test_reutiliza_colunas_da_ultima_importacao(self):
+        with patch.object(qi,"fetch_all",return_value=[
+            {"colunas":["Home","Away","Odd_2_FT"]}
+        ]):
+            selected=qi._last_columns()
+        self.assertEqual(selected,["Home","Away","Odd_2_FT"])
+        self.assertEqual([c for c in selected if c in ["Home","Away"]],
+                         ["Home","Away"])
+
     def test_importacao_atomica_commit_sem_chave(self):
         qi._PREVIEWS.clear()
         qi._PREVIEWS["abc"]={"criado":qi.time.monotonic(),"host":"api.exemplo.com",
