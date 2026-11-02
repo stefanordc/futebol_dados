@@ -225,8 +225,10 @@ async function api(url,options){
 }
 const jsonPost=(method,data)=>({method,headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
 async function fetchSaved(){
-  const data=await api("/api/apostas/nostradamus/estrategias");
-  stored=Array.isArray(data)?data:[];
+  // Evita reutilizar resposta GET antiga após uma criação/edição.
+  const data=await api("/api/apostas/nostradamus/estrategias",{cache:"no-store"});
+  if(!Array.isArray(data))throw Error("A consulta ao banco não retornou uma lista válida.");
+  stored=data;
   renderSaved();
 }
 async function importLegacy(){
@@ -274,11 +276,17 @@ $("#ns-save").addEventListener("click",async ()=>{
       "/api/apostas/nostradamus/estrategias";
     const saved=await api(endpoint,jsonPost(editing?"PATCH":"POST",
       editing?{...v,versao:editing.versao}:v));
+    await fetchSaved();
+    // A criação só é considerada concluída após ler o próprio registro do banco.
+    const confirmed=stored.find(item=>Number(item.id)===Number(saved.id)
+       && Number(item.versao)===Number(saved.versao));
+    if(!confirmed){
+      throw Error("O servidor respondeu ao salvamento, mas a estratégia não apareceu na consulta ao Supabase. Verifique a conexão antes de tentar novamente.");
+    }
     editing=null;
     $("#ns-editing").hidden=true;
-    await fetchSaved();
     setTab("salvas");
-    say("Estratégia "+saved.nome+" salva no Supabase.");
+    say("Estratégia "+saved.nome+" confirmada no Supabase.");
   }catch(e){say(e.message,true);}
   finally{btn.disabled=false;btn.textContent=editing?"Salvar alterações":"Salvar estratégia";}
 });

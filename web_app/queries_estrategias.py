@@ -68,7 +68,11 @@ def criar(payload):
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(INSERT,_params(v))
-                return dict(cur.fetchone())
+                saved=dict(cur.fetchone())
+            # get_conn() fecha a conexão, mas NÃO confirma a transação.
+            # Sem commit explícito, o Postgres desfaz o INSERT ao fechar.
+            conn.commit()
+            return saved
     except errors.UniqueViolation:
         raise ValueError("Já existe uma estratégia com esse nome.") from None
 
@@ -90,7 +94,9 @@ def editar(strategy_id,payload):
                 item=cur.fetchone()
                 if not item:
                     raise ValueError("Estratégia alterada em outra sessão ou não encontrada. Recarregue.")
-                return dict(item)
+                saved=dict(item)
+            conn.commit()
+            return saved
     except errors.UniqueViolation:
         raise ValueError("Já existe outra estratégia com esse nome.") from None
 
@@ -132,4 +138,6 @@ def importar(payload):
                         break
                 else:
                     raise ValueError("Não foi possível importar duplicatas; cópia local preservada.")
+        # Importação atômica: somente retorna sucesso após persistir tudo.
+        conn.commit()
     return {"importadas":inserted,"existentes":existing_count}
