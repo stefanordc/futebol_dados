@@ -18,9 +18,16 @@
 <div class="int-form-grid"><label>Temporada<input id="int-season" required></label><label>Campeonato<input id="int-league" required></label><label>País<input id="int-country" required></label></div><p id="int-country-catalog" class="int-muted" role="status" aria-live="polite"></p></section>
 <section class="int-panel"><h2>3. Padronizar os clubes</h2><p class="int-muted">Edite o nome padronizado e escolha, se desejar, um clube da tabela clubes. As sugestões não são aplicadas sem sua confirmação.</p>
 <div class="int-scroll"><table class="int-table"><thead><tr><th>Nome da API</th><th>Nome padronizado (editável)</th><th>Clube existente / sugestão</th></tr></thead><tbody id="int-api-clubs"></tbody></table></div></section>
-<section class="int-panel"><h2>4. Selecionar colunas para inserir</h2><p class="int-muted">Desmarque qualquer coluna que não deseja salvar em <code>odds.dados</code>. Identificadores e metadados próprios da tabela odds são preservados.</p>
+<section class="int-panel"><h2>4. Selecionar colunas para inserir</h2>
+<p class="int-muted">Na primeira importação, selecionamos dados da partida e odds; colunas Bookie, estatísticas e horário ficam desmarcadas. Depois, sua última seleção é reutilizada automaticamente. A origem de cada odd é preservada quando informada pela API.</p>
+<p class="int-muted"><strong>Casas preferidas:</strong> Bet365 e Pinnacle (também Pinacle). O CSV informa uma casa por mercado; só é possível preferir essas casas quando a fonte realmente disponibiliza suas cotações. Outras odds não serão substituídas por preços inventados.</p>
+<p class="int-muted"><strong>Lay simulado:</strong> cada odd numérica selecionada gera <code>Lay_Simulado_NOME_DA_COLUNA</code> dentro de <code>odds.dados</code>. Usa um spread hipotético mínimo de um tick da escada da Betfair, sem preço executável nem liquidez verificada; comissão de 4,5% nas simulações.</p>
+<div class="int-flex"><span id="int-api-selected-count" class="int-muted"></span><div class="int-flex">
+<button id="int-api-reset" type="button">Restaurar seleção sugerida</button>
+<button id="int-api-select-all" type="button">Marcar todas</button>
+<button id="int-api-clear" type="button">Desmarcar todas</button></div></div>
 <div id="int-api-columns" class="int-columns"></div><details><summary>Exemplo da primeira linha retornada</summary><pre id="int-api-example"></pre></details></section>
 <section class="int-panel"><h2>5. Confirmar importação</h2><p class="int-muted">A confirmação grava um lote no banco e os registros de odds em uma única transação. Nenhum registro será criado durante a prévia.</p>
 <button id="int-import" class="int-primary" type="button">Confirmar e importar para o Supabase</button></section></div>
 <section class="int-panel"><h2>Histórico de importações</h2><div id="int-import-history" class="int-muted">Consultando…</div></section>
-<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=4" defer></script></body></html>
+<div id="int-message" role="status" aria-live="polite"></div></main></div></div><div id="df-toast" role="status" aria-live="polite"></div><script src="/static/js/shell.js?v=integracoes-v1" defer></script><script src="/static/js/integracoes.js?v=5" defer></script></body></html>
