@@ -34,13 +34,13 @@
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%) — fixa<input id="ns-comissao" type="number" inputmode="decimal" min="4.5" max="4.5" step="0.1" value="4.5" readonly aria-readonly="true" title="Configuração fixa de 4,5% nas simulações"></label>
 </div>
-<div class="ns-info">Odd opcional: usada somente para simulação, não é uma cotação histórica. Sem odd anterior comprovada, o lucro em unidades fica indisponível. Lay usa 1 unidade de responsabilidade; back usa 1 unidade de stake.</div>
+<div class="ns-info">Cada entrada cotada representa R$ 100 (1 unidade). O Nostradamus prioriza odds de casas importadas no Supabase, com correspondência exata de clubes, data, liga e temporada. Odds importadas historicamente não têm comprovação de disponibilidade pré-jogo; Lay é estimado, não executável. A odd hipotética opcional substitui o preço do banco para simulação. Sem cotação, não atribuimos ganho financeiro.</div>
 <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>mandante ou visitante</strong> e o indicador. Depois selecione <strong>Valor absoluto</strong> (ex.: gols sofridos do visitante &gt; 1,5) ou <strong>Mesmo indicador do adversário</strong> (ex.: xG do mandante &gt; xG do visitante). No segundo caso, não é necessário informar números nem ajustes. Até 10 condições.</p></div></div>
 <div id="ns-conditions" class="ns-conditions"></div>
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
 </form>
-<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Entradas cotadas</th><th>Good run máx.</th><th>Bad run máx.</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
 </div>
 <div id="ns-feedback" role="status" aria-live="polite"></div><section id="ns-saved" class="ns-panel" hidden><div class="ns-heading"><h2>Estratégias salvas no Supabase</h2><button type="button" class="ns-button secondary" id="ns-create">+ Nova estratégia</button></div><p class="x1-help">Estratégias cadastradas no banco de dados, com data de criação e última atualização. Use Ver regras para consultar ou Editar para modificar.</p><div id="ns-saved-list"></div></section>
 
@@ -48,5 +48,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-comissao-45" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-odds-reais-v1" defer></script>
 </body></html>
