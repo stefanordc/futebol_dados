@@ -41,12 +41,12 @@ console.log("Validação de backtest e interface sem resumos: OK.");
 
 const html=fs.readFileSync("templates/nostradamus.html","utf8");
 const src=fs.readFileSync("static/js/nostradamus.js","utf8");
-assert.ok(html.includes("<th>Entradas cotadas</th>"),"Exibir entradas com odds disponíveis");
+assert.ok(html.includes("<th>Lucro médio/entrada (R$)</th>"),"Exibir lucro médio por aposta cotada");
 assert.ok(html.includes("<th>Unidades (u)</th>"),"Mostrar unidades no resumo");
 assert.ok(html.includes("<th>Resultado (R$)</th>"),"Mostrar resultado financeiro");
 assert.ok(html.includes("<th>Good run máx.</th>"),"Mostrar maior sequência boa");
 assert.ok(html.includes("<th>Bad run máx.</th>"),"Mostrar maior sequência ruim");
-assert.ok(src.includes("fmt(r.cotadas,0)"),"Exibir cobertura de odds reais da análise");
+assert.ok(src.includes("money(r.lucro_medio_entrada)"),"Mostrar lucro médio de entradas com odds");
 const summaryRender=src.slice(src.indexOf("function show(response){"),src.indexOf('$("#ns-summary").addEventListener("click"'));
 assert.ok(summaryRender.includes("fmt(r.unidades,2)"),"Mostrar resultado em unidades");
 assert.ok(summaryRender.includes("money(r.valor_reais)"),"Mostrar resultado financeiro em reais");
@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-odds-reais-v1'),
+assert.ok(html.includes('nostradamus-multiliguas-v2'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -82,3 +82,11 @@ assert.ok(src.includes('confirmada no Supabase.'),
 assert.ok(src.includes('optgroup label="Dados físicos"'),"As métricas físicas devem formar uma categoria no seletor");
 assert.ok(src.includes('metricOpts(meta.metricas,data.metrica)'),"O seletor de indicador deve aceitar métricas físicas");
 assert.ok(src.includes('metricOpts(meta.metricas,data.metrica_ref)'),"Os indicadores físicos podem ser comparados com outros indicadores");
+
+assert.ok(html.includes('id="ns-league-items"'),"Multi-seleção de ligas deve existir");
+assert.ok(html.includes('id="ns-league-all"'),"Permitir selecionar todas as ligas");
+assert.ok(src.includes("campeonato_ids:selectedLeagues()"),"Enviar lista de ligas no backtest");
+assert.ok(src.includes("Array.isArray(saved.campeonato_ids)"),"Restaurar estratégias com várias ligas");
+assert.ok(src.includes("saved.campeonato_id?[saved.campeonato_id]:[]"),
+  "Manter compatibilidade com estratégias antigas");
+assert.ok(src.includes("function closeLeagues()"),"Dropdown deve fechar ao usar Escape e clicar fora");
