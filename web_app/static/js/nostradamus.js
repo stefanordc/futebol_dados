@@ -4,6 +4,10 @@
 const $=q=>document.querySelector(q);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=(v,d=1)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const money=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pnlClass=v=>v==null?"":Number(v)>=0?"ns-green":"ns-red";
+const oddLabel=r=>r.tipo_odd==="lay_estimado"?"Lay estimado":r.tipo_odd==="api_casa"?"Casa / histórico":r.tipo_odd==="hipotetica"?"Hipotética":r.tipo_odd==="registrada_antes"?"FotMob pré-jogo":"";
+
 const store="df_nostradamus_estrategias_v1",status=$("#ns-feedback");
 let meta=null,loaded=null,stored=[],editing=null;
 const today=new Date(),localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
@@ -301,7 +305,7 @@ $("#ns-save").addEventListener("click",async ()=>{
 });
 function details(rows){
   if(!rows.length)return '<p class="x1-help">Nenhuma partida passou pelas condições.</p>';
-  return '<div class="ns-scroll"><table class="ns-table"><thead><tr><th>Data</th><th>Jogo</th><th>Placar</th><th>Resultado</th><th>Odd</th><th>Unidades</th></tr></thead><tbody>'+
+  return '<div class="ns-scroll"><table class="ns-table"><thead><tr><th>Data</th><th>Jogo</th><th>Placar</th><th>Resultado</th><th>Odd / origem</th><th>Unidades (u)</th><th>Resultado (R$)</th></tr></thead><tbody>'+
   rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td><strong>'+esc(r.mandante)+' × '+esc(r.visitante)+'</strong>'+
     '<div class="ns-history-size">Histórico anterior: '+fmt(r.historico_mandante,0)+' jogos do mandante · '+fmt(r.historico_visitante,0)+' do visitante</div>'+
     '<div class="ns-match-conditions">'+(r.condicoes||[]).map(c=>
@@ -312,7 +316,11 @@ function details(rows){
       "mesmo indicador do adversário":esc(c.referencia)+" · "+esc(c.nome_ref)+
       (Number(c.valor)?" + ajuste "+fmt(c.valor,2):""))+')</div>').join("")+'</div></td>'+
     '<td>'+esc(r.placar)+'</td><td class="'+(r.green?"ns-green":"ns-red")+'">'+(r.green?"Green":"Red")+'</td>'+
-    '<td>'+fmt(r.odd,2)+(r.tipo_odd==="hipotetica"?' (hip.)':"")+'</td><td>'+fmt(r.unidades,2)+'</td></tr>').join("")+
+    '<td>'+fmt(r.odd,2)+(r.tipo_odd?
+        '<div class="ns-odd-origin">'+esc(oddLabel(r))+
+        (r.bookmaker?' · '+esc(r.bookmaker):'')+'</div>':"")+'</td>'+
+    '<td class="'+pnlClass(r.unidades)+'">'+fmt(r.unidades,2)+'</td>'+
+    '<td class="'+pnlClass(r.valor_reais)+'">'+money(r.valor_reais)+'</td></tr>').join("")+
   '</tbody></table></div>';
 }
 function show(response){
@@ -324,8 +332,14 @@ function show(response){
     '<tr><td><button class="ns-expand" type="button" data-expand="'+i+'" aria-expanded="false" aria-label="Exibir jogos da liga '+esc(r.campeonato)+'">+</button></td>'+
     '<td>'+esc(r.campeonato)+'</td><td>'+fmt(r.entradas,0)+'</td>'+
     '<td class="ns-green">'+fmt(r.greens,0)+'</td><td class="ns-red">'+fmt(r.reds,0)+'</td>'+
-    '<td>'+fmt(r.win_rate,1)+'%</td></tr>').join(""):
-    '<tr><td colspan="6">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
+    '<td>'+fmt(r.win_rate,1)+'%</td>'+
+    '<td class="'+pnlClass(r.unidades)+'">'+fmt(r.unidades,2)+'</td>'+
+    '<td class="'+pnlClass(r.valor_reais)+'">'+money(r.valor_reais)+'</td>'+
+    '<td>'+fmt(r.odd_media,2)+'</td>'+
+    '<td>'+fmt(r.cotadas,0)+' / '+fmt(r.entradas,0)+'</td>'+
+    '<td class="ns-green">'+fmt(r.maior_good_run,0)+'</td>'+
+    '<td class="ns-red">'+fmt(r.maior_bad_run,0)+'</td></tr>').join(""):
+    '<tr><td colspan="12">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
   $("#ns-details").innerHTML="";
   say("Análise concluída: "+response.entradas+" entradas históricas em "+response.resultados.length+" campeonato(s). Expanda uma liga para conferir as condições e o histórico de cada jogo.");
 }
