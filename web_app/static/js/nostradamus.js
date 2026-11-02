@@ -26,14 +26,21 @@ const metricOpts=(data,value)=>{
          '<optgroup label="Dados físicos">'+opts(physical,value)+'</optgroup>';
 };
 function normalizeCondition(item={}){
-  // Regras antigas com "margem" continuam interpretadas exatamente como eram.
+  if(item.tipo==="odd"){
+    return {tipo:"odd",mercado:item.mercado||"over_25",
+      odd_min:item.odd_min??"",odd_max:item.odd_max??""};
+  }
+  // Os rótulos legados são reinterpretados como papéis dinâmicos,
+  // nunca fixados no mando original.
   const oldRecord=Object.keys(item).length>0;
-  const lado=["favorito","zebra","mandante","visitante"].includes(item.lado)
-    ?item.lado:(oldRecord?"mandante":"favorito");
+  const legacyRole={mandante:"favorito",visitante:"zebra"};
+  const lado=legacyRole[item.lado]||(
+    ["favorito","zebra","ambos"].includes(item.lado)?item.lado:"favorito");
   const metrica=item.metrica||"xg";
-  const opponent=lado==="mandante"?"visitante":lado==="visitante"?"mandante":
-    lado==="favorito"?"zebra":"favorito";
-  const referencia=item.referencia||(oldRecord?(lado==="favorito"||lado==="zebra"?opponent:"visitante"):"valor");
+  const opponent=lado==="zebra"?"favorito":"zebra";
+  const originalRef=item.referencia;
+  const referencia=legacyRole[originalRef]||originalRef||
+    (oldRecord&&lado!=="ambos"?opponent:"valor");
   const metricaRef=item.metrica_ref||metrica;
   const valor=item.valor??item.margem??(oldRecord?0:"");
   let modo;
@@ -42,11 +49,27 @@ function normalizeCondition(item={}){
     (referencia===opponent&&metricaRef===metrica&&Number(valor)===0)){
     modo="adversario";
   }else modo="legado";
-  return {lado,metrica,comparador:item.comparador||"gt",modo,
+  return {tipo:"indicador",lado,metrica,comparador:item.comparador||"gt",modo,
     referencia:modo==="legado"?referencia:opponent,metrica_ref:metricaRef,valor};
 }
 function updateConditionRow(row){
-  const mode=row.querySelector(".ns-reference").value;
+  const isOdd=row.querySelector(".ns-condition-kind").value==="odd";
+  row.querySelectorAll(".ns-stat-criterion").forEach(field=>{
+    field.hidden=isOdd;
+    field.querySelectorAll("input,select").forEach(input=>{input.disabled=isOdd;});
+  });
+  row.querySelectorAll(".ns-odd-criterion").forEach(field=>{
+    field.hidden=!isOdd;
+    field.querySelectorAll("input,select").forEach(input=>{input.disabled=!isOdd;});
+  });
+  if(isOdd)return;
+  const ref=row.querySelector(".ns-reference");
+  const both=row.querySelector(".ns-side").value==="ambos";
+  for(const option of ref.options){
+    option.disabled=both&&option.value!=="valor";
+  }
+  if(both&&ref.value!=="valor")ref.value="valor";
+  const mode=ref.value;
   const fixed=mode==="valor",legacy=mode==="legado";
   const valueWrap=row.querySelector(".ns-value-wrap");
   const legacyMetric=row.querySelector(".ns-refmetric-wrap");
@@ -65,6 +88,13 @@ function updateConditionRow(row){
   value.setAttribute("aria-label",legacy?"Ajuste da regra antiga":"Valor absoluto");
 }
 function missingConditionValue(condition){
+  if(condition.tipo==="odd"){
+    const min=condition.odd_min,max=condition.odd_max;
+    return !condition.mercado||(min==null&&max==null)||
+      (min!=null&&(!Number.isFinite(min)||min<1.01||min>1000))||
+      (max!=null&&(!Number.isFinite(max)||max<1.01||max>1000))||
+      (min!=null&&max!=null&&min>max);
+  }
   // "Mesmo indicador do adversário" não tem, nem precisa ter, valor numérico.
   return condition.referencia!=="adversario" &&
     (condition.valor==null||!Number.isFinite(condition.valor));
@@ -76,24 +106,30 @@ function conditionLine(item={}){
   const modes={valor:"Valor absoluto",adversario:"Mesmo indicador do adversário"};
   if(data.modo==="legado")modes.legado="Regra personalizada (salva anteriormente)";
   div.innerHTML=
-    '<label>Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
-      opts({...{favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)"},
-        ...(["mandante","visitante"].includes(data.lado)
-          ?{mandante:"Mandante (estratégia antiga)",visitante:"Visitante (estratégia antiga)"}:{})},data.lado)+'</select></label>'+
-    '<label>Indicador<select class="ns-metric" aria-label="Indicador">'+
+    '<label class="ns-kind-field">Tipo de critério<select class="ns-condition-kind" aria-label="Tipo de critério">'+
+      opts({indicador:"Estatística das equipes",odd:"Odd de um mercado"},data.tipo||"indicador")+'</select></label>'+
+    '<label class="ns-stat-criterion">Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
+      opts({favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)",ambos:"Ambos (cada equipe)"},data.lado||"favorito")+'</select></label>'+
+    '<label class="ns-stat-criterion">Indicador<select class="ns-metric" aria-label="Indicador">'+
       metricOpts(meta.metricas,data.metrica)+'</select></label>'+
-    '<label>Comparador<select class="ns-comparison" aria-label="Comparador">'+
+    '<label class="ns-stat-criterion">Comparador<select class="ns-comparison" aria-label="Comparador">'+
       opts(meta.comparadores,data.comparador)+'</select></label>'+
     '<button type="button" class="ns-remove" aria-label="Remover condição">Remover</button>'+
-    '<label class="ns-reference-wrap">Comparar com<select class="ns-reference" aria-label="Comparar com">'+
+    '<label class="ns-reference-wrap ns-stat-criterion">Comparar com<select class="ns-reference" aria-label="Comparar com">'+
       opts(modes,data.modo)+'</select></label>'+
-    '<label class="ns-value-wrap"><span class="ns-value-label">Valor absoluto</span>'+
+    '<label class="ns-value-wrap ns-stat-criterion"><span class="ns-value-label">Valor absoluto</span>'+
       '<input class="ns-value" type="number" inputmode="decimal" min="-10000" max="10000" step="any" value="'+
       esc(data.modo==="valor"?data.valor:data.modo==="legado"?data.valor:"")+'"></label>'+
-    '<label class="ns-legacy-side-wrap" hidden>Referência original<select class="ns-legacy-side" aria-label="Referência original">'+
-      opts({mandante:"Mandante",visitante:"Visitante"},data.referencia)+'</select></label>'+
-    '<label class="ns-refmetric-wrap" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
-      metricOpts(meta.metricas,data.metrica_ref)+'</select></label>';
+    '<label class="ns-legacy-side-wrap ns-stat-criterion" hidden>Referência original<select class="ns-legacy-side" aria-label="Referência original">'+
+      opts({favorito:"Favorito",zebra:"Zebra"},data.referencia)+'</select></label>'+
+    '<label class="ns-refmetric-wrap ns-stat-criterion" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
+      metricOpts(meta.metricas,data.metrica_ref)+'</select></label>'+
+    '<label class="ns-odd-criterion" hidden>Mercado da odd<select class="ns-odd-market" aria-label="Mercado da odd" required>'+
+      opts(meta.mercados_odd||{},data.mercado||"over_25")+'</select></label>'+
+    '<label class="ns-odd-criterion" hidden>Odd mínima (opcional)<input class="ns-odd-min" aria-label="Odd mínima" type="number" step="any" min="1.01" max="1000" placeholder="Ex.: 1,70" value="'+
+      esc(data.odd_min??"")+'"></label>'+
+    '<label class="ns-odd-criterion" hidden>Odd máxima (opcional)<input class="ns-odd-max" aria-label="Odd máxima" type="number" step="any" min="1.01" max="1000" placeholder="Ex.: 2,50" value="'+
+      esc(data.odd_max??"")+'"></label>';
   $("#ns-conditions").appendChild(div);
   updateConditionRow(div);
   drawCount();
@@ -166,6 +202,12 @@ const values=()=>({
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
   comissao_pct:4.5,
   condicoes:[...$("#ns-conditions").children].map(row=>{
+    if(row.querySelector(".ns-condition-kind").value==="odd"){
+      const min=row.querySelector(".ns-odd-min").value.trim();
+      const max=row.querySelector(".ns-odd-max").value.trim();
+      return {tipo:"odd",mercado:row.querySelector(".ns-odd-market").value,
+        odd_min:min===""?null:Number(min),odd_max:max===""?null:Number(max)};
+    }
     const mode=row.querySelector(".ns-reference").value;
     const base={
       lado:row.querySelector(".ns-side").value,
@@ -208,6 +250,7 @@ document.querySelector(".ns-subtabs").addEventListener("click",event=>{
   if(btn)setTab(btn.dataset.nsTab);
 });
 function roleLabel(role,mando){
+  if(role==="ambos")return "Ambos (cada equipe)";
   if(role==="favorito"||role==="zebra"){
     const name=role==="favorito"?"Favorito":"Zebra";
     return name+(mando?" ("+(mando==="mandante"?"Mandante":"Visitante")+")":" (pela odd)");
@@ -215,6 +258,12 @@ function roleLabel(role,mando){
   return role==="visitante"?"Visitante (estratégia antiga)":"Mandante (estratégia antiga)";
 }
 function formatRule(rule){
+  if(rule.tipo==="odd"){
+    const name=meta?.mercados_odd?.[rule.mercado]||rule.mercado;
+    const bounds=[rule.odd_min!=null?"mín. "+fmt(rule.odd_min,2):"",
+      rule.odd_max!=null?"máx. "+fmt(rule.odd_max,2):""].filter(Boolean);
+    return esc("Odd de "+name+" · "+bounds.join(" · "));
+  }
   const lhs=roleLabel(rule.lado)+" · "+
     (meta?.metricas?.[rule.metrica]||rule.metrica);
   const rhs=rule.referencia==="valor"?fmt(rule.valor,2):
@@ -392,8 +441,14 @@ function details(rows){
   rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td>'+matchLabel(r)+
     '<div class="ns-history-size">Histórico anterior: '+fmt(r.historico_mandante,0)+' jogos do mandante · '+fmt(r.historico_visitante,0)+' do visitante</div>'+
     '<div class="ns-match-conditions">'+(r.condicoes||[]).map(c=>
+      c.tipo==="odd"?
+      '<div><b>Odd · '+esc(c.nome)+'</b>: '+fmt(c.odd,2)+
+      ' (mín. '+fmt(c.odd_min,2)+' / máx. '+fmt(c.odd_max,2)+
+      ') · '+esc(c.fonte==="lay_estimado"?"Lay estimado":"Odd do banco")+'</div>':
       '<div><b>'+esc(roleLabel(c.lado,c.mando))+'</b> · '+esc(c.nome)+
-      ': <b>'+fmt(c.observado,2)+'</b> '+esc(c.comparador)+
+      ': <b>'+(c.lado==="ambos"?
+      'Mandante '+fmt(c.observado_mandante,2)+' / Visitante '+fmt(c.observado_visitante,2):
+      fmt(c.observado,2))+'</b> '+esc(c.comparador)+
       ' <b>'+fmt(c.comparado,2)+'</b> ('+
       (c.referencia==="valor"?"valor absoluto":c.referencia==="adversario"?
       "mesmo indicador do adversário":esc(c.referencia)+" · "+esc(c.nome_ref)+
