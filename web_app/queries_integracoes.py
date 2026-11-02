@@ -426,11 +426,57 @@ def _preparar_colunas(cur,colunas):
             sql.Identifier(name),sql.SQL(typ)))
     cur.execute(sql.SQL("ALTER TABLE public.odds ") + sql.SQL(", ").join(alteracoes))
 
+MAX_TEMPORADAS=12
+MAX_ROWS_BATCH=20000
+TEMPORADA_PATTERN=re.compile(r"20\d{2}(?:-20\d{2})?$")
+
+def _temporadas_da_requisicao(path,entrada):
+    """Aceita lista colada com vírgula, ponto e vírgula ou quebra de linha."""
+    original=path.rstrip("/").rsplit("/",1)[-1]
+    if entrada in (None,""):
+        return [original] if TEMPORADA_PATTERN.fullmatch(original) else [None]
+    if not isinstance(entrada,str) or len(entrada)>350:
+        raise ValueError("Informe até 12 temporadas separadas por vírgula ou quebra de linha.")
+    items=[x.strip() for x in re.split(r"[,;\n\r]+",entrada) if x.strip()]
+    if not items or len(items)>MAX_TEMPORADAS:
+        raise ValueError("Informe de 1 a 12 temporadas.")
+    intervalos=bool(re.fullmatch(r"20\d{2}-20\d{2}",original))
+    if not TEMPORADA_PATTERN.fullmatch(original):
+        raise ValueError("O caminho da API precisa terminar com uma temporada válida.")
+    unique=list(dict.fromkeys(items))
+    for item in unique:
+        if not TEMPORADA_PATTERN.fullmatch(item):
+            raise ValueError(f"Temporada inválida: {item}. Use 2026 ou 2026-2027.")
+        if ("-" in item)!=intervalos:
+            raise ValueError("Não misture temporadas simples e intervalos na mesma URL.")
+        if "-" in item:
+            a,b=map(int,item.split("-"))
+            if b!=a+1:
+                raise ValueError(f"Intervalo inválido: {item}. O segundo ano deve ser consecutivo.")
+    return unique
+
+def _download_temporada(opener,url,headers):
+    request=Request(url,headers=headers,method="GET")
+    with opener.open(request,timeout=30) as response:
+        content_type=(response.headers.get("Content-Type") or "").lower()
+        raw=response.read(LIMIT_BYTES+1)
+        if len(raw)>LIMIT_BYTES:
+            raise ValueError("Resposta excede o limite de 16 MB.")
+    rows=_parse_response(raw,content_type)
+    if len(rows)>LIMIT_ROWS:
+        raise ValueError("A temporada excede o limite de 5.000 partidas.")
+    if any(not isinstance(row,dict) for row in rows):
+        raise ValueError("A resposta possui partidas inválidas.")
+    return rows
+
 def preview(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
     base=str(payload.get("base",""))
     path=str(payload.get("caminho",""))
     url,host=_url(base,path)
+    seasons=_temporadas_da_requisicao(path,payload.get("temporadas"))
+    if len(seasons)>1 and seasons[0] is None:
+        raise ValueError("Informe um caminho terminado em temporada.")
     api_key=payload.get("chave","")
     header=payload.get("cabecalho","api_key")
     if header not in ("api_key","x-api-key","Authorization"):
@@ -441,36 +487,51 @@ def preview(payload):
     if not nova_chave:
         api_key=_chave_armazenada(host) or ""
     salvar=payload.get("salvar_chave",False) is True
-    headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.1"}
-    if api_key:
-        if header=="api_key":
-            # O provedor recebe a chave na query string; não a registramos.
-            url += "?" + urlencode({"api_key":api_key})
-        else:
-            headers[header]="Bearer "+api_key if header=="Authorization" else api_key
-    req=Request(url,headers=headers,method="GET")
+    headers={"Accept":"text/csv, application/json","User-Agent":"DadosFutebolImporter/1.2"}
+    if api_key and header!="api_key":
+        headers[header]="Bearer "+api_key if header=="Authorization" else api_key
     opener=build_opener(HTTPSHandler(),_NoRedirect())
-    try:
-        with opener.open(req,timeout=30) as response:
-            content_type=(response.headers.get("Content-Type") or "").lower()
-            raw=response.read(LIMIT_BYTES+1)
-            if len(raw)>LIMIT_BYTES:raise ValueError("Resposta excede o limite de 16 MB.")
-    except HTTPError as exc:
-        if exc.code in (401,403):
-            raise ValueError("Chave de API inválida ou acesso não autorizado.") from None
-        raise ValueError(f"Falha na API (HTTP {exc.code}). Verifique o caminho.") from None
-    except (URLError,TimeoutError,OSError):
-        raise ValueError("Falha ao consultar a API. Confira host, chave e caminho.") from None
-    rows=_parse_response(raw,content_type)
+    root=url.rsplit("/",1)[0]
+    rows=[]
+    row_seasons=[]
+    paths={}
+    results=[]
+    for season in seasons:
+        current_path=(path.rsplit("/",1)[0]+"/"+season) if season is not None else path
+        current_url=(root+"/"+season) if season is not None else url
+        paths[season]=current_path
+        if api_key and header=="api_key":
+            current_url+="?"+urlencode({"api_key":api_key})
+        try:
+            season_rows=_download_temporada(opener,current_url,headers)
+        except HTTPError as exc:
+            if exc.code in (401,403):
+                raise ValueError("Chave de API inválida ou acesso não autorizado.") from None
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":f"HTTP {exc.code}"})
+            continue
+        except (URLError,TimeoutError,OSError):
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":"Falha de conexão ou limite de tempo."})
+            continue
+        except ValueError as exc:
+            # Mensagens geradas localmente; nunca repassar URL com credenciais.
+            results.append({"temporada":season,"status":"erro","partidas":0,
+                            "mensagem":str(exc)})
+            continue
+        results.append({"temporada":season,"status":"ok" if season_rows else "vazio",
+                        "partidas":len(season_rows)})
+        if len(rows)+len(season_rows)>MAX_ROWS_BATCH:
+            raise ValueError("O lote excede 20.000 partidas. Divida a lista de temporadas.")
+        rows.extend(season_rows)
+        row_seasons.extend([season]*len(season_rows))
+    if not rows:
+        raise ValueError("Nenhuma partida retornada. Verifique os resultados das temporadas e os caminhos.")
     if nova_chave and salvar:
         try:
             keyring.set_password(_KEYRING_SERVICE,host,nova_chave)
         except Exception as exc:
             raise ValueError("A consulta funcionou, mas não foi possível guardar a chave no cofre do sistema.") from exc
-    if not rows or len(rows)>LIMIT_ROWS:
-        raise ValueError("Prévia aceita entre 1 e 5.000 partidas por importação.")
-    if any(not isinstance(row,dict) for row in rows):
-        raise ValueError("Cada partida deve conter colunas identificáveis.")
     columns=list(OrderedDict.fromkeys(k for row in rows for k in row
         if SAFE_KEY.fullmatch(k) and not PRIVATE_FIELD.search(k)
         and not _is_handicap_column(k)))
@@ -479,20 +540,23 @@ def preview(payload):
     revisao=_clubes_preview(rows,country)
     saved=_last_columns()
     selected=[c for c in saved if c in columns] if saved is not None else _default_columns(columns)
-    if not selected:
-        selected=_default_columns(columns)
+    if not selected:selected=_default_columns(columns)
     now=time.monotonic()
     for k,v in list(_PREVIEWS.items()):
         if now-v["criado"]>TTL:_PREVIEWS.pop(k,None)
     token=secrets.token_urlsafe(24)
-    _PREVIEWS[token]={"rows":rows,"columns":columns,"criado":now,
+    _PREVIEWS[token]={"rows":rows,"row_seasons":row_seasons,"paths":paths,
+                       "temporadas_resultado":results,"columns":columns,"criado":now,
                        "host":host,"path":path,"season":season,"league":league,"country":country}
-    return {"preview_id":token,"colunas":columns,"chave_salva":bool(_chave_armazenada(host)),"colunas_marcadas":selected,
+    return {"preview_id":token,"colunas":columns,
+            "chave_salva":bool(_chave_armazenada(host)),"colunas_marcadas":selected,
             "selecao_origem":"ultima_importacao" if saved is not None else "recomendada",
-            "temporada":season,"campeonato":league,
-            **revisao,"total":len(rows),
+            "temporada":season,"temporadas":seasons,"temporadas_resultado":results,
+            "multiplas_temporadas":payload.get("temporadas") not in (None,""),
+            "campeonato":league,**revisao,"total":len(rows),
             "exemplo":{c:rows[0].get(c) for c in columns},
-            "aviso":"Revise as sugestões antes de importar. Nenhum dado foi salvo."}
+            "aviso":"Revise temporadas com erro e as sugestões de clubes antes de importar."}
+
 
 def importar(payload):
     if not isinstance(payload,dict):raise ValueError("Requisição inválida.")
