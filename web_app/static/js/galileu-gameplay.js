@@ -116,7 +116,7 @@ function renderGames(){
     '<section class="gl-round-league"><h3>'+escapeHTML(league)+
       ' <span>'+items.length+' jogos</span></h3>'+
       '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
-  ).join(""):'<div class="gl-empty">Não existem rodadas cadastradas após esta etapa.</div>';
+  ).join(""):'<div class="gl-empty">Nenhum jogo neste período. Use Avançar período sem jogos para continuar a gameplay sem revelar placares.</div>';
 }
 function tableRows(group){
   if(!group?.length)return '<p class="gl-note">Nenhuma entrada registrada nesta categoria.</p>';
@@ -182,18 +182,33 @@ function render(){
     num(state.gestao_pct,2)+"% da banca":"Stake fixa";
   $("#gl-bank-entries").textContent=num(state.entradas,0);
   $("#gl-round-title").textContent="Rodada "+state.rodada_indice;
-  $("#gl-round-dates").textContent=state.rodada_atual.inicio?
-    dateBR(state.rodada_atual.inicio)+" até "+dateBR(state.rodada_atual.fim):"Sem novos jogos";
+  // O intervalo exibido é sempre de até 10 dias e nunca cruza o mês.
+  // Data de corte atual é a última data de jogos da etapa anterior.
+  const start=state.corte_atual?
+    localDate(new Date(state.corte_atual+"T12:00:00")):
+    null;
+  const first=start?localDate(new Date(
+    Number(start.slice(0,4)),Number(start.slice(5,7))-1,
+    Number(start.slice(8,10))+1)):null;
+  $("#gl-round-dates").textContent=state.limite_janela?
+    dateBR(first)+" até "+dateBR(state.limite_janela):"Sem próximos jogos";
+  $("#gl-round-cutoff").textContent="Data de corte atual: "+dateBR(state.corte_atual)+
+    " · Jogos exibidos até "+dateBR(state.limite_janela)+
+    " (máximo de 10 dias e até o fim do mês).";
   const open=state.fase==="aberta";
   $("#gl-finish").hidden=!open||!state.jogos.length;
-  $("#gl-next").hidden=state.fase!=="revelada";
-  $("#gl-next").textContent=state.pode_avancar?"Próxima rodada":"Concluir gameplay";
-  $("#gl-round-status").textContent=open?
-    "Selecione suas entradas e finalize quando os jogos tiverem resultados disponíveis.":
+  $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
+  $("#gl-next").textContent=state.pode_pular_vazio?
+    "Avançar período sem jogos":
+    state.pode_avancar?"Próxima rodada":"Concluir gameplay";
+  $("#gl-round-status").textContent=state.pode_pular_vazio?
+    "Não há jogos neste intervalo. Você pode avançar sem fazer entradas.":
+    open?"Selecione suas entradas e finalize quando os jogos tiverem resultados disponíveis.":
     state.fase==="revelada"?"Rodada finalizada. Placar e resultado das entradas revelados.":
     "Todas as rodadas cadastradas foram percorridas.";
-  $("#gl-round-help").textContent=open?
-    "Clique no jogo para analisar. Os métodos aparecem primeiro; resultados e placares permanecem ocultos.":
+  $("#gl-round-help").textContent=state.pode_pular_vazio?
+    "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
+    open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
     "Rodada encerrada. Consulte os placares e seus resultados virtuais.";
   renderGames();renderMonth();renderHistory();
 }

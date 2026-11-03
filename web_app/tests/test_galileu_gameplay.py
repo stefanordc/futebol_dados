@@ -2,7 +2,7 @@
 from datetime import date,timedelta
 from decimal import Decimal
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import queries_galileu_gameplay as gl
 import queries_nostradamus as ns
 from test_nostradamus import game
@@ -25,7 +25,7 @@ def fixtures():
         rows.append(r)
     for comp in (1,2):
         for n in (0,1):
-            r=game(100+comp*10+n,first+timedelta(days=10+n*7),
+            r=game(100+comp*10+n,first+timedelta(days=10+n*8),
                    gf=3 if n==0 else 0,ga=1,
                    comp=comp,season="2026/2027")
             r["rodada"]="Rodada "+str(9+n)
@@ -41,6 +41,7 @@ def fixtures():
 def session(phase="aberta"):
     return {"id":"session_uuid","token_hash":"a"*64,
             "corte":date(2026,10,17),
+            "corte_atual":date(2026,10,17),
             "banca_inicial":Decimal("1000.00"),
             "banca_atual":Decimal("1022.00"),
             "gestao_pct":Decimal("2.00"),
@@ -80,6 +81,114 @@ class TestGalileuGameplay(TestCase):
         done,month=gl._monthly_boundary(rounds,0)
         self.assertFalse(done)
         self.assertIsNone(month)
+
+    def test_corte_31_dez_nao_exibe_marco_2025_na_rodada_um(self):
+        def item(number,day,league=1):
+            return {"id":number,"data":date.fromisoformat(day),
+                    "campeonato_id":league}
+        catalog=[
+            item(1,"2025-01-01"),item(2,"2025-01-03",2),
+            item(3,"2025-01-10"),item(4,"2025-01-11"),
+            item(5,"2025-01-20"),item(6,"2025-03-30",3),
+        ]
+        rounds=gl._rounds(date(2024,12,31),catalog)
+        self.assertEqual([g["id"] for g in gl._round_at(rounds,0)],[1,2,3])
+        self.assertEqual(rounds[0]["corte"],date(2024,12,31))
+        self.assertEqual(rounds[0]["limite"],date(2025,1,10))
+        self.assertEqual(rounds[0]["proximo_corte"],date(2025,1,10))
+        self.assertEqual([g["id"] for g in gl._round_at(rounds,1)],[4,5])
+        self.assertEqual(rounds[1]["corte"],date(2025,1,10))
+        self.assertEqual(rounds[1]["limite"],date(2025,1,20))
+        self.assertNotIn(6,[g["id"] for g in gl._round_at(rounds,0)])
+
+    def test_corte_25_jan_limita_jan_e_abre_fev_somente_depois(self):
+        dates=["2025-01-26","2025-01-30","2025-01-31",
+               "2025-02-01","2025-02-03"]
+        catalog=[{"id":i+1,"data":date.fromisoformat(day),"campeonato_id":1}
+                 for i,day in enumerate(dates)]
+        rounds=gl._rounds(date(2025,1,25),catalog)
+        self.assertEqual([g["id"] for g in gl._round_at(rounds,0)],[1,2,3])
+        self.assertEqual(rounds[0]["limite"],date(2025,1,31))
+        self.assertEqual(rounds[0]["proximo_corte"],date(2025,1,31))
+        self.assertEqual([g["id"] for g in gl._round_at(rounds,1)],[4,5])
+        self.assertEqual(rounds[1]["corte"],date(2025,1,31))
+        self.assertEqual(rounds[1]["limite"],date(2025,2,10))
+        self.assertEqual(gl._monthly_boundary(rounds,0),(True,"2025-01"))
+
+    def test_ultimo_jogo_antecede_final_mes_sem_cruzar_janeiro(self):
+        catalog=[
+            {"id":1,"data":date(2025,1,27),"campeonato_id":1},
+            {"id":2,"data":date(2025,2,1),"campeonato_id":2},
+        ]
+        rounds=gl._rounds(date(2025,1,25),catalog)
+        self.assertEqual(rounds[0]["limite"],date(2025,1,31))
+        self.assertEqual(rounds[0]["proximo_corte"],date(2025,1,27))
+        self.assertFalse(rounds[1]["jogos"])
+        self.assertEqual(rounds[1]["proximo_corte"],date(2025,1,31))
+        self.assertEqual(rounds[2]["corte"],date(2025,1,31))
+        self.assertEqual([g["id"] for g in rounds[2]["jogos"]],[2])
+        # O resumo de janeiro aparece na última rodada COM jogos,
+        # não fica esperando o período vazio de 28 a 31.
+        self.assertEqual(gl._monthly_boundary(rounds,0),(True,"2025-01"))
+
+    def test_periodos_sem_jogos_nao_pulam_mais_de_dez_dias(self):
+        catalog=[{"id":8,"data":date(2025,3,30),"campeonato_id":1}]
+        rounds=gl._rounds(date(2024,12,31),catalog)
+        self.assertTrue(len(rounds)>5)
+        self.assertEqual(rounds[0]["limite"],date(2025,1,10))
+        self.assertEqual(gl._round_at(rounds,0),[])
+        self.assertEqual(rounds[-1]["jogos"][0]["id"],8)
+        for window in rounds:
+            self.assertLessEqual((window["limite"]-window["corte"]).days,10)
+            self.assertEqual(window["limite"].month,
+                             (window["corte"]+timedelta(days=1)).month)
+        for one,two in zip(rounds,rounds[1:]):
+            self.assertEqual(two["corte"],one["proximo_corte"])
+
+    def test_proxima_atualiza_corte_sem_alterar_corte_inicial(self):
+        from contextlib import contextmanager
+        catalog=fixtures()
+        sess=session(phase="revelada")
+        executed=[]
+        class Cursor:
+            def execute(self,sql,params):
+                executed.append((sql,params))
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def cursor_context():
+                    yield Cursor()
+                return cursor_context()
+            def commit(self):
+                pass
+        @contextmanager
+        def fake_conn():
+            yield Conn()
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            result=gl.proxima("token")
+        self.assertEqual(result["corte_atual"],"2026-10-20")
+        self.assertTrue(any("corte_atual=%s" in sql for sql,_ in executed))
+        self.assertFalse(any(" SET corte=" in sql for sql,_ in executed))
+        params=executed[-1][1]
+        self.assertEqual(params[1],date(2026,10,20))
+        self.assertEqual(params[2],"aberta")
+
+    def test_estado_retomado_usa_ultimo_corte_salvo_nao_indice(self):
+        catalog=fixtures()
+        sess=session()
+        sess["corte_atual"]=date(2026,10,20)
+        sess["indice_rodada"]=1
+        with patch.object(gl,"_token_session",return_value=sess), \
+             patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_bet_rows",return_value=[]):
+            result=gl.estado("token")
+        self.assertEqual(result["corte"],"2026-10-17")
+        self.assertEqual(result["corte_atual"],"2026-10-20")
+        self.assertEqual(result["limite_janela"],"2026-10-30")
+        self.assertEqual([g["jogo_id"] for g in result["jogos"]],[111,121])
 
     def test_metodo_so_considera_indicadores_anteriores_e_odds(self):
         rows=fixtures()

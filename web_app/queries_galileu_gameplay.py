@@ -7,6 +7,7 @@ Odds históricas importadas não comprovam que estavam disponíveis pré-jogo.
 """
 from __future__ import annotations
 
+from calendar import monthrange
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -151,30 +152,51 @@ def _catalog():
     return all_rows
 
 
+def _month_end(day):
+    return day.replace(day=monthrange(day.year,day.month)[1])
+
+
 def _rounds(cutoff, catalog):
-    """Próxima rodada de cada liga, avançando o mesmo número de rodadas."""
-    per_league=defaultdict(lambda:defaultdict(list))
-    for row in catalog:
-        if row["data"]<=cutoff:
-            continue
-        comp=int(row["campeonato_id"])
-        label=str(row.get("rodada") or ("Data "+row["data"].isoformat())).strip()
-        key=(row["temporada"],label)
-        per_league[comp][key].append(row)
-    ordered={}
-    for comp,round_list in per_league.items():
-        values=list(round_list.values())
-        values.sort(key=lambda x:(min(g["data"] for g in x),min(int(g["id"]) for g in x)))
-        ordered[comp]=values
-    return ordered
+    """Janelas de até 10 dias, sem ultrapassar o mês civil.
+
+    Em cada Próxima rodada, o corte vira a MAIOR DATA dos jogos exibidos.
+    Se não houver partidas nos próximos dez dias, oferece uma janela vazia
+    e permite avançar até o limite do período (sem revelar placares).
+    """
+    ordered=sorted(
+        (r for r in catalog if r["data"]>cutoff),
+        key=lambda r:(r["data"],int(r["campeonato_id"]),int(r["id"]))
+    )
+    if not ordered:
+        return []
+    last_day=ordered[-1]["data"]
+    windows=[]
+    position=0
+    cursor=cutoff
+    while cursor<last_day:
+        first=cursor+timedelta(days=1)
+        limit=min(cursor+timedelta(days=10),_month_end(first))
+        games=[]
+        while position<len(ordered) and ordered[position]["data"]<=limit:
+            games.append(ordered[position])
+            position+=1
+        next_cut=max(g["data"] for g in games) if games else limit
+        windows.append({
+            "corte":cursor,
+            "limite":limit,
+            "proximo_corte":next_cut,
+            "jogos":games,
+        })
+        cursor=next_cut
+    return windows
 
 
 def _round_at(rounds,index):
-    games=[]
-    for groups in rounds.values():
-        if index<len(groups):
-            games.extend(groups[index])
-    return sorted(games,key=lambda g:(g["data"],int(g["campeonato_id"]),int(g["id"])))[:180]
+    return rounds[index]["jogos"] if 0<=index<len(rounds) else []
+
+
+def _window_at(rounds,index):
+    return rounds[index] if 0<=index<len(rounds) else None
 
 
 def _history(catalog):
@@ -278,7 +300,7 @@ def _matched(game,stat_home,stat_away,methods):
 
 
 def _games_for_session(sess,catalog,rounds):
-    games=_round_at(rounds,int(sess["indice_rodada"]))
+    games=_round_at(rounds,0)
     history=_history(catalog)
     methods=_methods()
     public=[]
@@ -387,11 +409,14 @@ def _summary(bets,initial):
 
 def _monthly_boundary(rounds,index):
     current=_round_at(rounds,index)
-    following=_round_at(rounds,index+1)
     if not current:
         return False,None
     month=max(g["data"] for g in current).strftime("%Y-%m")
-    if not following or min(g["data"] for g in following).strftime("%Y-%m")>month:
+    # Encerrar o mês na última rodada COM JOGOS daquele mês; períodos
+    # vazios entre dezembro/janeiro não adiam indevidamente o fechamento.
+    following=next((window["jogos"] for window in rounds[index+1:]
+                    if window["jogos"]),None)
+    if following is None or min(g["data"] for g in following).strftime("%Y-%m")!=month:
         return True,month
     return False,None
 
@@ -407,8 +432,10 @@ def estado(token):
     if sess is None:
         return {"iniciado":False}
     catalog=_catalog()
-    rounds=_rounds(_date(sess["corte"]),catalog)
+    current_cutoff=_date(sess.get("corte_atual") or sess["corte"])
+    rounds=_rounds(current_cutoff,catalog)
     raw_games,games=_games_for_session(sess,catalog,rounds)
+    window=_window_at(rounds,0)
     bets=_bet_rows(sess["id"])
     current=[b for b in bets if b["indice_rodada"]==sess["indice_rodada"]]
     by_game={int(b["jogo_id"]):{
@@ -419,13 +446,15 @@ def estado(token):
     } for b in current}
     for g in games:
         g["entrada"]=by_game.get(g["jogo_id"])
-    boundary,month=_monthly_boundary(rounds,int(sess["indice_rodada"]))
+    boundary,month=_monthly_boundary(rounds,0)
     revealed=sess["fase"] in ("revelada","concluida")
     history=_summary(bets,sess["banca_inicial"])
     return {
         "iniciado":True,
         "fase":sess["fase"],"versao":int(sess["versao"]),
         "corte":_date(sess["corte"]).isoformat(),
+        "corte_atual":current_cutoff.isoformat(),
+        "limite_janela":window["limite"].isoformat() if window else None,
         "banca_inicial":_brl(sess["banca_inicial"]),
         "banca_atual":_brl(sess["banca_atual"]),
         "gestao_pct":float(sess["gestao_pct"]),
@@ -441,7 +470,9 @@ def estado(token):
         "entradas":len(bets),
         "mes_encerrado":month if revealed and boundary else None,
         "resumo_mensal":history,
-        "pode_avancar":revealed and bool(_round_at(rounds,int(sess["indice_rodada"])+1)),
+        "pode_avancar":revealed and len(rounds)>1,
+        "periodo_vazio":not bool(raw_games),
+        "pode_pular_vazio":sess["fase"]=="aberta" and not raw_games and len(rounds)>1,
         "aviso":"Gameplay histórica com odds importadas sem prova de disponibilidade pré-jogo. Lay é estimado; nenhuma aposta é executada.",
     }
 
@@ -460,16 +491,16 @@ def iniciar(token,payload):
     import secrets
     new_token=secrets.token_urlsafe(40)
     catalog=_catalog()
-    if not _round_at(_rounds(cutoff,catalog),0):
+    if not _rounds(cutoff,catalog):
         raise ValueError("Não há rodadas cadastradas depois dessa data de corte.")
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
               INSERT INTO galileu_private.sessoes
-                (token_hash,corte,banca_inicial,banca_atual,gestao_pct)
-              VALUES (%s,%s,%s,%s,%s)
+                (token_hash,corte,corte_atual,banca_inicial,banca_atual,gestao_pct)
+              VALUES (%s,%s,%s,%s,%s,%s)
               RETURNING id
-            """,(_hash(new_token),cutoff,initial,initial,percent))
+            """,(_hash(new_token),cutoff,cutoff,initial,initial,percent))
             cur.fetchone()
         conn.commit()
     return new_token
@@ -502,8 +533,8 @@ def registrar(token,payload):
             sess=_lock(cur,token)
             if sess["fase"]!="aberta":
                 raise ValueError("A rodada já foi finalizada. Não é possível criar entradas.")
-            rounds=_rounds(_date(sess["corte"]),catalog)
-            current=_round_at(rounds,int(sess["indice_rodada"]))
+            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+            current=_round_at(rounds,0)
             game=next((g for g in current if int(g["id"])==gid),None)
             if game is None:
                 raise ValueError("Este jogo não pertence à rodada atual.")
@@ -587,7 +618,7 @@ def finalizar(token):
             sess=_lock(cur,token)
             if sess["fase"]!="aberta":
                 raise ValueError("Esta rodada já foi finalizada.")
-            games=_round_at(_rounds(_date(sess["corte"]),catalog),int(sess["indice_rodada"]))
+            games=_round_at(_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog),0)
             if not games:
                 raise ValueError("Não existem jogos para finalizar.")
             if any(g["data"]>=today() or g["gols_casa"] is None or g["gols_fora"] is None for g in games):
@@ -631,19 +662,35 @@ def proxima(token):
     with get_conn() as conn:
         with conn.cursor() as cur:
             sess=_lock(cur,token)
-            if sess["fase"]!="revelada":
+            current_cutoff=_date(sess.get("corte_atual") or sess["corte"])
+            rounds=_rounds(current_cutoff,catalog)
+            current=_window_at(rounds,0)
+            if sess["fase"]=="revelada":
+                pass
+            elif sess["fase"]=="aberta" and current and not current["jogos"]:
+                # Período sem partidas: só avançar o calendário, sem
+                # inventar placares, entradas ou balanço.
+                pass
+            else:
                 raise ValueError("Finalize a rodada antes de avançar.")
-            rounds=_rounds(_date(sess["corte"]),catalog)
-            next_index=int(sess["indice_rodada"])+1
-            exists=bool(_round_at(rounds,next_index))
+            if current is None:
+                raise ValueError("Não há períodos disponíveis.")
+            next_cutoff=current["proximo_corte"]
+            # Corte atualizado = última data da lista. Se a lista for vazia,
+            # o corte avança até o limite de dez dias/fim do mês.
+            exists=len(rounds)>1
             cur.execute("""
               UPDATE galileu_private.sessoes
-              SET indice_rodada=%s,fase=%s,versao=versao+1,atualizado_em=now()
+              SET indice_rodada=indice_rodada+%s,
+                  corte_atual=%s,fase=%s,versao=versao+1,
+                  atualizado_em=now()
               WHERE id=%s
-            """,(next_index if exists else sess["indice_rodada"],
+            """,(1 if exists else 0,next_cutoff,
                  "aberta" if exists else "concluida",sess["id"]))
         conn.commit()
-    return {"mensagem":"Próxima rodada carregada." if exists else "Simulação concluída: não há mais rodadas."}
+    return {"mensagem":"Próximo período carregado."
+                        if exists else "Simulação concluída: não há mais jogos.",
+            "corte_atual":next_cutoff.isoformat()}
 
 
 def reajustar(token,payload):
@@ -662,8 +709,8 @@ def reajustar(token,payload):
     with get_conn() as conn:
         with conn.cursor() as cur:
             sess=_lock(cur,token)
-            rounds=_rounds(_date(sess["corte"]),catalog)
-            boundary,_=_monthly_boundary(rounds,int(sess["indice_rodada"]))
+            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+            boundary,_=_monthly_boundary(rounds,0)
             if sess["fase"]!="revelada" or not boundary:
                 raise ValueError("Reajuste disponível ao encerrar um mês na rodada finalizada.")
             if fixed is not None and fixed>Decimal(sess["banca_atual"]):
