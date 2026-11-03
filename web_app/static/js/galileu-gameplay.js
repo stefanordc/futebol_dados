@@ -194,11 +194,6 @@ function bulkParseCents(value){
   return Number.isFinite(n)&&n>0&&Number.isSafeInteger(cents)&&
     Math.abs(n*100-cents)<0.000001?cents:null;
 }
-function bulkMaxAffordable(availableCents,stakeCents,numberOfOffers){
-  if(!Number.isSafeInteger(availableCents)||stakeCents==null||stakeCents<=0||
-      !Number.isSafeInteger(numberOfOffers)||numberOfOffers<0)return 0;
-  return Math.min(numberOfOffers,Math.floor(Math.max(0,availableCents)/stakeCents));
-}
 function bulkKey(item){
   return item.jogo_id+":"+item.metodo_id;
 }
@@ -206,9 +201,6 @@ const bulkSelected=new Set();
 let bulkSubmitting=false;
 function bulkSelectedOffers(){
   return bulkSelections().filter(offer=>bulkSelected.has(bulkKey(offer)));
-}
-function bulkAvailableCents(){
-  return Math.max(0,Math.round(Number(state?.saldo_disponivel||0)*100));
 }
 function bulkStakeCents(){
   return bulkParseCents($("#gl-bulk-stake").value);
@@ -223,38 +215,19 @@ function updateBulkPreview(){
   const availableOffers=bulkSelections();
   const count=availableOffers.filter(offer=>bulkSelected.has(bulkKey(offer))).length;
   const cents=bulkStakeCents();
-  const available=bulkAvailableCents();
   const total=cents===null?null:count*cents;
   const valid=total!==null&&Number.isSafeInteger(total);
-  const possible=bulkMaxAffordable(available,cents,availableOffers.length);
   $("#gl-bulk-count").textContent=count+" / "+availableOffers.length;
   $("#gl-bulk-stake-display").textContent=cents!==null?brl(cents/100):"—";
   $("#gl-bulk-total").textContent=valid?brl(total/100):"—";
-  let detail="Banca atual de referência: "+brl(available/100)+
-    ". As entradas são programadas; não há débito antecipado.";
-  if(!valid){
-    detail+=" Informe uma stake válida (ex.: 20,00).";
-  }else if(total>available){
-    detail+=" Exposição planejada acima da banca em "+brl((total-available)/100)+
-      ". Você pode confirmar todos os métodos. Na liquidação, entradas sem saldo"+
-      " na data do jogo não serão executadas, e não contarão como reds.";
-  }else if(count>0){
-    detail+=" Exposição planejada de "+brl(total/100)+
-      " (a banca não é descontada no momento do agendamento).";
-  }
-  $("#gl-bulk-balance").textContent=detail;
-  $("#gl-bulk-balance").classList.toggle("gl-negative",false);
-  const individualRiskOk=cents!==null&&cents<=available;
-  if(valid&&!individualRiskOk){
-    $("#gl-bulk-balance").textContent+=" A stake individual excede a banca atual; reduza o valor por método.";
-  }
-  $("#gl-bulk-confirm").disabled=bulkSubmitting||!count||!valid||!individualRiskOk;
-  $("#gl-bulk-affordable").disabled=bulkSubmitting||cents===null||!possible;
-  $("#gl-bulk-fit-stake").disabled=bulkSubmitting||!availableOffers.length||
-    available<availableOffers.length;
+  $("#gl-bulk-balance").textContent=valid?
+    "Todas as entradas selecionadas serão liquidadas no fechamento do mês, "+
+    "independentemente da banca. A banca virtual pode ficar negativa.":
+    "Informe uma stake positiva válida (ex.: 20,00). Não há limite pelo saldo.";
+  $("#gl-bulk-confirm").disabled=bulkSubmitting||!count||!valid;
   $("#gl-bulk-all").disabled=bulkSubmitting||!availableOffers.length;
   $("#gl-bulk-none").disabled=bulkSubmitting||!count;
-  return {count,cents,total,available,valid};
+  return {count,cents,total,valid};
 }
 $("#gl-bulk-open").addEventListener("click",()=>{
   const offers=bulkSelections();
@@ -295,34 +268,12 @@ $("#gl-bulk-none").addEventListener("click",()=>{
   bulkSelected.clear();
   bulkRenderChecked();
 });
-$("#gl-bulk-affordable").addEventListener("click",()=>{
-  const offers=bulkSelections();
-  const limit=bulkMaxAffordable(bulkAvailableCents(),bulkStakeCents(),offers.length);
-  bulkSelected.clear();
-  offers.slice(0,limit).forEach(x=>bulkSelected.add(bulkKey(x)));
-  bulkRenderChecked();
-  $("#gl-bulk-feedback").textContent=limit+" entrada(s) selecionada(s) "+
-    "na ordem da prévia, sem ultrapassar o saldo.";
-});
-$("#gl-bulk-fit-stake").addEventListener("click",()=>{
-  const offers=bulkSelections();
-  if(!offers.length)return;
-  const cents=Math.floor(bulkAvailableCents()/offers.length);
-  if(cents<1)return;
-  bulkSelected.clear();
-  offers.forEach(x=>bulkSelected.add(bulkKey(x)));
-  $("#gl-bulk-stake").value=(cents/100).toFixed(2).replace(".",",");
-  bulkRenderChecked();
-  $("#gl-bulk-feedback").textContent="Stake reduzida para "+
-    brl(cents/100)+" por método para incluir todas as "+offers.length+
-    " entradas. Confirme somente se concordar com o novo valor.";
-});
 $("#gl-bulk-form").addEventListener("submit",async event=>{
   event.preventDefault();
   if(bulkSubmitting)return;
   const preview=updateBulkPreview();
   const selections=bulkSelectedOffers();
-  if(!selections.length||!preview.valid||preview.cents>preview.available)return;
+  if(!selections.length||!preview.valid)return;
   bulkSubmitting=true;
   const btn=$("#gl-bulk-confirm");
   btn.disabled=true;
@@ -372,12 +323,9 @@ function renderRoundResults(){
   root.hidden=!revealed;
   if(!revealed){root.innerHTML="";return;}
   const total=entries.reduce((acc,x)=>acc+Number(x.lucro_prejuizo||0),0);
-  const notExecuted=entries.filter(x=>x.status==="sem_saldo").length;
-  root.innerHTML='<h3>Resultado da rodada · '+entries.length+' programada(s)</h3>'+
-    '<p class="gl-note">Executadas: '+(entries.length-notExecuted)+
-    ' · Não executadas por falta de saldo: '+notExecuted+
-    '. Jogos no mesmo dia são tratados como simultâneos; um lucro do dia só pode financiar entradas de datas posteriores. '+
-    'Os jogos finalizados individualmente também entram nesta apuração.</p>'+
+  root.innerHTML='<h3>Resultado do mês · '+entries.length+' entrada(s)</h3>'+
+    '<p class="gl-note">Todas as entradas programadas são executadas sem limite de saldo. '+
+    'O saldo virtual pode ficar negativo. Jogos finalizados individualmente também entram nesta apuração.</p>'+
     (entries.length?
       '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
       '<th>Confronto</th><th>Placar</th><th>Método</th><th>Mercado</th>'+
@@ -387,10 +335,9 @@ function renderRoundResults(){
         '<td>'+escapeHTML(entry.metodo)+'</td>'+
         '<td>'+escapeHTML(entry.mercado)+'</td>'+
         '<td>'+price(entry.odd)+'</td><td>'+brl(entry.stake)+'</td>'+
-        '<td>'+escapeHTML(entry.status==="sem_saldo"?"Não executada — sem saldo":
+        '<td>'+escapeHTML(entry.status==="sem_saldo"?"Não executada — legado":
             entry.status==="pendente"?"Programada":entry.status)+'</td>'+
-        '<td class="'+color(entry.lucro_prejuizo)+'">'+
-          (entry.status==="sem_saldo"?"—":brl(entry.lucro_prejuizo))+'</td>'+
+        '<td class="'+color(entry.lucro_prejuizo)+'">'+brl(entry.lucro_prejuizo)+'</td>'+
       '</tr>').join("")+'</tbody><tfoot><tr><th colspan="7">TOTAL DA RODADA</th>'+
       '<th class="'+color(total)+'">'+brl(total)+'</th></tr></tfoot></table></div>':
       '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
@@ -625,9 +572,8 @@ function render(){
   $("#gl-bank-percent").textContent=state.stake_fixa==null?
     num(state.gestao_pct,2)+"% da banca-base do mês":"Stake fixa";
   $("#gl-bank-entries").textContent=num(state.entradas,0);
-  $("#gl-round-title").textContent="Rodada "+state.rodada_indice;
-  // O intervalo exibido é sempre de até 10 dias e nunca cruza o mês.
-  // Data de corte atual é a última data de jogos da etapa anterior.
+  $("#gl-round-title").textContent="Mês "+String(state.mes_base).slice(5)+"/"+String(state.mes_base).slice(0,4);
+  // Um único período por mês civil; o primeiro respeita o corte inicial.
   const start=state.corte_atual?
     localDate(new Date(state.corte_atual+"T12:00:00")):
     null;
@@ -637,8 +583,8 @@ function render(){
   $("#gl-round-dates").textContent=state.limite_janela?
     dateBR(first)+" até "+dateBR(state.limite_janela):"Sem próximos jogos";
   $("#gl-round-cutoff").textContent="Data de corte atual: "+dateBR(state.corte_atual)+
-    " · Jogos exibidos até "+dateBR(state.limite_janela)+
-    " (máximo de 10 dias e até o fim do mês).";
+    " · Jogos do mês até "+dateBR(state.limite_janela)+
+    ". Todas as entradas selecionadas serão executadas na simulação.";
   const open=state.fase==="aberta";
   $("#gl-finish").hidden=!open||!state.rodada_atual.jogos;
   $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
@@ -646,18 +592,18 @@ function render(){
   $("#gl-next").textContent=state.fechamento_pendente?
     "Conclua o fechamento mensal para avançar":state.pode_pular_vazio?
     "Avançar período sem jogos":
-    state.pode_avancar?"Próxima rodada":"Concluir gameplay";
+    state.pode_avancar?"Próximo mês":"Concluir gameplay";
   $("#gl-round-status").textContent=state.pode_pular_vazio?
-    "Não há jogos neste intervalo. Você pode avançar sem fazer entradas.":
-    open?"Selecione suas entradas e finalize quando os jogos tiverem resultados disponíveis.":
-    state.fase==="revelada"?"Rodada finalizada. Placar e resultado das entradas revelados.":
+    "Não há jogos neste mês. Você pode avançar sem fazer entradas.":
+    open?"Selecione suas entradas e finalize quando todos os jogos do mês tiverem resultados disponíveis.":
+    state.fase==="revelada"?"Mês finalizado. Placares e resultados das entradas revelados.":
     "Todas as rodadas cadastradas foram percorridas.";
   $("#gl-games-closed").textContent=state.jogos_finalizados?
     state.jogos_finalizados+" jogo(s) finalizado(s) e removido(s) desta rodada. Entradas preservadas.":"";
   $("#gl-round-help").textContent=state.pode_pular_vazio?
-    "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
+    "Sem jogos neste mês. Avance para o próximo mês, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
-    "Rodada encerrada. Consulte os placares e seus resultados virtuais.";
+    "Mês encerrado. Consulte os placares e seus resultados virtuais.";
   renderMethodManagement();renderGames();renderRoundResults();renderMonth();renderHistory();
 }
 
@@ -880,7 +826,7 @@ $("#gl-entry-form").addEventListener("submit",async e=>{
 });
 
 $("#gl-finish").addEventListener("click",async()=>{
-  if(!window.confirm("Finalizar a rodada e revelar todos os placares disponíveis? Depois não será possível incluir novas entradas nesta rodada."))return;
+  if(!window.confirm("Finalizar o mês e revelar todos os placares? Todas as entradas serão liquidadas, mesmo sem saldo disponível. Depois não será possível incluir novas entradas neste mês."))return;
   const btn=$("#gl-finish");btn.disabled=true;
   await mutate(()=>post("finalizar"));
   btn.disabled=false;
