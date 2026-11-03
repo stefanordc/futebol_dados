@@ -189,6 +189,7 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_token_session",return_value=sess), \
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_disabled_methods",return_value={}), \
              patch.object(gl,"_bet_rows",return_value=[]), \
              patch.object(gl,"_closed_game_ids",return_value=set()), \
              patch.object(gl,"_fechamentos",return_value=[]):
@@ -226,6 +227,7 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_token_session",return_value=sess), \
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_disabled_methods",return_value={}), \
              patch.object(gl,"_bet_rows",return_value=[]), \
              patch.object(gl,"_closed_game_ids",return_value=set()), \
              patch.object(gl,"_fechamentos",return_value=[]):
@@ -319,6 +321,7 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_token_session",return_value=session_data), \
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_disabled_methods",return_value={}), \
              patch.object(gl,"_bet_rows",return_value=bets), \
              patch.object(gl,"_closed_game_ids",return_value={110}), \
              patch.object(gl,"_fechamentos",return_value=[]):
@@ -645,6 +648,7 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_catalog",return_value=fixtures()), \
              patch.object(gl,"_lock",return_value=sess), \
              patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_disabled_methods",return_value={}), \
              patch.object(gl,"get_conn",conn), \
              patch.object(extras,"execute_values") as inserted:
             with self.assertRaisesRegex(ValueError,"stake por método excede a banca atual"):

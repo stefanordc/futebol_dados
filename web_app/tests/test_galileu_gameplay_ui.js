@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v10"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v11"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -201,3 +201,19 @@ assert.ok(js.includes('Não executada — sem saldo'),
   "Exibir situação das entradas sem saldo na apuração");
 assert.ok(!js.includes('preview.total>preview.available'),
   "O frontend não pode bloquear lotes só pela soma das stakes");
+
+/* Fechamento mensal por método e retirada apenas para os meses seguintes. */
+for(const id of ["gl-method-performance-title","gl-method-performance-table",
+                 "gl-method-removal-note"]){
+  assert.ok(html.includes('id="'+id+'"'),"Falta tabela de métodos: "+id);
+}
+assert.ok(js.includes("function renderMethodPerformance()"),"Tabela de métodos deve ser calculada no mês");
+assert.ok(js.includes("item.maior_good_run")&&js.includes("item.maior_bad_run"),
+  "Exibir ambas sequências máximas por método");
+assert.ok(js.includes("data-remove-method"),"Checkbox individual para retirada futura");
+assert.ok(js.includes("retirar_metodos:selectedMethodsToRemove()"),
+  "Enviar métodos retirados no fechamento transacional");
+assert.ok(py.includes("def _is_disabled(method_id,game_date,disabled):"),
+  "Desativação deve considerar data do jogo");
+assert.ok(py.includes("galileu_private.metodos_desativados"),
+  "Persistir retirada por sessão no Supabase sem apagar estratégias");

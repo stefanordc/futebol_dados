@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v10">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v11">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -87,6 +87,12 @@
       <span class="gl-count">Mês encerrado</span>
     </div>
     <div id="gl-month-kpis" class="gl-kpis"></div>
+    <section class="gl-method-performance" aria-labelledby="gl-method-performance-title">
+      <h3 id="gl-method-performance-title">Desempenho por método neste mês</h3>
+      <p class="gl-note">As sequências consideram apenas entradas executadas (greens e reds), em ordem de data e registro. Entradas sem saldo não contam como red. Métodos com zero entradas também aparecem.</p>
+      <div class="gl-scroll" id="gl-method-performance-table" aria-live="polite"></div>
+      <p id="gl-method-removal-note" class="gl-note">Marque os métodos que deseja retirar da gameplay a partir do próximo mês. As estratégias continuarão salvas no Nostradamus e o histórico será preservado.</p>
+    </section>
     <div id="gl-month-groups" class="gl-month-groups"></div>
     <div id="gl-month-confirmed" class="gl-note" hidden>
       <strong>Fechamento registrado.</strong> O aporte, o saque e a gestão de stake já estão contabilizados. Consulte a aba Relatórios.
