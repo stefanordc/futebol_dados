@@ -9,7 +9,8 @@ import queries_estrategias as qs
 class TestLayGoleada(TestCase):
     def test_mercados_estao_no_catalogo(self):
         self.assertEqual(ns.MERCADOS["lay_goleada_favorito"],"Lay goleada favorito")
-        self.assertEqual(ns.MERCADOS["lay_goleada_visitante"],"Lay goleada visitante")
+        self.assertEqual(ns.MERCADOS["lay_goleada_zebra"],"Lay goleada zebra")
+        self.assertEqual(ns.MERCADOS["lay_goleada_visitante"],"Lay goleada visitante (estratégia antiga)")
 
     def test_favorito_mandante_perde_lay_em_vitoria_por_tres_ou_mais(self):
         market=ns._market_for_game("lay_goleada_favorito",True)
@@ -26,6 +27,27 @@ class TestLayGoleada(TestCase):
         self.assertTrue(ns._settle(market,2,2))
         self.assertFalse(ns._settle(market,0,3))
         self.assertFalse(ns._settle(market,1,5))
+
+    def test_zebra_visitante_perde_lay_se_vencer_por_tres_ou_mais(self):
+        market=ns._market_for_game("lay_goleada_zebra",True)
+        self.assertEqual(market,"lay_goleada_visitante")
+        self.assertTrue(ns._settle(market,2,0))
+        self.assertTrue(ns._settle(market,1,3))
+        self.assertFalse(ns._settle(market,0,3))
+        self.assertFalse(ns._settle(market,1,5))
+
+    def test_zebra_mandante_perde_lay_se_vencer_por_tres_ou_mais(self):
+        market=ns._market_for_game("lay_goleada_zebra",False)
+        self.assertEqual(market,"lay_goleada_mandante")
+        self.assertTrue(ns._settle(market,0,2))
+        self.assertTrue(ns._settle(market,3,1))
+        self.assertFalse(ns._settle(market,3,0))
+        self.assertFalse(ns._settle(market,4,1))
+
+    def test_lay_goleada_zebra_requer_classificacao_das_odds(self):
+        self.assertTrue(ns._requires_favorite("lay_goleada_zebra",[]))
+        with self.assertRaisesRegex(ValueError,"Match Odds"):
+            ns._market_for_game("lay_goleada_zebra",None)
 
     def test_lay_goleada_visitante_e_fixo_no_mando(self):
         market=ns._market_for_game("lay_goleada_visitante",True)
@@ -51,5 +73,5 @@ class TestLayGoleada(TestCase):
 
     def test_estrategia_aceita_ambos_objetivos(self):
         # Objetivos fazem parte da lista de valores aceitos pela validação.
-        for objetivo in ("lay_goleada_favorito","lay_goleada_visitante"):
+        for objetivo in ("lay_goleada_favorito","lay_goleada_zebra"):
             self.assertIn(objetivo,ns.MERCADOS)

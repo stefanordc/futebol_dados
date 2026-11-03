@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-atalhos-v10'),
+assert.ok(html.includes('nostradamus-atalhos-v11'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -223,3 +223,8 @@ assert.ok(src.includes('current.findIndex(item=>JSON.stringify(item)===JSON.stri
 assert.ok(src.includes('aiUndoStack.push(current)'),"Manter histórico das alterações sugeridas");
 assert.ok(src.includes('const previous=aiUndoStack.pop()'),"Desfazer precisa restaurar regras anteriores");
 assert.ok(css.includes('.ns-ai-shortcuts'),"Atalhos devem estar visíveis e responsivos");
+
+assert.ok(src.includes('"lay_goleada_visitante"].includes(k)'),
+  "O objetivo visitante legado deve aparecer apenas no grupo de estratégias antigas");
+assert.ok(html.includes("zebra é o clube com maior odd de vitória"),
+  "Explicar a diferença entre zebra e visitante no formulário");
