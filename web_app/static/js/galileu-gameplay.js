@@ -148,6 +148,31 @@ function tableRows(group){
        brl(r.lucro_prejuizo)+'</td><td>'+num(r.roi,1)+'%</td></tr>').join("")+
      '</tbody></table></div>';
 }
+function renderRoundResults(){
+  const root=$("#gl-round-results");
+  const entries=state.resumo_rodada||[];
+  const revealed=state.fase==="revelada"||state.fase==="concluida";
+  root.hidden=!revealed;
+  if(!revealed){root.innerHTML="";return;}
+  const total=entries.reduce((acc,x)=>acc+Number(x.lucro_prejuizo||0),0);
+  root.innerHTML='<h3>Resultado da rodada · '+entries.length+' entrada(s)</h3>'+
+    '<p class="gl-note">Os jogos que você finalizou individualmente também entram nesta apuração.</p>'+
+    (entries.length?
+      '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
+      '<th>Confronto</th><th>Placar</th><th>Método</th><th>Mercado</th>'+
+      '<th>Odd</th><th>Stake</th><th>Status</th><th>L/P</th></tr></thead><tbody>'+
+      entries.map(entry=>'<tr><td>'+escapeHTML(entry.confronto)+'</td>'+
+        '<td>'+escapeHTML(entry.placar||"—")+'</td>'+
+        '<td>'+escapeHTML(entry.metodo)+'</td>'+
+        '<td>'+escapeHTML(entry.mercado)+'</td>'+
+        '<td>'+price(entry.odd)+'</td><td>'+brl(entry.stake)+'</td>'+
+        '<td>'+escapeHTML(entry.status)+'</td>'+
+        '<td class="'+color(entry.lucro_prejuizo)+'">'+brl(entry.lucro_prejuizo)+'</td>'+
+      '</tr>').join("")+'</tbody><tfoot><tr><th colspan="7">TOTAL DA RODADA</th>'+
+      '<th class="'+color(total)+'">'+brl(total)+'</th></tr></tfoot></table></div>':
+      '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
+}
+
 function renderMonth(){
   const month=state.mes_encerrado;
   const root=$("#gl-month");
@@ -231,7 +256,7 @@ function render(){
     "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
     "Rodada encerrada. Consulte os placares e seus resultados virtuais.";
-  renderGames();renderMonth();renderHistory();
+  renderGames();renderRoundResults();renderMonth();renderHistory();
 }
 
 const getGame=id=>state?.jogos?.find(g=>g.jogo_id===Number(id));
