@@ -226,3 +226,41 @@
   .gl-game-card-actions .gl-primary,
   .gl-game-card-actions .gl-finish-game{width:calc(50% - 4px)}
 }
+
+
+/* Grupos prioritários: jogos validados sempre antes dos demais. */
+.gl-priority-group{margin:20px 0 30px}
+.gl-priority-heading{display:flex;align-items:center;gap:12px;
+  justify-content:space-between;color:var(--df-text);font-size:19px;
+  padding-bottom:12px;border-bottom:1px solid var(--df-border)}
+.gl-priority-heading span{font-size:12px;color:var(--df-secondary);font-weight:600}
+.gl-priority-group:first-child .gl-priority-heading{color:var(--df-orange)}
+.gl-bulk-toolbar{display:flex;gap:20px;align-items:center;justify-content:space-between;
+  padding:16px 18px;margin:18px 0;border:1px solid rgba(255,114,35,.4);
+  border-radius:12px;background:var(--df-raised)}
+.gl-bulk-toolbar[hidden],#gl-bulk-dialog[hidden]{display:none!important}
+.gl-bulk-description{display:grid;gap:6px;min-width:0}
+.gl-bulk-description strong{font-size:15px;color:var(--df-text)}
+.gl-bulk-description span{font-size:12px;color:var(--df-secondary)}
+.gl-bulk-toolbar .gl-primary{min-height:46px;flex-shrink:0}
+.gl-bulk-toolbar .gl-primary:disabled{opacity:.55;cursor:not-allowed}
+.gl-bulk-dialog #gl-bulk-form{display:grid;gap:16px}
+.gl-bulk-preview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gl-bulk-preview>div{padding:15px;background:var(--df-raised);
+  border:1px solid var(--df-border);border-radius:10px;display:grid;gap:8px}
+.gl-bulk-preview span{font-size:12px;color:var(--df-secondary)}
+.gl-bulk-preview strong{font-size:19px;font-weight:800;color:var(--df-text)}
+#gl-bulk-form label{display:grid;gap:8px;color:var(--df-secondary);
+  font-size:13px;font-weight:750}
+#gl-bulk-stake{padding:12px 14px;min-height:48px;width:100%;
+  color:var(--df-text);background:var(--df-raised);
+  border:1px solid var(--df-border);border-radius:10px;font:inherit}
+.gl-bulk-list h4{margin:0 0 10px;font-size:15px}
+.gl-bulk-list .gl-scroll{overflow:auto;max-height:300px}
+.gl-bulk-list .gl-table{width:100%;font-size:12px;white-space:nowrap}
+#gl-bulk-confirm:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:700px){
+  .gl-bulk-toolbar{flex-direction:column;align-items:stretch}
+  .gl-bulk-preview{grid-template-columns:1fr}
+  .gl-bulk-dialog .gl-dialog-footer button{width:100%}
+}

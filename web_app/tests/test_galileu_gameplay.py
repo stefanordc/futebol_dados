@@ -536,6 +536,123 @@ class TestGalileuGameplay(TestCase):
                          [Decimal("16.00"),Decimal("9.75")])
         self.assertTrue(any("UPDATE galileu_private.sessoes" in sql for sql,_ in events))
 
+    def test_entrada_em_lote_somente_metodos_novos_com_commit_unico(self):
+        from contextlib import contextmanager
+        from psycopg2 import extras
+        sess=session()
+        events=[]
+        committed=[]
+        existing={(110,7)}
+        catalog=fixtures()
+        methods=[
+            {"id":7,"versao":3,"nome":"Over 2,5","objetivo":"over_25",
+             "condicoes":[],"ligas":set(),"jogos":20},
+            {"id":8,"versao":3,"nome":"Lay Zebra","objetivo":"lay_zebra",
+             "condicoes":[],"ligas":set(),"jogos":20},
+        ]
+        class Cursor:
+            query=""
+            saved=[]
+            def execute(self,sql,params):
+                self.query=sql
+                events.append((sql,params))
+            def fetchall(self):
+                if "jogos_finalizados" in self.query:return []
+                if "SELECT jogo_id,metodo_id" in self.query:
+                    return [{"jogo_id":gid,"metodo_id":mid} for gid,mid in existing]
+                return self.saved
+            def fetchone(self):
+                return {"comprometido":Decimal("20.00")}
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():
+                    yield cur
+                return ctx()
+            def commit(self):committed.append(True)
+        cur=Cursor()
+        @contextmanager
+        def conn():
+            yield Conn()
+        def matched(g,h,a,selected):
+            m=selected[0]
+            return [{"id":m["id"],"mercado":{
+                "odd":1.8,"estimada":False,"favorito_casa":True}}]
+        def batch(cursor,query,values,page_size):
+            self.assertEqual(page_size,len(values))
+            events.append((query,values))
+            cursor.saved=[
+                {"id":i+1,"jogo_id":v[1],"tipo":"metodo","metodo_id":v[4],
+                 "metodo_nome":v[6],"mercado":v[7],"odd":Decimal("1.8"),
+                 "stake":v[9]}
+                for i,v in enumerate(values)]
+            cursor.query="INSERT"
+        payload={"stake":"20.00","versao":1,"selecoes":[
+            {"jogo_id":110,"metodo_id":7,"metodo_versao":3},
+            {"jogo_id":110,"metodo_id":8,"metodo_versao":3},
+            {"jogo_id":120,"metodo_id":7,"metodo_versao":3}]}
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"_methods",return_value=methods), \
+             patch.object(gl,"_history",return_value={}), \
+             patch.object(gl,"_team_stats",return_value=({},8)), \
+             patch.object(gl,"_matched",side_effect=matched) as spy, \
+             patch.object(gl,"get_conn",conn), \
+             patch.object(extras,"execute_values",side_effect=batch) as inserted:
+            result=gl.registrar_metodos_em_lote("token",payload)
+        self.assertEqual(len(result["entradas"]),2)
+        self.assertEqual(result["ignoradas"],1)
+        self.assertEqual(result["versao"],2)
+        self.assertEqual([(x["jogo_id"],x["metodo_id"]) for x in result["entradas"]],
+                         [(110,8),(120,7)])
+        self.assertTrue(all(x["status"]=="pendente" for x in result["entradas"]))
+        self.assertTrue(all(x["lucro_prejuizo"] is None for x in result["entradas"]))
+        self.assertEqual(spy.call_count,2)
+        self.assertEqual(inserted.call_count,1)
+        self.assertEqual(len(committed),1)
+
+    def test_lote_insuficiente_ou_sessao_antiga_nao_grava_parcial(self):
+        from contextlib import contextmanager
+        from psycopg2 import extras
+        sess=session()
+        committed=[]
+        class Cursor:
+            query=""
+            def execute(self,sql,params):self.query=sql
+            def fetchall(self):return []
+            def fetchone(self):return {"comprometido":Decimal("10.00")}
+        cur=Cursor()
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield cur
+                return ctx()
+            def commit(self):committed.append(True)
+        @contextmanager
+        def conn():yield Conn()
+        payload={"stake":"700.00","versao":1,"selecoes":[
+            {"jogo_id":110,"metodo_id":7,"metodo_versao":3},
+            {"jogo_id":120,"metodo_id":7,"metodo_versao":3}]}
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"get_conn",conn), \
+             patch.object(extras,"execute_values") as inserted:
+            with self.assertRaisesRegex(ValueError,"Saldo insuficiente"):
+                gl.registrar_metodos_em_lote("token",payload)
+            payload["versao"]=999
+            with self.assertRaisesRegex(ValueError,"modificada em outra aba"):
+                gl.registrar_metodos_em_lote("token",payload)
+        inserted.assert_not_called()
+        self.assertEqual(committed,[])
+
+    def test_lote_rejeita_duplicidade_na_requisicao_sem_tocar_banco(self):
+        item={"jogo_id":110,"metodo_id":7,"metodo_versao":3}
+        with patch.object(gl,"_catalog",side_effect=AssertionError("não consultar banco")):
+            with self.assertRaisesRegex(ValueError,"mais de uma vez"):
+                gl.registrar_metodos_em_lote("token",{
+                    "stake":"20.00","versao":1,"selecoes":[item,item]})
+
     def test_token_hash_nao_retorna_token(self):
         digest=gl._hash("token-secreto-e-aleatorio")
         self.assertEqual(len(digest),64)

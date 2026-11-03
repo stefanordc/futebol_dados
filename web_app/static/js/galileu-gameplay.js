@@ -121,33 +121,133 @@ function gameRows(g){
 function renderGames(){
   const root=$("#gl-games");
   const games=state.jogos||[];
-  const groups=new Map();
-  games.forEach(g=>{
-    const key=g.campeonato+" · "+g.temporada;
-    if(!groups.has(key))groups.set(key,[]);
-    groups.get(key).push(g);
+  // Classificação GLOBAL: nenhum jogo sem método aparece antes dos validados,
+  // mesmo que seja de outra liga. Dentro dos grupos, preserva a data.
+  const cohorts=[
+    {title:"Jogos com método validado",games:games.filter(g=>g.metodos?.length)},
+    {title:"Demais jogos",games:games.filter(g=>!g.metodos?.length)}
+  ];
+  const sections=cohorts.filter(c=>c.games.length).map(cohort=>{
+    const groups=new Map();
+    [...cohort.games].sort((x,y)=>x.data.localeCompare(y.data)||
+       x.campeonato.localeCompare(y.campeonato)||x.jogo_id-y.jogo_id)
+       .forEach(g=>{
+         const key=g.campeonato+" · "+g.temporada;
+         if(!groups.has(key))groups.set(key,[]);
+         groups.get(key).push(g);
+       });
+    return '<section class="gl-priority-group"><h3 class="gl-priority-heading">'+
+      escapeHTML(cohort.title)+' <span>'+cohort.games.length+' jogos</span></h3>'+
+      [...groups.entries()].map(([league,items])=>
+        '<section class="gl-round-league"><h3>'+escapeHTML(league)+
+        ' <span>'+items.length+' jogos</span></h3>'+
+        '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
+      ).join("")+'</section>';
   });
-  root.innerHTML=groups.size?[...groups.entries()].map(([league,items])=>
-    '<section class="gl-round-league"><h3>'+escapeHTML(league)+
-      ' <span>'+items.length+' jogos</span></h3>'+
-      '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
-  ).join(""):'<div class="gl-empty">'+
+  root.innerHTML=sections.length?sections.join(""):'<div class="gl-empty">'+
     (state.rodada_atual.jogos>0?
       "Todos os jogos desta etapa foram finalizados. As entradas continuam registradas. Use Finalizar rodada para apurar os resultados.":
       "Nenhum jogo neste período. Use Avançar período sem jogos para continuar sem revelar placares.")+
     '</div>';
+  renderBulkAvailability();
 }
-function tableRows(group){
-  if(!group?.length)return '<p class="gl-note">Nenhuma entrada registrada nesta categoria.</p>';
-  return '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
-     '<th>Nome</th><th>Entradas</th><th>G</th><th>R</th>'+
-     '<th>Win Rate</th><th>L/P</th><th>ROI</th></tr></thead><tbody>'+
-     group.map(r=>'<tr><td>'+escapeHTML(r.nome)+'</td><td>'+num(r.entradas,0)+'</td>'+
-      '<td class="gl-positive">'+r.greens+'</td><td class="gl-negative">'+r.reds+'</td>'+
-      '<td>'+num(r.win_rate,1)+'%</td><td class="'+color(r.lucro_prejuizo)+'">'+
-       brl(r.lucro_prejuizo)+'</td><td>'+num(r.roi,1)+'%</td></tr>').join("")+
-     '</tbody></table></div>';
+
+function bulkSelections(){
+  if(!state||state.fase!=="aberta")return [];
+  return (state.jogos||[]).flatMap(game=>
+    availableMethods(game).map(method=>({
+      jogo_id:game.jogo_id,metodo_id:method.id,
+      metodo_versao:method.versao,
+      confronto:game.mandante+" × "+game.visitante,
+      nome:method.nome,mercado:method.mercado.nome,
+      odd:method.mercado.odd
+    }))
+  ).sort((a,b)=>a.jogo_id-b.jogo_id||a.metodo_id-b.metodo_id);
 }
+function renderBulkAvailability(){
+  const offers=bulkSelections();
+  const open=state?.fase==="aberta"&&(state.jogos||[]).length>0;
+  $("#gl-bulk-toolbar").hidden=!open;
+  $("#gl-bulk-open").disabled=!offers.length;
+  $("#gl-bulk-info").textContent=offers.length?
+    offers.length+" entrada(s) disponível(is) em "+
+      new Set(offers.map(x=>x.jogo_id)).size+" jogo(s), sem repetir métodos.":
+    "Todos os métodos validados desta lista já possuem entrada.";
+}
+function updateBulkPreview(){
+  const count=bulkSelections().length;
+  const stake=Number($("#gl-bulk-stake").value);
+  const total=Math.round(stake*count*100)/100;
+  const available=Number(state?.saldo_disponivel??0);
+  const valid=Number.isFinite(stake)&&stake>0&&
+    Number.isInteger(Math.round(stake*100))&&
+    Math.abs(stake*100-Math.round(stake*100))<0.000001;
+  $("#gl-bulk-count").textContent=String(count);
+  $("#gl-bulk-stake-display").textContent=valid?brl(stake):"—";
+  $("#gl-bulk-total").textContent=valid?brl(total):"—";
+  $("#gl-bulk-balance").textContent="Saldo livre na rodada: "+brl(available)+
+    (valid&&total>available?" · O total excede o saldo disponível.":"");
+  $("#gl-bulk-confirm").disabled=!count||!valid||total>available;
+}
+$("#gl-bulk-open").addEventListener("click",()=>{
+  const offers=bulkSelections();
+  if(!offers.length)return;
+  $("#gl-bulk-stake").value=Number(state.stake_padrao).toFixed(2);
+  $("#gl-bulk-list").innerHTML='<h4>Métodos que receberão entrada</h4><div class="gl-scroll">'+
+    '<table class="gl-table"><thead><tr><th>Jogo</th><th>Método</th>'+
+    '<th>Mercado</th><th>Odd</th></tr></thead><tbody>'+
+    offers.map(x=>'<tr><td>'+escapeHTML(x.confronto)+'</td>'+
+      '<td>'+escapeHTML(x.nome)+'</td><td>'+escapeHTML(x.mercado)+
+      '</td><td>'+price(x.odd)+'</td></tr>').join("")+
+    '</tbody></table></div>';
+  updateBulkPreview();
+  $("#gl-bulk-dialog").showModal();
+});
+$("#gl-bulk-stake").addEventListener("input",updateBulkPreview);
+$("#gl-bulk-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const selections=bulkSelections();
+  const btn=$("#gl-bulk-confirm");
+  if(!selections.length||btn.disabled)return;
+  updateBulkPreview();
+  if(btn.disabled)return;
+  btn.disabled=true;
+  btn.textContent="Salvando entradas…";
+  msg("");
+  try{
+    const result=await post("entradas-metodos",{
+      stake:$("#gl-bulk-stake").value,
+      versao:state.versao,
+      selecoes:selections.map(x=>({
+        jogo_id:x.jogo_id,metodo_id:x.metodo_id,metodo_versao:x.metodo_versao
+      }))
+    });
+    const saved=result.entradas||[];
+    for(const entry of saved){
+      const game=state.jogos.find(g=>g.jogo_id===entry.jogo_id);
+      if(game){
+        game.entradas=Array.isArray(game.entradas)?game.entradas:[];
+        game.entradas.push(entry);
+      }
+    }
+    state.entradas+=saved.length;
+    state.saldo_disponivel=Math.max(0,
+      Math.round((Number(state.saldo_disponivel)-saved.reduce(
+        (sum,x)=>sum+Number(x.stake),0))*100)/100);
+    if(result.versao!=null)state.versao=result.versao;
+    $("#gl-bank-entries").textContent=num(state.entradas,0);
+    $("#gl-bulk-dialog").close();
+    renderGames();
+    msg(result.mensagem+(result.ignoradas?
+      " "+result.ignoradas+" método(s) já registrado(s) ignorado(s).":""));
+  }catch(error){
+    msg(error.message,true);
+  }finally{
+    btn.textContent="Confirmar todas as entradas";
+    updateBulkPreview();
+  }
+});
+
 function renderRoundResults(){
   const root=$("#gl-round-results");
   const entries=state.resumo_rodada||[];
@@ -458,6 +558,8 @@ $("#gl-entry-form").addEventListener("submit",async e=>{
       game.entradas=Array.isArray(game.entradas)?game.entradas:[];
       game.entradas.push(result.entrada);
       state.entradas+=1;
+      state.saldo_disponivel=Math.max(0,
+        Math.round((Number(state.saldo_disponivel)-Number(result.entrada.stake))*100)/100);
       if(result.versao!=null)state.versao=result.versao;
       $("#gl-bank-entries").textContent=num(state.entradas,0);
       renderGames();

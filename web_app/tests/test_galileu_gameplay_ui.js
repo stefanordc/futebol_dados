@@ -10,6 +10,8 @@ const ids=[
   "gl-setup-form","gl-start-bank","gl-start-pct","gl-start-cutoff",
   "gl-start-stake","gl-bank-current","gl-bank-stake","gl-restart",
   "gl-round-title","gl-round-cutoff","gl-games","gl-games-closed","gl-round-results","gl-finish","gl-next",
+  "gl-bulk-toolbar","gl-bulk-open","gl-bulk-info","gl-bulk-dialog",
+  "gl-bulk-form","gl-bulk-stake","gl-bulk-count","gl-bulk-total","gl-bulk-confirm",
   "gl-month","gl-month-kpis","gl-month-groups","gl-adjust-form",
   "gl-adjust-type","gl-adjust-value","gl-entry-dialog",
   "gl-entry-choice","gl-entry-method-button","gl-entry-manual-button",
@@ -19,7 +21,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v6"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v7"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -112,3 +114,26 @@ assert.ok(py.includes('catalog is _history_catalog'),
   "Históricos de partidas não devem ser recalculados por entrada");
 assert.ok(py.includes('selected=next((m for m in _methods() if m["id"]==method_id)'),
   "Backend só deve recalcular método solicitado");
+
+/* Jogos com método têm prioridade global, independentemente da liga. */
+assert.ok(js.includes('title:"Jogos com método validado"'),"Grupo dos jogos validados em primeiro");
+assert.ok(js.includes('title:"Demais jogos"'),"Grupo dos demais jogos em segundo");
+assert.ok(js.includes('cohorts.filter(c=>c.games.length)'),"Mostrar apenas os grupos com jogos");
+assert.ok(js.includes('availableMethods(game).map(method=>'),"Cada método disponível recebe uma seleção");
+assert.ok(js.includes('methodAlreadyEntered(game,m.id)'),"Métodos já utilizados não podem ser repetidos");
+assert.ok(js.includes('state?.saldo_disponivel'),"Verificar saldo livre antes de confirmar lote");
+assert.ok(js.includes('$("#gl-bulk-dialog").showModal()'),"Exibir prévia antes da confirmação");
+assert.ok(js.includes('post("entradas-metodos",{'),"Salvar lote no backend");
+assert.ok(js.includes('versao:state.versao'),"Validar versão da sessão antes de salvar");
+assert.ok(js.includes('game.entradas.push(entry)'),"Atualizar cards com registros salvos");
+assert.ok(js.includes('renderGames();'),"Reordenar e atualizar lotes após salvar");
+assert.ok(py.includes('def registrar_metodos_em_lote(token,payload):'),"Implementar entrada em lote no backend");
+assert.ok(py.includes('if int(sess["versao"])!=expected_version:'),"Prevenir envio de versão obsoleta");
+assert.ok(py.includes('stake*len(remaining)>Decimal(sess["banca_atual"])-committed'),
+  "Recusar lote sem saldo disponível");
+assert.ok(py.includes('execute_values(cur,'),"Inserir lote na mesma transação");
+assert.ok(py.includes('SELECT jogo_id,metodo_id FROM galileu_private.entradas'),
+  "Remover entradas de métodos já registrados");
+assert.ok(html.includes('id="gl-bulk-stake"'),"Stake de cada entrada deve ser editável");
+assert.ok(html.includes('id="gl-bulk-list"'),"Prévia permite verificar todos os métodos");
+assert.ok(css.includes('.gl-bulk-toolbar'),"Estilizar ação principal em lote");
