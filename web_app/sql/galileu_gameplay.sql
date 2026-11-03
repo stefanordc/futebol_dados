@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS galileu_private.entradas (
   odd numeric(10,3) NOT NULL CHECK (odd>=1.01 AND odd<=1000),
   stake numeric(16,2) NOT NULL CHECK (stake>0),
   cotacao_estimada boolean NOT NULL DEFAULT false,
+  favorito_casa boolean,
   status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','green','red')),
   lucro_prejuizo numeric(16,2),
   criada_em timestamptz NOT NULL DEFAULT now(),
