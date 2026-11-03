@@ -6,7 +6,12 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const fmt=(v,d=1)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const money=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const pnlClass=v=>v==null?"":Number(v)>=0?"ns-green":"ns-red";
-const oddLabel=r=>r.tipo_odd==="lay_estimado"?"Lay estimado":r.tipo_odd==="api_casa"?"Casa / histórico":r.tipo_odd==="hipotetica"?"Hipotética":r.tipo_odd==="registrada_antes"?"FotMob pré-jogo":"";
+const oddLabel=r=>r.tipo_odd==="modelo_cs_lay"?"Lay simulado · Correct Score / Poisson":
+  r.tipo_odd==="modelo_cs_back"?"Back simulado · Correct Score / Poisson":
+  r.tipo_odd==="lay_estimado"?"Lay estimado":
+  r.tipo_odd==="api_casa"?"Casa / histórico":
+  r.tipo_odd==="hipotetica"?"Hipotética":
+  r.tipo_odd==="registrada_antes"?"FotMob pré-jogo":"";
 
 const store="df_nostradamus_estrategias_v1",status=$("#ns-feedback");
 let meta=null,loaded=null,stored=[],editing=null,lastSimulationConfig=null,aiSuggestions=[],aiUndoStack=[];
@@ -459,16 +464,32 @@ function matchLabel(r){
   return '<strong>Sem classificação por odds</strong> · '+esc(r.mandante)+
     ' (mandante) × '+esc(r.visitante)+' (visitante)';
 }
+function goleadaQuotes(row){
+  const q=row.goleada_cs;
+  if(!q)return "";
+  return '<div class="ns-goleada-model">'+
+    '<strong>Goleada por 3+ gols · odds simuladas via Correct Score</strong>'+
+    '<div class="ns-goleada-pairs">'+
+    '<span>Mandante — Back '+fmt(q.back_goleada_mandante,2)+
+      ' · Lay '+fmt(q.lay_goleada_mandante,2)+'</span>'+
+    '<span>Visitante — Back '+fmt(q.back_goleada_visitante,2)+
+      ' · Lay '+fmt(q.lay_goleada_visitante,2)+'</span>'+
+    '</div><small>Poisson: gols estimados '+fmt(q.gols_esperados_mandante,2)+
+    ' × '+fmt(q.gols_esperados_visitante,2)+
+    '. Projeção de 4+ gols. Spread ilustrativo de 1 tick; não são preços reais.</small></div>';
+}
 function details(rows){
   if(!rows.length)return '<p class="x1-help">Nenhuma partida passou pelas condições.</p>';
   return '<div class="ns-scroll"><table class="ns-table"><thead><tr><th>Data</th><th>Jogo</th><th>Placar</th><th>Resultado</th><th>Odd / origem</th><th>Unidades (u)</th><th>Resultado (R$)</th></tr></thead><tbody>'+
   rows.map(r=>'<tr><td>'+esc(r.data)+'</td><td>'+matchLabel(r)+
     '<div class="ns-history-size">Histórico anterior: '+fmt(r.historico_mandante,0)+' jogos do mandante · '+fmt(r.historico_visitante,0)+' do visitante</div>'+
+    goleadaQuotes(r)+
     '<div class="ns-match-conditions">'+(r.condicoes||[]).map(c=>
       c.tipo==="odd"?
       '<div><b>Odd · '+esc(c.nome)+'</b>: '+fmt(c.odd,2)+
       ' (mín. '+fmt(c.odd_min,2)+' / máx. '+fmt(c.odd_max,2)+
-      ') · '+esc(c.fonte==="lay_estimado"?"Lay estimado":"Odd do banco")+'</div>':
+      ') · '+esc(c.fonte?.startsWith("modelo_cs")?"Modelo Correct Score (estimado)":
+        c.fonte==="lay_estimado"?"Lay estimado":"Odd do banco")+'</div>':
       '<div><b>'+esc(roleLabel(c.lado,c.mando))+'</b>'+
       (c.mando_preferido&&c.mando_preferido!=="indiferente"?
         ' · Filtro: '+esc(c.mando_preferido==="mandante"?"Mandante":"Visitante"):"")+
