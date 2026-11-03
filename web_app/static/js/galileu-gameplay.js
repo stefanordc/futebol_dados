@@ -396,6 +396,50 @@ function renderRoundResults(){
       '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
 }
 
+function selectedMethodsToRemove(){
+  return [...document.querySelectorAll('#gl-method-performance-table input[data-remove-method]:checked')]
+    .map(input=>Number(input.dataset.removeMethod));
+}
+function renderMethodPerformance(){
+  const records=state.metodos_fechamento||[];
+  const pending=Boolean(state.fechamento_pendente);
+  const nextMonth=state.mes_encerrado?
+    (()=>{const [y,m]=state.mes_encerrado.split("-").map(Number);
+      const d=new Date(y,m,1);
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})():"";
+  const table=$("#gl-method-performance-table");
+  if(!records.length){
+    table.innerHTML='<p class="gl-note">Nenhum método cadastrado ou utilizado na gameplay.</p>';
+  }else{
+    table.innerHTML='<table class="gl-table gl-method-month-table"><thead><tr>'+
+      '<th>Método</th><th>Entradas</th><th>Greens</th><th>Reds</th>'+
+      '<th>Win Rate</th><th>Resultado (R$)</th>'+
+      '<th>Good run máx.</th><th>Bad run máx.</th>'+
+      '<th>Próximos meses</th></tr></thead><tbody>'+
+      records.map(item=>{
+        const methodId=item.metodo_id;
+        const previouslyDisabled=Boolean(item.desativado_desde);
+        const status=previouslyDisabled?
+          '<span class="gl-method-disabled">Retirado desde '+escapeHTML(item.desativado_desde)+'</span>':
+          pending&&methodId!=null?
+          '<label class="gl-method-removal-option">'+
+            '<input type="checkbox" data-remove-method="'+methodId+
+            '" aria-label="Retirar '+escapeHTML(item.nome)+' a partir de '+nextMonth+'">'+
+            '<span>Retirar em '+escapeHTML(nextMonth)+'</span></label>':
+          '<span class="gl-note">Permanece ativo</span>';
+        return '<tr><th scope="row">'+escapeHTML(item.nome)+'</th>'+
+          '<td>'+num(item.entradas,0)+'</td>'+
+          '<td class="gl-positive">'+num(item.greens,0)+'</td>'+
+          '<td class="gl-negative">'+num(item.reds,0)+'</td>'+
+          '<td>'+num(item.win_rate,1)+'%</td>'+
+          '<td class="'+color(item.lucro_prejuizo)+'">'+brl(item.lucro_prejuizo)+'</td>'+
+          '<td class="gl-positive">'+num(item.maior_good_run,0)+'</td>'+
+          '<td class="gl-negative">'+num(item.maior_bad_run,0)+'</td>'+
+          '<td>'+status+'</td></tr>';
+      }).join("")+'</tbody></table>';
+  }
+  $("#gl-method-removal-note").hidden=!pending;
+}
 function renderMonth(){
   const month=state.mes_encerrado;
   const root=$("#gl-month");
@@ -420,6 +464,7 @@ function renderMonth(){
   ];
   $("#gl-month-kpis").innerHTML=fields.map(([label,value])=>
     '<div><span>'+label+'</span><strong>'+value+'</strong></div>').join("");
+  renderMethodPerformance();
   $("#gl-month-groups").innerHTML=[
     ["Por estratégias",data.por_estrategia],
     ["Por ligas",data.por_liga],
@@ -484,11 +529,17 @@ $("#gl-close-form").addEventListener("submit",async event=>{
     saque:withdrawal?$("#gl-close-withdraw").value:null,
     tipo_stake:adjust?$("#gl-close-stake-type").value:null,
     valor_stake:adjust?$("#gl-close-stake-value").value:null,
+    retirar_metodos:selectedMethodsToRemove(),
   };
+  const toDisable=payload.retirar_metodos.map(mid=>
+    (state.metodos_fechamento||[]).find(m=>m.metodo_id===mid)?.nome||"Método "+mid);
   if(!window.confirm(
     "Confirmar o fechamento de "+state.mes_encerrado+
     " e definir "+$("#gl-close-bank-after").textContent+
-    " como banca-base do próximo mês? O registro ficará no relatório financeiro."
+    " como banca-base do próximo mês?"+
+    (toDisable.length?"\n\nMétodos retirados a partir do próximo mês:\n- "+
+      toDisable.join("\n- "):"\n\nTodos os métodos ativos continuarão disponíveis.")+
+    "\n\nO histórico de entradas e os métodos no Nostradamus serão preservados."
   ))return;
   btn.disabled=true;
   btn.textContent="Registrando fechamento…";
