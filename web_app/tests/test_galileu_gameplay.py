@@ -662,6 +662,42 @@ class TestGalileuGameplay(TestCase):
                 gl.registrar_metodos_em_lote("token",{
                     "stake":"20.00","versao":1,"selecoes":[item,item]})
 
+    def test_fechamento_em_mes_sem_jogos_e_obrigatorio(self):
+        from contextlib import contextmanager
+        sess=session(phase="aberta")
+        sess["corte"]=date(2025,1,21)
+        sess["corte_atual"]=date(2025,1,21)
+        sess["mes_base"]="2025-01"
+        catalog=[{"id":10,"data":date(2025,2,2),"campeonato_id":1}]
+        rounds=gl._rounds(sess["corte_atual"],catalog)
+        self.assertEqual(gl._round_at(rounds,0),[])
+        self.assertEqual(gl._closing_boundary(rounds),(True,"2025-01",True))
+        statements=[]
+        class Cursor:
+            def execute(self,sql,params):statements.append((sql,params))
+            def fetchone(self):return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):statements.append(("COMMIT",None))
+        @contextmanager
+        def fake_conn():yield Conn()
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"fechamento mensal"):
+                gl.proxima("token")
+            self.assertFalse(any("UPDATE" in sql for sql,_ in statements))
+            result=gl.fechar_mes("token",{
+                "fazer_aporte":False,"fazer_saque":False,
+                "alterar_stake":False})
+        self.assertEqual(result["mes"],"2025-01")
+        self.assertEqual(result["banca_base_seguinte"],1022)
+        self.assertTrue(any("INSERT INTO galileu_private.fechamentos_mensais"
+                            in sql for sql,_ in statements))
+
     def test_relatorio_mensal_separa_lucro_de_aporte_saque(self):
         bets=[
             {"data":date(2025,1,10),"status":"green","stake":Decimal("20"),
