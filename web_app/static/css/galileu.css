@@ -361,3 +361,14 @@
   border:1px solid var(--df-border);border-radius:8px;padding:6px 9px}
 .gl-method-month-table tbody tr:hover{background:var(--df-raised)}
 @media(max-width:640px){.gl-method-performance{padding:12px}}
+
+/* Remoção imediata de métodos durante a gameplay. */
+.gl-method-management{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:16px}
+.gl-method-management label{display:flex;flex-direction:column;gap:8px;
+  flex:1 1 280px;color:var(--df-secondary);font-size:13px}
+.gl-method-management select{background:var(--df-raised);color:var(--df-text);
+  border:1px solid var(--df-border);border-radius:10px;padding:11px;
+  min-height:44px;font:inherit;width:100%}
+.gl-method-management button{min-height:44px;padding:10px 15px}
+#gl-disabled-methods{margin-top:12px;overflow-wrap:anywhere}
+@media(max-width:640px){.gl-method-management button{width:100%}}
