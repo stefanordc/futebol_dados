@@ -375,6 +375,14 @@ def nostradamus_estrategias_editar(estrategia_id: int,payload: dict):
         raise HTTPException(status_code=409,detail=str(exc)) from exc
 
 
+@app.delete("/api/apostas/nostradamus/estrategias/{estrategia_id}")
+def nostradamus_estrategias_excluir(estrategia_id: int,payload: dict):
+    try:
+        return queries_estrategias.excluir(estrategia_id,payload.get("versao"))
+    except ValueError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
 @app.post("/api/apostas/nostradamus/estrategias/importar")
 def nostradamus_estrategias_importar(payload: dict):
     try:
