@@ -109,10 +109,13 @@ def _metadata(path):
     parts=[p for p in path.split("/") if p]
     year=next((p for p in reversed(parts) if re.fullmatch(r"20\d{2}(?:[-/]20\d{2})?",p)),None)
     country=next((p.title() for p in parts if p.lower() in
-                  ("brazil","brasil","england","spain","italy","germany","france","bulgaria")),None)
+                  ("brazil","brasil","england","spain","italy","germany","france","bulgaria",
+                    "netherlands","holland","holanda","nederland","paises-baixos","the-netherlands")),None)
     country={"Brazil":"Brasil","England":"Inglaterra","Spain":"Espanha",
              "Italy":"Itália","Germany":"Alemanha","France":"França",
-             "Bulgaria":"Bulgária"}.get(country,country)
+             "Bulgaria":"Bulgária","Netherlands":"Holanda","Holland":"Holanda",
+              "Holanda":"Holanda","Nederland":"Holanda","Paises-Baixos":"Holanda",
+              "The-Netherlands":"Holanda"}.get(country,country)
     league=parts[-2].replace("-"," ").title() if len(parts)>=2 and year else None
     return year,league,country
 
@@ -144,6 +147,9 @@ PAIS_EQUIVALENCIAS={
     "france":"franca","franca":"franca",
     "argentina":"argentina","portugal":"portugal",
     "united states":"estados unidos","usa":"estados unidos",
+    "netherlands":"holanda","holland":"holanda","nederland":"holanda",
+    "the netherlands":"holanda","paises baixos":"holanda","países baixos":"holanda",
+    "holanda":"holanda",
 }
 
 def _pais_normalizado(nome):
