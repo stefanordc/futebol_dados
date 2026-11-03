@@ -243,7 +243,7 @@ class TestIntegracoes(TestCase):
         self.assertIn('id="int-loader-console"',html)
         self.assertIn('role="progressbar"',html)
         self.assertIn('progresso indeterminado',html.lower())
-        self.assertIn('integracoes.js?v=9',html)
+        self.assertIn('integracoes.js?v=10',html)
         self.assertIn('integracoes.css?v=4',html)
         self.assertIn('.int-loader-overlay[hidden]{display:none!important}',css)
         self.assertIn('prefers-reduced-motion:reduce',css)
