@@ -66,10 +66,13 @@ def estimate_goleada_quotes(scores: tuple[float | None, ...]) -> dict | None:
     """
     if len(scores) != 16:
         return None
-    valid = [
-        float(v) if v is not None and isfinite(float(v)) and float(v) > 1.0 else None
-        for v in scores
-    ]
+    valid = []
+    for item in scores:
+        try:
+            price = float(item) if item is not None else None
+        except (TypeError, ValueError, OverflowError):
+            price = None
+        valid.append(price if price is not None and isfinite(price) and price > 1 else None)
     if sum(v is not None for v in valid) < 12:
         return None
     by_score = dict(zip(SCORE_KEYS, valid))
