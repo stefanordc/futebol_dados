@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v14"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v15"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -41,7 +41,7 @@ assert.ok(!html.includes('id="gl-month-history"') &&
 assert.equal(html.split('id="gl-next"').length-1,1,
   "Botão de avançar mês deve existir apenas uma vez");
 assert.ok(css.includes(".gl-next-month-actions"),
-  "Navegação acima do histórico mensal precisa de estilo");
+  "Navegação após o fechamento mensal precisa de estilo");
 assert.ok(js.includes('$("#gl-restart").addEventListener'),"Reiniciar progresso");
 assert.ok(js.includes('$("#gl-close-form").addEventListener'),"Fechamento financeiro deve registrar decisões mensais");
 assert.ok(js.includes('gl-entry-market'),"Entrada manual deve permitir mercado");
