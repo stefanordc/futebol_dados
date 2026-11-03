@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-atalhos-v9">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-atalhos-v10">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -45,6 +45,7 @@
   </div>
 </div>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
+<p class="x1-help ns-goleada-explain">Lay goleada: o mercado é vencedor quando a equipe escolhida NÃO vence por 3 ou mais gols de diferença. Favorito é definido pela menor odd de vitória; Visitante considera o time que joga fora de casa. Sem cotação desse mercado na API, o financeiro só é estimado se você informar uma odd hipotética.</p>
 <label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Favorito com xG superior"></label>
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%) — fixa<input id="ns-comissao" type="number" inputmode="decimal" min="4.5" max="4.5" step="0.1" value="4.5" readonly aria-readonly="true" title="Configuração fixa de 4,5% nas simulações"></label>
@@ -81,5 +82,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-atalhos-v9" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-atalhos-v10" defer></script>
 </body></html>
