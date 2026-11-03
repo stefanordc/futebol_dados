@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-mando-v5'),
+assert.ok(html.includes('nostradamus-indicador-odds-v6'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -80,7 +80,7 @@ assert.ok(src.includes('confirmada no Supabase.'),
  "Mensagem de sucesso somente após conferência");
 
 assert.ok(src.includes('optgroup label="Dados físicos"'),"As métricas físicas devem formar uma categoria no seletor");
-assert.ok(src.includes('metricOpts(meta.metricas,data.metrica)'),"O seletor de indicador deve aceitar métricas físicas");
+assert.ok(src.includes('indicatorOpts(meta.metricas,meta.mercados_odd,'),"O seletor Indicador deve aceitar estatísticas e mercados de odds");
 assert.ok(src.includes('metricOpts(meta.metricas,data.metrica_ref)'),"Os indicadores físicos podem ser comparados com outros indicadores");
 
 assert.ok(html.includes('id="ns-league-items"'),"Multi-seleção de ligas deve existir");
@@ -118,16 +118,16 @@ assert.ok(src.includes('const legacyRole={mandante:"favorito",visitante:"zebra"}
  "O editor converte estratégias antigas ao abrir");
 assert.ok(src.includes('ambos:"Ambos (cada equipe)"'),
  "Equipe analisada deve oferecer Ambos");
-assert.ok(src.includes('data.tipo||"indicador"'),
- "Cada condição alterna entre estatística e odd");
-assert.ok(src.includes('class="ns-odd-market"'),
- "O usuário deve escolher o mercado da odd");
+assert.ok(src.includes('const indicatorOpts=(metrics,markets,selected)=>'),
+ "Um único indicador deve reunir estatística e odds");
+assert.ok(src.includes('<optgroup label="Odds dos mercados">'),
+ "O mercado de odds deve estar no mesmo seletor que as estatísticas");
 assert.ok(src.includes('class="ns-odd-min"') && src.includes('class="ns-odd-max"'),
  "A interface recebe odds mínima e máxima");
-assert.ok(src.includes('meta.mercados_odd||{}'),
- "Os mercados disponíveis vêm do backend e não são inventados no navegador");
-assert.ok(src.includes('tipo:"odd",mercado:row.querySelector(".ns-odd-market").value'),
- "Uma estratégia salva deve guardar qual mercado foi escolhido");
+assert.ok(src.includes('indicatorOpts(meta.metricas,meta.mercados_odd,'),
+ "Os mercados disponíveis vêm do backend e dividem o campo com as estatísticas");
+assert.ok(src.includes('tipo:"odd",mercado:indicator.slice(4)'),
+ "Uma estratégia salva deve guardar o mercado escolhido dentro de Indicador");
 assert.ok(src.includes('c.tipo==="odd"'),
  "A tela de detalhes deve exibir os filtros de odds executados");
 assert.ok(css.includes('.ns-odd-criterion[hidden]'),
@@ -153,3 +153,21 @@ assert.ok(src.includes('rule.mando_preferido'),
   "Visualização das regras salvas deve exibir o filtro de mando");
 assert.ok(css.includes('.ns-home-filter-wrap'),
   "Mando de campo deve ter estilos responsivos próprios");
+
+/* Critério integrado: não deve existir seletor de tipo nem campo duplicado de mercado. */
+assert.ok(!src.includes("ns-condition-kind"),
+  "Remover seletor Tipo de critério");
+assert.ok(!src.includes("ns-odd-market"),
+  "Remover seletor separado Mercado da odd");
+assert.ok(src.includes('value.startsWith("odd:")'),
+  "Mudança de indicador precisa alternar campos de estatística e odd");
+assert.ok(src.includes('data.tipo==="odd"?"odd:"+data.mercado:data.metrica'),
+  "Abrir estratégia salva deve restaurar o indicador correto");
+assert.ok(src.includes('opts(odds,selected)'),
+  "Odds reais da metadata precisam constar no mesmo dropdown");
+assert.ok(src.includes('row.classList.toggle("ns-odd-active",isOdd)'),
+  "O layout deve reagir à seleção de uma odd");
+assert.ok(css.includes('.ns-condition.ns-odd-active .ns-indicator-field'),
+  "O campo indicador deve manter destaque também ao selecionar odds");
+assert.ok(html.includes('as estatísticas e as <strong>odds dos mercados</strong> aparecem juntas'),
+  "Documentar a disposição unificada dos indicadores");
