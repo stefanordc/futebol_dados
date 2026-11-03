@@ -382,3 +382,8 @@
 .gl-loss-streak-items{margin:0;padding-left:20px}
 .gl-loss-streak-items li{margin:12px 0;line-height:1.65}
 .gl-loss-streak-items li strong{font-weight:700}
+
+/* Navegação do mês: imediatamente acima do histórico mensal. */
+.gl-next-month-actions{display:flex;align-items:center;justify-content:flex-start;margin:18px 0;gap:12px}
+.gl-next-month-actions #gl-next{min-height:48px}
+.gl-next-month-actions:has(#gl-next[hidden]){display:none}
