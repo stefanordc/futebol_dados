@@ -214,8 +214,8 @@ assert.ok(html.includes('id="ns-ai-go-conditions"'),"Atalho Ir aos critérios");
 assert.ok(html.includes('id="ns-ai-test-shortcut"'),"Atalho Testar alterações");
 assert.ok(html.includes('id="ns-ai-save-shortcut"'),"Atalho Salvar estratégia");
 assert.ok(html.includes('id="ns-ai-undo"'),"Atalho Desfazer última mudança");
-assert.ok(src.includes('>Adicionar regra'),"Cada cartão de inclusão deve ter apenas Adicionar regra");
-assert.ok(src.includes('>Remover regra'),"Sugestões de remoção devem ser explícitas");
+assert.ok(src.includes('?"Remover regra":"Adicionar regra"'),"Cartões devem distinguir inclusão e remoção");
+assert.ok(src.includes('item.acao==="remover"'),"Sugestões de remoção devem ser explícitas");
 assert.ok(!src.includes('Adicionar critério e testar'),"Não executar teste automaticamente ao incluir sugestão");
 assert.ok(src.includes('if(suggestion.acao==="remover")'),"Aplicar remoção somente quando a IA indicar");
 assert.ok(src.includes('current.findIndex(item=>JSON.stringify(item)===JSON.stringify(expected))'),
