@@ -53,6 +53,72 @@ class TestFechamentoMetodos(TestCase):
         self.assertEqual(manual["nome"],"Entradas manuais")
         self.assertFalse(manual["ativo_no_mes"])
 
+    def test_alerta_somente_tres_meses_civis_seguidos_de_prejuizo(self):
+        entries=[
+            bet(1,"2026-01-12",7,"red",-20,method_name="Lay zebra"),
+            bet(2,"2026-02-10",7,"green",8,method_name="Lay zebra"),
+            bet(3,"2026-02-11",7,"red",-20,method_name="Lay zebra"),
+            bet(4,"2026-03-10",7,"red",-5,method_name="Lay zebra"),
+            # Mesmo nome, porém outro ID; não pode misturar métodos.
+            bet(5,"2026-01-10",8,"red",-20,method_name="Lay zebra"),
+            bet(6,"2026-02-10",8,"green",25,method_name="Lay zebra"),
+            bet(7,"2026-03-10",8,"red",-20,method_name="Lay zebra"),
+            # Apostas manuais não representam um método.
+            bet(8,"2026-01-10",None,"red",-20,method_name="Manual"),
+            bet(9,"2026-02-10",None,"red",-20,method_name="Manual"),
+            bet(10,"2026-03-10",None,"red",-20,method_name="Manual"),
+            # Meses fora da janela não entram na contagem.
+            bet(11,"2025-12-10",7,"red",-100,method_name="Lay zebra"),
+        ]
+        alerts=gl._method_loss_streak_alerts(
+            entries,[method(7,"Lay zebra"),method(8,"Lay zebra")],"2026-03")
+        self.assertEqual(len(alerts),1)
+        self.assertEqual(alerts[0]["metodo_id"],7)
+        self.assertEqual(alerts[0]["prejuizo_total"],-37.0)
+        self.assertEqual([m["mes"] for m in alerts[0]["meses"]],
+                         ["2026-01","2026-02","2026-03"])
+        self.assertEqual([m["lucro_prejuizo"] for m in alerts[0]["meses"]],
+                         [-20.0,-12.0,-5.0])
+
+    def test_alerta_nao_dispara_com_lucro_no_mes_intermediario(self):
+        entries=[
+            bet(1,"2026-01-10",7,"red",-20),
+            bet(2,"2026-02-10",7,"green",10),
+            bet(3,"2026-03-10",7,"red",-20),
+        ]
+        self.assertEqual(gl._method_loss_streak_alerts(
+            entries,[method(7,"Método A")],"2026-03"),[])
+
+    def test_alerta_nao_dispara_com_mes_zerado_ou_sem_execucao(self):
+        entries=[
+            bet(1,"2026-01-10",7,"red",-20),
+            bet(2,"2026-02-10",7,"red",-20),
+            bet(3,"2026-03-10",7,"green",20),
+            bet(4,"2026-03-11",7,"red",-20),
+            bet(5,"2026-01-10",8,"red",-20),
+            bet(6,"2026-02-10",8,"sem_saldo",0),
+            bet(7,"2026-03-10",8,"red",-20),
+            bet(8,"2026-01-10",9,"red",-20),
+            bet(9,"2026-03-10",9,"red",-20),
+        ]
+        self.assertEqual(gl._method_loss_streak_alerts(
+            entries,[method(7,"A"),method(8,"B"),method(9,"C")],"2026-03"),[])
+
+    def test_alerta_atravessa_dezembro_para_janeiro(self):
+        entries=[
+            bet(1,"2026-11-10",7,"red",-5),
+            bet(2,"2026-12-10",7,"red",-10),
+            bet(3,"2027-01-10",7,"red",-15),
+        ]
+        alerts=gl._method_loss_streak_alerts(
+            entries,[method(7,"A")],"2027-01")
+        self.assertEqual(len(alerts),1)
+        self.assertEqual([r["mes"] for r in alerts[0]["meses"]],
+                         ["2026-11","2026-12","2027-01"])
+        # Ainda são apenas dois meses negativos no fechamento de dezembro.
+        self.assertEqual(gl._method_loss_streak_alerts(
+            entries,[method(7,"A")],"2026-12"),[])
+
     def test_desativacao_nao_retroage_e_metodo_removido_permanece_listado(self):
         disabled={7:{"nome":"Método antigo","desde":"2026-11"}}
         october=gl._method_monthly_table([],[method(7,"Novo nome")],
