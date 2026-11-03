@@ -4,9 +4,7 @@ Treina limiares APENAS em datas cronologicamente anteriores à amostra
 reservada para validação. Não faz chamadas a LLM nem promete ganhos reais.
 """
 from __future__ import annotations
-from datetime import date
 from math import ceil
-from statistics import median
 import queries_nostradamus as ns
 
 # Espaço pequeno de indicadores para que uma sugestão seja auditável.
@@ -44,7 +42,7 @@ def _score(records):
     profit=sum(r["unidades"] for r in quoted)*100
     return {"entradas":n, "total_reais":round(profit,2),
             "media_reais":round(profit/n,2),
-            "roi_pct":round(profit/n,4)*100,
+            "roi_pct":round(profit/n,2),
             "greens":sum(1 for r in quoted if r["unidades"]>0)}
 
 
