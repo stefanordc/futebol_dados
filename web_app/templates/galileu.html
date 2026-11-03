@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v7">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v8">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -17,7 +17,7 @@
   <div class="df-eyebrow">LABORATÓRIO · GAMEPLAY HISTÓRICA</div>
   <h1>Galileu</h1>
   <p>Avance pelas rodadas, valide seus métodos e acompanhe a banca em reais. Os placares ficam ocultos até você finalizar a rodada.</p>
-  <nav class="x1-nav" aria-label="Apostas"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus · Backtesting</a><a href="/apostas/galileu" aria-current="page">Galileu · Gameplay</a></nav>
+  <nav class="x1-nav" aria-label="Apostas"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus · Backtesting</a><a href="/apostas/galileu" aria-current="page">Galileu · Gameplay</a><a href="/apostas/galileu/relatorios">Relatórios · Banca</a></nav>
 </section>
 <div id="gl-message" role="status" aria-live="polite"></div>
 
@@ -48,11 +48,12 @@
       <button class="gl-link gl-danger" id="gl-restart" type="button">Reiniciar progresso</button>
     </div>
     <div class="gl-kpis">
-      <div><span>Banca inicial</span><strong id="gl-bank-initial">—</strong></div>
+      <div><span>Banca-base do mês</span><strong id="gl-bank-initial">—</strong><small id="gl-bank-original">—</small></div>
       <div><span>Banca atual</span><strong id="gl-bank-current">—</strong></div>
       <div><span>Gestão / stake padrão</span><strong id="gl-bank-stake">—</strong><small id="gl-bank-percent"></small></div>
       <div><span>Entradas registradas</span><strong id="gl-bank-entries">0</strong></div>
     </div>
+    <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo ajustado por aportes e saques define a base do próximo mês. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
     <p class="gl-note">Entradas Back: stake representa o valor apostado. Entradas Lay: stake representa a responsabilidade máxima, com comissão estimada de 4,5% sobre lucros. As odds importadas não têm comprovação de captura pré-jogo.</p>
   </section>
 
@@ -87,18 +88,59 @@
     </div>
     <div id="gl-month-kpis" class="gl-kpis"></div>
     <div id="gl-month-groups" class="gl-month-groups"></div>
-    <form id="gl-adjust-form" class="gl-adjust-form">
-      <h3>Deseja reajustar a stake para as próximas rodadas?</h3>
-      <p class="gl-note">Pode manter a gestão atual ou informar um novo percentual ou valor fixo em reais.</p>
-      <div class="gl-adjust-grid">
-        <label>Tipo de gestão
-          <select id="gl-adjust-type"><option value="percentual">Percentual da banca</option><option value="fixo">Valor fixo (R$)</option></select>
-        </label>
-        <label id="gl-adjust-label">Novo percentual (%)
-          <input id="gl-adjust-value" type="number" min=".01" step=".01" value="2">
-        </label>
-        <button type="submit" class="gl-primary">Aplicar reajuste</button>
+    <div id="gl-month-confirmed" class="gl-note" hidden>
+      <strong>Fechamento registrado.</strong> O aporte, o saque e a gestão de stake já estão contabilizados. Consulte a aba Relatórios.
+    </div>
+    <form id="gl-close-form" class="gl-adjust-form">
+      <h3>Fechamento mensal e próxima banca-base</h3>
+      <p class="gl-note">Responda às três perguntas. Os valores são aplicados apenas no fechamento, e o resultado das apostas fica separado dos aportes e saques.</p>
+      <div class="gl-close-questions">
+        <div class="gl-close-question">
+          <label>Deseja fazer um aporte?
+            <select id="gl-close-deposit-choice" required>
+              <option value="nao">Não</option><option value="sim">Sim</option>
+            </select>
+          </label>
+          <label id="gl-close-deposit-wrap" hidden>Valor do aporte (R$)
+            <input id="gl-close-deposit" type="number" min=".01" step=".01" placeholder="Ex.: 100.00">
+          </label>
+        </div>
+        <div class="gl-close-question">
+          <label>Deseja fazer um saque?
+            <select id="gl-close-withdraw-choice" required>
+              <option value="nao">Não</option><option value="sim">Sim</option>
+            </select>
+          </label>
+          <label id="gl-close-withdraw-wrap" hidden>Valor do saque (R$)
+            <input id="gl-close-withdraw" type="number" min=".01" step=".01" placeholder="Ex.: 50.00">
+          </label>
+        </div>
+        <div class="gl-close-question">
+          <label>Deseja alterar a stake padrão?
+            <select id="gl-close-stake-choice" required>
+              <option value="nao">Não</option><option value="sim">Sim</option>
+            </select>
+          </label>
+          <div id="gl-close-stake-wrap" class="gl-stake-choice-details" hidden>
+            <label>Nova gestão
+              <select id="gl-close-stake-type">
+                <option value="percentual">Percentual da nova banca-base (%)</option>
+                <option value="fixo">Stake fixa em reais (R$)</option>
+              </select>
+            </label>
+            <label>Novo valor
+              <input id="gl-close-stake-value" type="number" min=".01" step=".01" placeholder="Ex.: 2.00">
+            </label>
+          </div>
+        </div>
       </div>
+      <div class="gl-close-preview" aria-live="polite">
+        <span>Saldo no fechamento <strong id="gl-close-bank-before">—</strong></span>
+        <span>Próxima banca-base <strong id="gl-close-bank-after">—</strong></span>
+        <span>Próxima stake padrão <strong id="gl-close-stake-after">—</strong></span>
+      </div>
+      <p id="gl-close-info" class="gl-note"></p>
+      <button id="gl-close-submit" type="submit" class="gl-primary">Confirmar fechamento do mês</button>
     </form>
   </section>
 
@@ -170,6 +212,6 @@
 <p class="x1-disclaimer">Galileu é uma gameplay virtual, não executa apostas reais. Resultados anteriores são usados apenas na ordem histórica e não garantem lucro futuro. Dados de odds importados podem refletir preços posteriores ao início do jogo. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
-<script src="/static/js/shell.js?v=galileu-gameplay-v7" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v7" defer></script>
+<script src="/static/js/shell.js?v=galileu-gameplay-v8" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v8" defer></script>
 </body></html>
