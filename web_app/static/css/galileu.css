@@ -387,3 +387,12 @@
 .gl-next-month-actions{display:flex;align-items:center;justify-content:flex-start;margin:18px 0;gap:12px}
 .gl-next-month-actions #gl-next{min-height:48px}
 .gl-next-month-actions:has(#gl-next[hidden]){display:none}
+
+/* Ordenação das tabelas de relatórios e totais fixos no rodapé. */
+.gl-sortable-head{cursor:pointer;user-select:none}
+.gl-sortable-head:focus-visible{outline:2px solid var(--df-orange);outline-offset:-2px}
+.gl-sortable-head::after{content:" ↕";font-weight:400;opacity:.55}
+.gl-sortable-head[aria-sort="ascending"]::after{content:" ↑";opacity:1}
+.gl-sortable-head[aria-sort="descending"]::after{content:" ↓";opacity:1}
+.gl-months-total{font-weight:800;background:var(--df-raised)}
+.gl-months-total th,.gl-months-total td{border-top:2px solid var(--df-orange);white-space:nowrap}
