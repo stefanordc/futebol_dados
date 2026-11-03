@@ -396,6 +396,42 @@ function renderRoundResults(){
       '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
 }
 
+function renderMethodManagement(){
+  const methods=state.metodos_catalogo||[];
+  const removed=state.metodos_desativados||[];
+  const removedIds=new Set(removed.map(item=>Number(item.metodo_id)));
+  const available=methods.filter(item=>!removedIds.has(Number(item.id)));
+  const select=$("#gl-disable-method-select");
+  const previous=select.value;
+  select.innerHTML='<option value="">Selecione um método</option>'+
+    available.map(item=>'<option value="'+Number(item.id)+'">'+escapeHTML(item.nome)+'</option>').join("");
+  if(available.some(item=>String(item.id)===previous))select.value=previous;
+  select.disabled=!available.length;
+  $("#gl-disable-method-submit").disabled=!available.length;
+  $("#gl-disabled-methods").textContent=removed.length?
+    "Retirados desta gameplay: "+removed.map(item=>item.nome).join(", ")+
+    ". Nenhum deles será marcado em novos jogos.":
+    available.length+" método(s) disponível(is) para a gameplay.";
+}
+
+$("#gl-disable-method-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const id=Number($("#gl-disable-method-select").value);
+  const item=(state.metodos_catalogo||[]).find(m=>Number(m.id)===id);
+  if(!id||!item)return;
+  if(!window.confirm(
+    'Retirar "'+item.nome+'" do Galileu agora?\n\n'+
+    "Ele deixará de marcar jogos e não poderá receber novas entradas. "+
+    "As entradas pendentes serão canceladas. "+
+    "Os resultados já liquidados e o cadastro no Nostradamus serão preservados."
+  ))return;
+  const button=$("#gl-disable-method-submit");
+  button.disabled=true;
+  const ok=await mutate(()=>post("retirar-metodo",{metodo_id:id}));
+  if(ok)msg('Método "'+item.nome+'" retirado do Galileu. Entradas pendentes canceladas.');
+  button.disabled=false;
+});
+
 function selectedMethodsToRemove(){
   return [...document.querySelectorAll('#gl-method-performance-table input[data-remove-method]:checked')]
     .map(input=>Number(input.dataset.removeMethod));
@@ -603,7 +639,7 @@ function render(){
     "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
     "Rodada encerrada. Consulte os placares e seus resultados virtuais.";
-  renderGames();renderRoundResults();renderMonth();renderHistory();
+  renderMethodManagement();renderGames();renderRoundResults();renderMonth();renderHistory();
 }
 
 const getGame=id=>state?.jogos?.find(g=>g.jogo_id===Number(id));
