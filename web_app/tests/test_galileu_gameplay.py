@@ -183,7 +183,8 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_token_session",return_value=sess), \
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
-             patch.object(gl,"_bet_rows",return_value=[]):
+             patch.object(gl,"_bet_rows",return_value=[]), \
+             patch.object(gl,"_closed_game_ids",return_value=set()):
             result=gl.estado("token")
         self.assertEqual(result["corte"],"2026-10-17")
         self.assertEqual(result["corte_atual"],"2026-10-20")
@@ -218,7 +219,8 @@ class TestGalileuGameplay(TestCase):
         with patch.object(gl,"_token_session",return_value=sess), \
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
-             patch.object(gl,"_bet_rows",return_value=[]):
+             patch.object(gl,"_bet_rows",return_value=[]), \
+             patch.object(gl,"_closed_game_ids",return_value=set()):
             before=gl.estado("my_secret")
             self.assertTrue(before["iniciado"])
             self.assertEqual(before["banca_atual"],1022.0)
@@ -287,6 +289,175 @@ class TestGalileuGameplay(TestCase):
         self.assertIsNone(gl._market(g,"back_favorito"))
         self.assertIsNone(gl._market(g,"back_mandante"))
         self.assertEqual([v["mercado"] for v in gl._available_markets(g) if v["mercado"]=="over_25"],["over_25"])
+
+    def test_jogo_finalizado_some_da_lista_sem_apagar_duas_entradas(self):
+        catalog=fixtures()
+        session_data=session()
+        g=next(g for g in catalog if g["id"]==110)
+        bets=[
+            {"id":1,"jogo_id":110,"indice_rodada":0,"tipo":"metodo",
+             "metodo_id":7,"metodo_nome":"Over 2.5","mercado":"over_25",
+             "odd":Decimal("1.80"),"stake":Decimal("20.00"),
+             "status":"pendente","lucro_prejuizo":None,
+             "data":g["data"],"campeonato":"Liga 1",
+             "mandante":"Casa","visitante":"Fora"},
+            {"id":2,"jogo_id":110,"indice_rodada":0,"tipo":"manual",
+             "metodo_id":None,"metodo_nome":None,"mercado":"back_mandante",
+             "odd":Decimal("1.65"),"stake":Decimal("20.00"),
+             "status":"pendente","lucro_prejuizo":None,
+             "data":g["data"],"campeonato":"Liga 1",
+             "mandante":"Casa","visitante":"Fora"},
+        ]
+        with patch.object(gl,"_token_session",return_value=session_data), \
+             patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_methods",return_value=[]), \
+             patch.object(gl,"_bet_rows",return_value=bets), \
+             patch.object(gl,"_closed_game_ids",return_value={110}):
+            before=gl.estado("token")
+            self.assertEqual(before["rodada_atual"]["jogos"],2)
+            self.assertEqual(before["jogos_finalizados"],1)
+            self.assertNotIn(110,[x["jogo_id"] for x in before["jogos"]])
+            self.assertEqual(before["entradas"],2)
+            self.assertEqual(before["resumo_rodada"],[])
+            self.assertNotIn("placar",before["jogos"][0])
+            session_data["fase"]="revelada"
+            for b in bets:
+                b["status"]="green"
+                b["lucro_prejuizo"]=Decimal("15.00")
+            after=gl.estado("token")
+            self.assertNotIn(110,[x["jogo_id"] for x in after["jogos"]])
+            self.assertEqual(len(after["resumo_rodada"]),2)
+            self.assertEqual([x["placar"] for x in after["resumo_rodada"]],["3 × 1","3 × 1"])
+            self.assertEqual(sum(x["lucro_prejuizo"] for x in after["resumo_rodada"]),30)
+
+    def test_registrar_manual_duas_entradas_mesmo_jogo(self):
+        from contextlib import contextmanager
+        events=[]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                events.append((sql,params))
+                if "jogos_finalizados" in sql:self.last="closed"
+                elif "COALESCE(SUM(stake)" in sql:self.last="balance"
+                else:self.last="write"
+            def fetchone(self):
+                if self.last=="closed":return None
+                if self.last=="balance":return {"comprometido":Decimal("0")}
+                return {}
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def c():
+                    yield Cursor()
+                return c()
+            def commit(self):pass
+        @contextmanager
+        def conn():
+            yield Conn()
+        with patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_market",return_value={
+                 "mercado":"over_25","odd":1.8,"estimada":False,
+                 "favorito_casa":True}), \
+             patch.object(gl,"get_conn",conn):
+            for amount in ("20.00","15.00"):
+                result=gl.registrar("token",{
+                    "jogo_id":110,"tipo":"manual","mercado":"over_25",
+                    "stake":amount})
+                self.assertIn("confirmada",result["mensagem"])
+        inserts=[(sql,params) for sql,params in events
+                 if "INSERT INTO galileu_private.entradas" in sql]
+        self.assertEqual(len(inserts),2)
+        self.assertEqual([params[9] for _,params in inserts],
+                         [Decimal("20.00"),Decimal("15.00")])
+
+    def test_fechar_jogo_individual_registra_progresso_sem_apurar_ou_deletar(self):
+        from contextlib import contextmanager
+        events=[]
+        class Cursor:
+            def execute(self,sql,params):events.append((sql,params))
+            def fetchone(self):return {"jogo_id":110}
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def c():
+                    yield Cursor()
+                return c()
+            def commit(self):pass
+        @contextmanager
+        def conn():
+            yield Conn()
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"get_conn",conn):
+            result=gl.finalizar_jogo("token",{"jogo_id":110})
+            self.assertIn("removido da lista",result["mensagem"])
+            with self.assertRaisesRegex(ValueError,"fora da rodada"):
+                gl.finalizar_jogo("token",{"jogo_id":99999})
+        self.assertTrue(any("INSERT INTO galileu_private.jogos_finalizados"
+                            in sql for sql,_ in events))
+        self.assertTrue(any("versao=versao+1" in sql for sql,_ in events))
+        self.assertTrue(all("DELETE" not in sql for sql,_ in events))
+        self.assertTrue(all("lucro_prejuizo" not in sql for sql,_ in events))
+
+    def test_registrar_recusa_jogo_individual_finalizado(self):
+        from contextlib import contextmanager
+        class Cursor:
+            def execute(self,sql,params):pass
+            def fetchone(self):return {"exists":1}
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def c():
+                    yield Cursor()
+                return c()
+        @contextmanager
+        def conn():
+            yield Conn()
+        with patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"get_conn",conn):
+            with self.assertRaisesRegex(ValueError,"finalizado"):
+                gl.registrar("token",{"jogo_id":110,"tipo":"manual",
+                                     "stake":"20.00","mercado":"over_25"})
+
+    def test_apuracao_continua_incluindo_varias_entradas_de_jogo_fechado(self):
+        from contextlib import contextmanager
+        events=[]
+        items=[{"id":1,"jogo_id":110,"mercado":"over_25",
+                "favorito_casa":True,"odd":Decimal("1.8"),
+                "stake":Decimal("20.00")},
+               {"id":2,"jogo_id":110,"mercado":"back_mandante",
+                "favorito_casa":True,"odd":Decimal("1.65"),
+                "stake":Decimal("15.00")}]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                self.last="SELECT" if "SELECT * FROM galileu_private.entradas" in sql else "UPDATE"
+                events.append((sql,params))
+            def fetchall(self):
+                return items if self.last=="SELECT" else []
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def c():
+                    yield Cursor()
+                return c()
+            def commit(self):pass
+        @contextmanager
+        def conn():
+            yield Conn()
+        with patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"get_conn",conn):
+            gl.finalizar("token")
+        payout=[params for sql,params in events
+                if "UPDATE galileu_private.entradas" in sql]
+        self.assertEqual(len(payout),2)
+        self.assertEqual([x[0] for x in payout],["green","green"])
+        self.assertEqual([x[1] for x in payout],
+                         [Decimal("16.00"),Decimal("9.75")])
+        self.assertTrue(any("UPDATE galileu_private.sessoes" in sql for sql,_ in events))
 
     def test_token_hash_nao_retorna_token(self):
         digest=gl._hash("token-secreto-e-aleatorio")
