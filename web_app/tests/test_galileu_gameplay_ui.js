@@ -19,7 +19,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v5"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v6"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -90,3 +90,25 @@ assert.ok(py.includes('"resumo_rodada":resumo_rodada'),
   "Apuração da rodada inclui entradas do jogo removido");
 assert.ok(html.includes('id="gl-games-closed"'),
   "Acompanhar quantos jogos foram removidos");
+
+/* Confirmação rápida: só atualiza o card com a entrada gravada, sem /estado. */
+assert.ok(js.includes('const result=await post("entrada",data);'),
+  "Confirmar aguarda gravação real no backend");
+assert.ok(js.includes('game.entradas.push(result.entrada)'),
+  "Entrada retornada pelo Supabase deve aparecer no card imediatamente");
+assert.ok(js.includes('state.entradas+=1'),
+  "Contador total deve avançar após persistência");
+assert.ok(js.includes('renderGames();'),
+  "Só os cards precisam ser redesenhados após confirmar");
+assert.ok(js.includes('}finally{'),
+  "Botão deve ser liberado mesmo se a gravação falhar");
+const submit=js.slice(js.indexOf('$("#gl-entry-form").addEventListener("submit"'),
+                      js.indexOf('$("#gl-finish").addEventListener'));
+assert.ok(!submit.includes('await mutate(()=>post("entrada",data))'),
+  "Não buscar o estado completo após salvar uma entrada");
+assert.ok(py.includes('RETURNING id'),"Backend deve devolver ID da entrada efetivamente salva");
+assert.ok(py.includes('CACHE_SECONDS=15*60'),"Cache reduz novas consultas ao catálogo histórico");
+assert.ok(py.includes('catalog is _history_catalog'),
+  "Históricos de partidas não devem ser recalculados por entrada");
+assert.ok(py.includes('selected=next((m for m in _methods() if m["id"]==method_id)'),
+  "Backend só deve recalcular método solicitado");
