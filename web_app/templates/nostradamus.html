@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-indicador-odds-v6">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-ia-otimizacao-v7">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -55,7 +55,19 @@
 <div class="ns-actions"><button id="ns-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-count" class="x1-help"></span></div>
 <div class="ns-actions"><button class="ns-button primary" type="submit">Executar backtest</button><button class="ns-button secondary" type="button" id="ns-save">Salvar estratégia</button></div>
 </form>
-<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Lucro médio/entrada (R$)</th><th>Good run máx.</th><th>Bad run máx.</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div></section>
+<section id="ns-results" class="ns-panel" hidden><h2>Resultados por campeonato</h2><p id="ns-method" class="x1-help"></p><div class="ns-scroll"><table class="ns-table"><thead><tr><th>Abrir</th><th>Liga</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Lucro médio/entrada (R$)</th><th>Good run máx.</th><th>Bad run máx.</th></tr></thead><tbody id="ns-summary"></tbody></table></div><div id="ns-details"></div>
+<section id="ns-ai-panel" class="ns-ai-panel" aria-labelledby="ns-ai-heading">
+  <div class="ns-ai-heading">
+    <div>
+      <h3 id="ns-ai-heading">IA · Melhorar minha estratégia</h3>
+      <p>Teste novos limites de odds e indicadores sem mudar a data de corte. O modelo procura padrões em jogos mais antigos e mostra uma validação cronológica separada.</p>
+    </div>
+    <button type="button" id="ns-ai-run" class="ns-button primary">Analisar oportunidades</button>
+  </div>
+  <div id="ns-ai-output" class="ns-ai-output" aria-live="polite">
+    <p>Execute o backtest e depois clique em Analisar oportunidades. As sugestões não alteram sua estratégia até você aplicá-las.</p>
+  </div>
+</section></section>
 </div>
 <div id="ns-feedback" role="status" aria-live="polite"></div><section id="ns-saved" class="ns-panel" hidden><div class="ns-heading"><h2>Estratégias salvas no Supabase</h2><button type="button" class="ns-button secondary" id="ns-create">+ Nova estratégia</button></div><p class="x1-help">Estratégias cadastradas no banco de dados, com data de criação e última atualização. Use Ver regras para consultar ou Editar para modificar.</p><div id="ns-saved-list"></div></section>
 
@@ -63,5 +75,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-indicador-odds-v6" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-ia-otimizacao-v7" defer></script>
 </body></html>
