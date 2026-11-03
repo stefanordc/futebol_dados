@@ -7,6 +7,7 @@ on:
       - 'web_app/tests/test_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/tests/test_galileu_bulk_money.js'
       - 'web_app/tests/test_galileu_financeiro_ui.js'
       - 'web_app/sql/galileu_gestao_mensal_relatorios.sql'
       - 'web_app/sql/galileu_gameplay.sql'
@@ -25,6 +26,7 @@ on:
       - 'web_app/tests/test_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/tests/test_galileu_bulk_money.js'
       - 'web_app/tests/test_galileu_financeiro_ui.js'
       - 'web_app/sql/galileu_gestao_mensal_relatorios.sql'
       - 'web_app/sql/galileu_gameplay.sql'
@@ -60,4 +62,5 @@ jobs:
         working-directory: web_app
         run: |
           node tests/test_galileu_gameplay_ui.js
+          node tests/test_galileu_bulk_money.js
           node tests/test_galileu_financeiro_ui.js
