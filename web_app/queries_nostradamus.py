@@ -59,8 +59,9 @@ MERCADOS = {
     "ambos_marcam":"Ambos marcam",
     "ambos_nao":"Ambos não marcam",
     "lay_goleada_favorito":"Lay goleada favorito",
+    "lay_goleada_zebra":"Lay goleada zebra",
     "lay_goleada_mandante":"Lay goleada mandante (estratégia antiga)",
-    "lay_goleada_visitante":"Lay goleada visitante",
+    "lay_goleada_visitante":"Lay goleada visitante (estratégia antiga)",
     "lay_1x0":"Lay placar 1x0",
     "lay_0x1":"Lay placar 0x1",
 }
@@ -422,7 +423,7 @@ def _role_to_side(role, favorite_home):
 
 def _requires_favorite(market,conditions):
     return market in ("back_favorito","lay_favorito","back_zebra","lay_zebra",
-                      "lay_goleada_favorito") or any(
+                      "lay_goleada_favorito","lay_goleada_zebra") or any(
         (condition.get("tipo")=="odd" and condition["mercado"] in (
             "back_favorito","lay_favorito","back_zebra","lay_zebra")) or
         (condition.get("tipo")!="odd" and (
@@ -434,15 +435,17 @@ def _requires_favorite(market,conditions):
 
 def _market_for_game(market, favorite_home):
     if market not in ("back_favorito","lay_favorito","back_zebra","lay_zebra",
-                       "lay_goleada_favorito"):
+                       "lay_goleada_favorito","lay_goleada_zebra"):
         return market
     if favorite_home is None:
         raise ValueError("Match Odds não disponíveis para classificar favorito/zebra.")
-    if market=="lay_goleada_favorito":
-        # Mercado já existente: contra vitória do time escolhido por 3+ gols.
-        # O favorito é dinâmico e determinado exclusivamente pela menor odd
-        # de vitória entre casa/fora, nunca pela posição no confronto.
-        return "lay_goleada_mandante" if favorite_home else "lay_goleada_visitante"
+    if market in ("lay_goleada_favorito","lay_goleada_zebra"):
+        # Ambos dependem da menor odd de vitória no Match Odds.
+        # Lay goleada zebra é contra uma vitória da zebra por 3+ gols,
+        # inclusive quando ela é mandante. Preserve os IDs antigos fixos.
+        selected_home=(favorite_home if market=="lay_goleada_favorito"
+                       else not favorite_home)
+        return "lay_goleada_mandante" if selected_home else "lay_goleada_visitante"
     side=_role_to_side("favorito" if market.endswith("favorito") else "zebra",favorite_home)
     return market.split("_",1)[0]+"_"+side
 
