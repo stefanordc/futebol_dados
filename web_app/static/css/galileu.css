@@ -61,3 +61,141 @@
 @media(max-width:950px){.gl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.gl-panel{padding:16px}.gl-match-form{grid-template-columns:1fr}.gl-kpis strong{font-size:23px}.gl-teams{font-size:15px}.gl-game{padding:12px}.gl-game-main{gap:10px}}
 @media(prefers-reduced-motion:reduce){.gl-primary,.gl-link{transition:none!important}}
+
+
+/* ======================== Galileu Gameplay ========================== */
+#gl-setup[hidden],#gl-gameplay[hidden],#gl-month[hidden],
+#gl-month-history[hidden],#gl-finish[hidden],#gl-next[hidden],
+#gl-entry-choice[hidden],#gl-entry-form[hidden],
+#gl-entry-method-wrap[hidden],#gl-entry-market-wrap[hidden]{display:none!important}
+.gl-setup-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;
+  align-items:end;margin-top:16px}
+.gl-setup-grid label,.gl-adjust-grid label,#gl-entry-form label{
+  display:grid;gap:9px;color:var(--df-secondary);font-weight:750;font-size:13px}
+.gl-setup-grid input,.gl-adjust-grid input,.gl-adjust-grid select,
+#gl-entry-form input,#gl-entry-form select{
+  width:100%;min-height:52px;border:1px solid var(--df-border);
+  border-radius:11px;background:var(--df-raised);
+  color:var(--df-text);font:inherit;font-size:15px;font-weight:650;
+  padding:11px 14px}
+.gl-setup-grid input:focus-visible,.gl-adjust-grid input:focus-visible,
+#gl-entry-form input:focus-visible,.gl-adjust-grid select:focus-visible,
+#gl-entry-form select:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+.gl-projection{padding:16px;background:var(--df-raised);
+  border-radius:11px;border:1px solid var(--df-border);font-size:13px}
+.gl-projection strong{color:var(--df-orange);margin-left:8px;font-size:18px}
+.gl-setup-submit{min-height:53px}
+.gl-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.gl-kpis>div{min-height:104px}
+.gl-kpis strong{font-size:25px}
+.gl-kpis small{font-size:12px;color:var(--df-secondary);font-weight:500}
+.gl-danger{cursor:pointer;background:transparent;color:#f88d8d;border-color:rgba(240,90,90,.3)}
+.gl-danger:hover{background:rgba(250,90,90,.12);color:#ffa8a8}
+.gl-game-list{display:grid;gap:12px}
+.gl-round-league{margin:20px 0 28px}
+.gl-round-league h3{font-size:17px;font-weight:800;margin:0 0 12px;
+  display:flex;align-items:center;justify-content:space-between}
+.gl-round-league h3 span{font-size:12px;font-weight:600;color:var(--df-secondary)}
+.gl-game-card{display:flex;align-items:stretch;justify-content:space-between;
+  gap:12px;border:1px solid var(--df-border);border-radius:13px;
+  background:var(--df-raised);padding:15px 17px}
+.gl-game-card.gl-method-match{border-color:rgba(255,114,35,.5);
+  box-shadow:inset 3px 0 0 var(--df-orange)}
+.gl-game-card-main{display:grid;gap:8px;min-width:0;flex:1}
+.gl-game-meta{color:var(--df-secondary);font-size:12px;font-weight:650}
+.gl-game-open{display:block;width:fit-content;max-width:100%;border:0;
+  background:none;color:var(--df-text);text-align:left;cursor:pointer;
+  padding:2px 0;font:inherit;font-size:16px}
+.gl-game-open:hover{color:var(--df-orange)}
+.gl-game-open span{color:var(--df-secondary);font-weight:550;padding:0 5px}
+.gl-game-open:focus-visible,.gl-game-card-actions button:focus-visible,
+.gl-detail-tabs button:focus-visible{outline:2px solid var(--df-orange);outline-offset:3px}
+.gl-odds-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gl-odds-strip>span{display:flex;gap:9px;align-items:center;
+  min-width:74px;padding:7px 11px;border:1px solid var(--df-border);
+  border-radius:9px;color:var(--df-secondary);font-size:12px}
+.gl-odds-strip strong{color:var(--df-text);font-size:13px}
+.gl-method-stamp{display:inline-flex;align-items:center;width:fit-content;
+  font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,114,35,.16);border:1px solid rgba(255,114,35,.5);
+  color:var(--df-orange);padding:5px 9px;border-radius:50px}
+.gl-game-card-actions{display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;gap:12px;min-width:146px}
+.gl-game-card-actions .gl-primary{font-size:13px;min-height:42px;white-space:nowrap}
+.gl-hidden-score{font-size:12px;color:var(--df-secondary)}
+.gl-score{font-weight:900;font-size:21px;font-variant-numeric:tabular-nums}
+.gl-game-entry{font-size:12px;color:var(--df-secondary)}
+.gl-entry-tag{font-size:12px;color:var(--df-orange);font-weight:800}
+.gl-positive{color:#34d4a0!important}
+.gl-negative{color:#ff8b91!important}
+.gl-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding-top:18px;border-top:1px solid var(--df-border)}
+.gl-actions button{min-height:48px}
+.gl-actions .gl-note{margin-left:auto}
+.gl-month-groups{display:grid;gap:12px;margin-top:12px}
+.gl-month-detail{border:1px solid var(--df-border);background:var(--df-raised);
+  padding:14px 16px;border-radius:10px}
+.gl-month-detail summary{cursor:pointer;font-weight:750;color:var(--df-text);padding:2px}
+.gl-month-detail .gl-scroll{margin-top:14px}
+.gl-month-detail .gl-table{width:100%;font-size:12px}
+.gl-month-history-stats{padding:12px 0;color:var(--df-secondary)}
+.gl-adjust-form{margin-top:18px;padding:18px;border-radius:12px;
+  border:1px solid var(--df-border);background:var(--df-raised)}
+.gl-adjust-form h3{margin:0 0 9px;font-size:17px;color:var(--df-text)}
+.gl-adjust-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(160px,1fr) auto;
+  gap:13px;align-items:end;margin-top:14px}
+.gl-adjust-grid button{min-height:52px}
+.gl-dialog{position:fixed;inset:0;max-width:min(850px,calc(100vw - 28px));
+  max-height:min(90vh,880px);width:850px;overflow-y:auto;
+  margin:auto;background:var(--df-surface);color:var(--df-text);
+  border:1px solid var(--df-border);border-radius:16px;
+  box-shadow:0 28px 80px rgba(0,0,0,.5);padding:25px}
+.gl-dialog::backdrop{background:rgba(0,0,0,.76);backdrop-filter:blur(3px)}
+.gl-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border-bottom:1px solid var(--df-border);padding-bottom:15px;margin-bottom:19px}
+.gl-dialog-head h3{font-size:20px;margin:0}
+.gl-close{border:1px solid var(--df-border);background:var(--df-raised);
+  color:var(--df-text);font-size:24px;border-radius:10px;cursor:pointer;
+  width:39px;height:39px}
+.gl-dialog-footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;
+  margin-top:22px}
+.gl-secondary{border:1px solid var(--df-border);background:var(--df-raised);
+  padding:10px 15px;color:var(--df-text);border-radius:10px;
+  font:inherit;font-weight:750;cursor:pointer}
+.gl-secondary:hover,.gl-close:hover{border-color:var(--df-orange)}
+.gl-detail-tabs{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:15px}
+.gl-detail-tabs button{padding:11px 14px;background:var(--df-raised);color:var(--df-text);
+  border:1px solid var(--df-border);border-radius:10px;cursor:pointer;
+  font:inherit;font-weight:750}
+.gl-detail-tabs button.is-active{border-color:var(--df-orange);color:var(--df-orange)}
+.gl-validated-method{border:1px solid var(--df-border);border-radius:12px;
+  padding:16px 18px;margin:14px 0}
+.gl-validated-method h4{margin:12px 0 8px;font-size:16px}
+.gl-validated-method p{color:var(--df-secondary);font-size:13px;margin:0 0 12px}
+.gl-method-rules{margin:0;padding-left:24px;line-height:1.9;font-size:13px}
+.gl-dialog .gl-scroll{max-width:100%;overflow:auto}
+.gl-dialog .gl-table{width:100%;white-space:nowrap}
+.gl-entry-choice{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.gl-entry-choice p{width:100%;margin:0 0 8px;color:var(--df-secondary)}
+#gl-entry-form{display:grid;gap:15px}
+.gl-entry-price{border:1px solid var(--df-border);border-radius:10px;
+  padding:14px;background:var(--df-raised);display:flex;align-items:center;
+  gap:10px;flex-wrap:wrap;color:var(--df-secondary);font-size:13px}
+.gl-entry-price strong{color:var(--df-text);font-size:19px}
+.gl-entry-price span{font-size:11px}
+#gl-entry-confirm:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:1000px){
+  .gl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gl-setup-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gl-adjust-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gl-adjust-grid button{grid-column:1/-1}
+}
+@media(max-width:650px){
+  .gl-panel{padding:15px}
+  .gl-kpis,.gl-setup-grid,.gl-adjust-grid{grid-template-columns:minmax(0,1fr)}
+  .gl-game-card{flex-direction:column;gap:12px}
+  .gl-game-card-actions{flex-direction:row;align-items:center;
+    justify-content:space-between;width:100%}
+  .gl-actions .gl-note{margin:0}
+  .gl-dialog{padding:17px}
+}
