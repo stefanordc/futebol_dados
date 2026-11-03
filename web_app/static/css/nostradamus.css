@@ -330,3 +330,8 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 #ns-inplay-warning{line-height:1.65;margin:16px 0}
 @media(max-width:850px){.ns-inplay-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.ns-inplay-fields{grid-template-columns:1fr}}
+
+/* Exclusão de estratégia armazenada: ação destrutiva distinguível. */
+.ns-delete-strategy{color:var(--df-danger,#f08070)!important;border-color:currentColor!important}
+.ns-delete-strategy:hover{background:rgba(220,70,50,.10)}
+.ns-delete-strategy:disabled{opacity:.5;cursor:not-allowed}
