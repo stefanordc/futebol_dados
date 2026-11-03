@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-atalhos-v11'),
+assert.ok(html.includes('nostradamus-goleada-cs-v12'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -228,3 +228,17 @@ assert.ok(src.includes('"lay_goleada_visitante"].includes(k)'),
   "O objetivo visitante legado deve aparecer apenas no grupo de estratégias antigas");
 assert.ok(html.includes("zebra é o clube com maior odd de vitória"),
   "Explicar a diferença entre zebra e visitante no formulário");
+
+/* Mercado derivado de Correct Score: back/lay dos dois lados e transparência. */
+assert.ok(src.includes('function goleadaQuotes(row)'),
+  "Exibir quatro odds estimadas ao abrir jogos com mercado de goleada");
+assert.ok(src.includes('q.back_goleada_mandante')&&src.includes('q.back_goleada_visitante'),
+  "Mostrar Back goleada de mandante e visitante");
+assert.ok(src.includes('q.lay_goleada_mandante')&&src.includes('q.lay_goleada_visitante'),
+  "Mostrar Lay goleada de mandante e visitante");
+assert.ok(src.includes('r.tipo_odd==="modelo_cs_lay"'),
+  "Marcar Lay como estimativa derivada do Correct Score");
+assert.ok(src.includes('r.tipo_odd==="modelo_cs_back"'),
+  "Marcar Back como estimativa derivada do Correct Score");
+assert.ok(html.includes('as 16 odds Correct Score'),
+  "Explicar a origem probabilística das novas odds");
