@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v1">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v2">
 </head>
 <body data-page="bet-x1">
 <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
@@ -31,12 +31,12 @@
     <div class="df-eyebrow">VISÃO GERAL</div>
     <h2>Evolução financeira</h2>
     <div id="gl-report-summary" class="gl-kpis"></div>
-    <p class="gl-note">ROI = lucro/prejuízo líquido das apostas dividido pelas stakes liquidadas. Aportes e saques não compõem o lucro e não alteram o ROI.</p>
+    <p class="gl-note">ROI considera somente entradas executadas. As entradas programadas sem saldo na data do jogo não são contabilizadas como red. Jogos do mesmo dia são tratados como simultâneos (horário não cadastrado). Aportes e saques não compõem o lucro.</p>
   </section>
   <section class="gl-panel">
     <h2>Fechamentos mensais</h2>
     <div class="gl-scroll"><table class="gl-table gl-finance-table">
-      <thead><tr><th>Mês</th><th>Banca-base</th><th>L/P das apostas</th><th>Saldo no fechamento</th><th>Aportes</th><th>Saques</th><th>Base seguinte</th><th>ROI</th><th>Situação</th></tr></thead>
+      <thead><tr><th>Mês</th><th>Executadas / Programadas</th><th>Sem saldo</th><th>Banca-base</th><th>L/P das apostas</th><th>Saldo no fechamento</th><th>Aportes</th><th>Saques</th><th>Base seguinte</th><th>ROI</th><th>Situação</th></tr></thead>
       <tbody id="gl-report-months"></tbody>
     </table></div>
   </section>
@@ -57,6 +57,6 @@
 <p class="x1-disclaimer">Resultados de gameplay, sem apostas reais. Odds históricas importadas podem não ter estado disponíveis antes do jogo; Lay é estimado. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
-<script src="/static/js/shell.js?v=galileu-financeiro-v1" defer></script>
-<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v1" defer></script>
+<script src="/static/js/shell.js?v=galileu-financeiro-v2" defer></script>
+<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v2" defer></script>
 </body></html>
