@@ -25,10 +25,14 @@ TZ=ZoneInfo("America/Sao_Paulo")
 COMMISSION=Decimal("0.045")
 MAX_BANK=Decimal("1000000000")
 CENTS=Decimal("0.01")
-CACHE_SECONDS=90
+# O catálogo é custoso (histórico, odds e indicadores físicos), mas seus dados
+# históricos não mudam a cada entrada. Reutilize por quinze minutos.
+CACHE_SECONDS=15*60
 _cache_at=0.0
 _cache_day=None
 _cache_rows=None
+_history_catalog=None
+_history_data=None
 
 
 def today():
@@ -200,6 +204,12 @@ def _window_at(rounds,index):
 
 
 def _history(catalog):
+    # Construção dos históricos é proporcional ao total de jogos e antes
+    # acontecia a cada clique em Confirmar. O cache usa identidade do
+    # catálogo (e é naturalmente invalidado quando o catálogo é renovado).
+    global _history_catalog,_history_data
+    if catalog is _history_catalog and _history_data is not None:
+        return _history_data
     histories=defaultdict(list)
     for row in catalog:
         if row["gols_casa"] is None or row["gols_fora"] is None or row["data"]>=today():
@@ -209,6 +219,8 @@ def _history(catalog):
             histories[key].append((row["data"],int(row["id"]),ns._history_item(row,side)))
     for history in histories.values():
         history.sort(key=lambda x:(x[0],x[1]))
+    _history_catalog=catalog
+    _history_data=histories
     return histories
 
 
@@ -596,23 +608,24 @@ def registrar(token,payload):
             if stake>Decimal(sess["banca_atual"])-committed:
                 raise ValueError("Stake excede a banca disponível após entradas já confirmadas nesta rodada.")
             if kind=="metodo":
-                methods=_methods()
-                hist=_history(catalog)
-                matched=[]
-                for m in methods:
-                    if m["ligas"] and game["campeonato_id"] not in m["ligas"]:
-                        continue
-                    h,_=_team_stats(hist,game,game["casa_id"],m["jogos"])
-                    a,_=_team_stats(hist,game,game["fora_id"],m["jogos"])
-                    matched.extend(_matched(game,h,a,[m]))
                 method_id=payload.get("metodo_id")
                 if type(method_id) is not int:
                     raise ValueError("Selecione um método validado.")
-                method=next((m for m in matched if m["id"]==method_id),None)
+                # A confirmação só precisa revalidar o método selecionado,
+                # em vez de recalcular TODOS os métodos a cada entrada.
+                selected=next((m for m in _methods() if m["id"]==method_id),None)
+                if selected is None or (
+                    selected["ligas"] and game["campeonato_id"] not in selected["ligas"]
+                ):
+                    raise ValueError("Método não validado para este confronto.")
+                if payload.get("metodo_versao")!=selected["versao"]:
+                    raise ValueError("O método foi alterado. Atualize a rodada.")
+                hist=_history(catalog)
+                h,_=_team_stats(hist,game,game["casa_id"],selected["jogos"])
+                a,_=_team_stats(hist,game,game["fora_id"],selected["jogos"])
+                method=next(iter(_matched(game,h,a,[selected])),None)
                 if method is None:
                     raise ValueError("Método não validado para este confronto.")
-                if payload.get("metodo_versao")!=method["versao"]:
-                    raise ValueError("O método foi alterado. Atualize a rodada.")
                 offer=method["mercado"]
                 name=method["nome"]
                 version=method["versao"]
@@ -633,8 +646,10 @@ def registrar(token,payload):
                     (sessao_id,jogo_id,indice_rodada,tipo,metodo_id,metodo_versao,
                      metodo_nome,mercado,odd,stake,cotacao_estimada,favorito_casa)
                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  RETURNING id
                 """,(sess["id"],gid,sess["indice_rodada"],kind,method_id,version,
                      name,market,offer["odd"],stake,offer["estimada"],offer["favorito_casa"]))
+                created=cur.fetchone()
             except errors.UniqueViolation:
                 raise ValueError("Você já fez uma entrada neste método para este jogo.") from None
             cur.execute("""
@@ -642,7 +657,23 @@ def registrar(token,payload):
               SET versao=versao+1,atualizado_em=now() WHERE id=%s
             """,(sess["id"],))
         conn.commit()
-    return {"mensagem":"Entrada virtual confirmada. O placar permanece oculto até finalizar a rodada."}
+    # A entrada já está persistida. A UI atualiza somente o card e o contador:
+    # não precisa executar /estado (catálogo completo + todos os métodos).
+    return {
+        "mensagem":"Entrada virtual confirmada. O placar permanece oculto até finalizar a rodada.",
+        "versao":int(sess["versao"])+1,
+        "entrada":{
+            "id":int(created["id"]),
+            "tipo":kind,
+            "metodo_id":method_id,
+            "metodo":name,
+            "mercado":market,
+            "odd":float(offer["odd"]),
+            "stake":_brl(stake),
+            "status":"pendente",
+            "lucro_prejuizo":None,
+        },
+    }
 
 
 def finalizar_jogo(token,payload):
