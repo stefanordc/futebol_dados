@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v2">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v3">
 </head>
 <body data-page="bet-x1">
 <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
@@ -48,15 +48,38 @@
       <tbody id="gl-report-movements"></tbody>
     </table></div>
   </section>
-  <section class="gl-panel">
-    <h2>Resultados detalhados</h2>
-    <div id="gl-report-breakdown"></div>
-    <p class="gl-note">Os mesmos jogos podem aparecer para os dois clubes envolvidos. Portanto, os resultados por clube não são somáveis entre si.</p>
+  <section class="gl-panel" id="gl-report-breakdown">
+    <div class="gl-report-head">
+      <div>
+        <div class="df-eyebrow">DESEMPENHO DA GAMEPLAY</div>
+        <h2>Resultados por método, liga e clube</h2>
+        <p class="gl-note">Greens, reds, lucro/prejuízo e ROI consideram somente as entradas executadas.</p>
+      </div>
+      <label class="gl-report-period-label" for="gl-report-period">Período
+        <select id="gl-report-period" aria-label="Filtrar resultados por mês">
+          <option value="todos">Todos os meses</option>
+        </select>
+      </label>
+    </div>
+    <section class="gl-report-group" aria-labelledby="gl-report-method-title">
+      <h3 id="gl-report-method-title">Resultado por método</h3>
+      <p class="gl-note">Entradas manuais aparecem em uma categoria própria.</p>
+      <div id="gl-report-by-method" aria-live="polite"></div>
+    </section>
+    <section class="gl-report-group" aria-labelledby="gl-report-league-title">
+      <h3 id="gl-report-league-title">Resultado por liga</h3>
+      <div id="gl-report-by-league" aria-live="polite"></div>
+    </section>
+    <section class="gl-report-group" aria-labelledby="gl-report-club-title">
+      <h3 id="gl-report-club-title">Resultado por clube</h3>
+      <p class="gl-note">Cada entrada é atribuída aos dois clubes envolvidos. Os resultados por clube não devem ser somados entre equipes.</p>
+      <div id="gl-report-by-club" aria-live="polite"></div>
+    </section>
   </section>
 </section>
 <p class="x1-disclaimer">Resultados de gameplay, sem apostas reais. Odds históricas importadas podem não ter estado disponíveis antes do jogo; Lay é estimado. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
-<script src="/static/js/shell.js?v=galileu-financeiro-v2" defer></script>
-<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v2" defer></script>
+<script src="/static/js/shell.js?v=galileu-financeiro-v3" defer></script>
+<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v3" defer></script>
 </body></html>
