@@ -445,6 +445,7 @@ def relatorios(token):
         "roi_total":round(float(profit/exposure*100),2) if exposure else 0,
         "patrimonio_conferido":_brl(Decimal(sess["banca_inicial"])+funding+profit),
         "resumo_mensal":monthly,
+        "agrupamentos":_financial_group_results(bets),
         "movimentacoes":[_format_movimento(m) for m in movements],
         "fechamentos":[{
             "mes":str(c["mes"]),"banca_base_inicio":_brl(c["banca_base_inicio"]),
@@ -462,6 +463,60 @@ def _closed_game_ids(sid,round_index):
       SELECT jogo_id FROM galileu_private.jogos_finalizados
       WHERE sessao_id=%s AND indice_rodada=%s
     """,(sid,round_index))}
+
+
+def _financial_group_results(bets):
+    """Resultados auditáveis por método, liga e clube, sem inventar cotações.
+
+    Executadas e ROI consideram apenas green/red. Entradas programadas e
+    sem saldo são contabilizadas, mas não viram greens/reds ou lucro.
+    Uma entrada é atribuída aos dois clubes do confronto; o total por
+    clube não é somável entre equipes.
+    """
+    groups={"por_metodo":defaultdict(list),
+            "por_liga":defaultdict(list),
+            "por_clube":defaultdict(list)}
+    for entry in bets:
+        name=(str(entry.get("metodo_nome") or "Método sem nome").strip()
+              if entry.get("tipo")=="metodo" else "Entrada manual")
+        # O identificador identifica um método mesmo após renomeações;
+        # as versões são agregadas sob seu ID estável.
+        method_id=entry.get("metodo_id") if entry.get("tipo")=="metodo" else None
+        method_key=("m",str(method_id)) if method_id is not None else ("n",name)
+        groups["por_metodo"][method_key].append(entry)
+        groups["por_liga"][str(entry.get("campeonato") or "Não informado")].append(entry)
+        for club in {str(entry.get("mandante") or "Não informado"),
+                     str(entry.get("visitante") or "Não informado")}:
+            groups["por_clube"][club].append(entry)
+
+    def summarize(rows):
+        done=[r for r in rows if r["status"] in ("green","red")]
+        stake=sum((Decimal(str(r["stake"])) for r in done),Decimal("0"))
+        profit=sum((Decimal(str(r["lucro_prejuizo"])) for r in done),Decimal("0"))
+        greens=sum(r["status"]=="green" for r in done)
+        reds=sum(r["status"]=="red" for r in done)
+        return {
+            "entradas":len(rows),"executadas":len(done),
+            "nao_executadas":sum(r["status"]=="sem_saldo" for r in rows),
+            "pendentes":sum(r["status"]=="pendente" for r in rows),
+            "greens":greens,"reds":reds,
+            "win_rate":round(100*greens/len(done),2) if done else 0,
+            "stake_executada":_brl(stake),
+            "lucro_prejuizo":_brl(profit),
+            "roi":round(float(profit/stake*100),2) if stake else 0,
+        }
+
+    results={}
+    for group,values in groups.items():
+        output=[]
+        for key,rows in values.items():
+            name=(rows[-1].get("metodo_nome") or "Método sem nome")
+                if group=="por_metodo" and isinstance(key,tuple) and key[0]=="m" else (
+                    key[1] if isinstance(key,tuple) else key)
+            output.append({"nome":str(name),**summarize(rows)})
+        output.sort(key=lambda row:(-row["entradas"],row["nome"].casefold()))
+        results[group]=output
+    return results
 
 
 def _summary(bets,initial,fechamentos=None):
@@ -499,16 +554,7 @@ def _summary(bets,initial,fechamentos=None):
             cumulative=Decimal(closing["banca_base_seguinte"])
         else:
             cumulative=closing_balance
-        by_strategy=defaultdict(list)
-        by_league=defaultdict(list)
-        by_club=defaultdict(list)
-        for b in items:
-            by_strategy[b["metodo_nome"] if b["tipo"]=="metodo" else "Entrada manual"].append(b)
-            by_league[b["campeonato"]].append(b)
-            for club in (b["mandante"],b["visitante"]):
-                by_club[club].append(b)
-        def group(groups):
-            return [{"nome":key,**metric(value)} for key,value in sorted(groups.items())]
+        breakdown=_financial_group_results(items)
         response.append({
             "mes":month,"banca_inicio":_brl(opening),
             "banca_fechamento":_brl(closing_balance),
@@ -517,8 +563,8 @@ def _summary(bets,initial,fechamentos=None):
             "banca_fim":_brl(cumulative),
             "fechado":bool(closing),
             **result,
-            "por_estrategia":group(by_strategy),
-            "por_liga":group(by_league),"por_clube":group(by_club),
+            "por_estrategia":breakdown["por_metodo"],
+            "por_liga":breakdown["por_liga"],"por_clube":breakdown["por_clube"],
         })
     return response
 
