@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v6">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v7">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -63,6 +63,13 @@
     </div>
     <p class="gl-note" id="gl-round-cutoff" aria-live="polite">Intervalo atual da rodada</p>
     <p class="gl-note" id="gl-round-help">Selecione um confronto para ver métodos e estatísticas históricas. O resultado permanece oculto.</p>
+    <div class="gl-bulk-toolbar" id="gl-bulk-toolbar" hidden>
+      <div class="gl-bulk-description">
+        <strong>Entradas nos métodos validados</strong>
+        <span id="gl-bulk-info">Selecione todos os métodos ainda não utilizados nesta rodada.</span>
+      </div>
+      <button id="gl-bulk-open" type="button" class="gl-primary">Entrar em todos os métodos validados</button>
+    </div>
     <div id="gl-games" class="gl-games"></div>
     <p id="gl-games-closed" class="gl-note" aria-live="polite"></p>
     <div class="gl-actions">
@@ -108,6 +115,31 @@
   <div class="gl-dialog-footer"><button type="button" class="gl-secondary" data-close="gl-details-dialog">Voltar à rodada</button></div>
 </dialog>
 
+<dialog id="gl-bulk-dialog" class="gl-dialog gl-bulk-dialog">
+  <div class="gl-dialog-head">
+    <h3>Entrar em todos os métodos validados</h3>
+    <button type="button" class="gl-close" data-close="gl-bulk-dialog" aria-label="Cancelar entradas">×</button>
+  </div>
+  <form id="gl-bulk-form">
+    <p class="gl-note">Serão consideradas apenas as entradas de métodos ainda não utilizados nos jogos disponíveis desta rodada. A gravação será feita em uma única operação.</p>
+    <div class="gl-bulk-preview">
+      <div><span>Entradas</span><strong id="gl-bulk-count">0</strong></div>
+      <div><span>Stake por entrada</span><strong id="gl-bulk-stake-display">—</strong></div>
+      <div><span>Total comprometido</span><strong id="gl-bulk-total">—</strong></div>
+    </div>
+    <label>Stake para cada método (R$)
+      <input id="gl-bulk-stake" type="number" min=".01" step=".01" required>
+    </label>
+    <p id="gl-bulk-balance" class="gl-note" role="status"></p>
+    <div id="gl-bulk-list" class="gl-bulk-list"></div>
+    <p class="gl-note">As odds históricas podem não representar o preço disponível antes do jogo. Odds Lay são estimativas. Nenhum placar será revelado.</p>
+    <div class="gl-dialog-footer">
+      <button type="button" class="gl-secondary" data-close="gl-bulk-dialog">Cancelar</button>
+      <button type="submit" class="gl-primary" id="gl-bulk-confirm">Confirmar todas as entradas</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="gl-entry-dialog" class="gl-dialog">
   <div class="gl-dialog-head"><h3 id="gl-entry-title">Fazer entrada</h3>
     <button type="button" data-close="gl-entry-dialog" class="gl-close" aria-label="Cancelar entrada">×</button></div>
@@ -138,6 +170,6 @@
 <p class="x1-disclaimer">Galileu é uma gameplay virtual, não executa apostas reais. Resultados anteriores são usados apenas na ordem histórica e não garantem lucro futuro. Dados de odds importados podem refletir preços posteriores ao início do jogo. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
-<script src="/static/js/shell.js?v=galileu-gameplay-v6" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v6" defer></script>
+<script src="/static/js/shell.js?v=galileu-gameplay-v7" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v7" defer></script>
 </body></html>
