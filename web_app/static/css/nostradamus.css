@@ -249,3 +249,33 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   .ns-condition.ns-odd-active .ns-odd-criterion{grid-column:1}
   .ns-condition .ns-remove{grid-column:1}
 }
+
+
+/* Assistente de melhoria: treino separado da validação temporal. */
+.ns-ai-panel{margin-top:24px;padding:22px;border:1px solid var(--df-border);
+  border-radius:14px;background:var(--df-raised);color:var(--df-text)}
+.ns-ai-heading{display:flex;align-items:center;justify-content:space-between;
+  gap:18px;flex-wrap:wrap}
+.ns-ai-heading h3{font-size:20px;line-height:1.3;margin:0 0 7px}
+.ns-ai-heading p{margin:0;max-width:850px;color:var(--df-secondary);
+  font-size:13px;line-height:1.6}
+.ns-ai-heading button{flex:none}
+.ns-ai-output{margin-top:18px;display:grid;gap:14px;font-size:13px;line-height:1.65}
+.ns-ai-output>p{margin:0}
+.ns-ai-window{color:var(--df-secondary)}
+.ns-ai-baseline{display:grid;gap:7px;padding:13px 16px;
+  background:var(--df-surface);border:1px solid var(--df-border);border-radius:10px}
+.ns-ai-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:12px}
+.ns-ai-card{display:flex;flex-direction:column;align-items:flex-start;gap:12px;
+  padding:16px;border:1px solid var(--df-border);border-radius:12px;
+  background:var(--df-surface)}
+.ns-ai-card-top{display:grid;gap:6px}
+.ns-ai-card-top strong{font-size:14px}
+.ns-ai-status{font-size:12px;color:var(--df-secondary);font-weight:700}
+.ns-ai-card button{margin-top:auto;max-width:100%}
+.ns-ai-muted{color:var(--df-secondary);font-size:12px}
+.ns-ai-caution{padding-top:9px;border-top:1px solid var(--df-border);
+  color:var(--df-secondary);font-size:12px}
+.ns-ai-explanation{font-weight:650}
+.ns-ai-empty{color:var(--df-secondary)}
+@media(max-width:620px){.ns-ai-panel{padding:15px}.ns-ai-heading button{width:100%}}

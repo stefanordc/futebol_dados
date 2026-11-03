@@ -9,7 +9,7 @@ const pnlClass=v=>v==null?"":Number(v)>=0?"ns-green":"ns-red";
 const oddLabel=r=>r.tipo_odd==="lay_estimado"?"Lay estimado":r.tipo_odd==="api_casa"?"Casa / histórico":r.tipo_odd==="hipotetica"?"Hipotética":r.tipo_odd==="registrada_antes"?"FotMob pré-jogo":"";
 
 const store="df_nostradamus_estrategias_v1",status=$("#ns-feedback");
-let meta=null,loaded=null,stored=[],editing=null;
+let meta=null,loaded=null,stored=[],editing=null,lastSimulationConfig=null,aiSuggestions=[];
 const today=new Date(),localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
 $("#ns-corte").max=localToday;
 const prior=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
@@ -128,7 +128,7 @@ function conditionLine(item={}){
   if(data.modo==="legado")modes.legado="Regra personalizada (salva anteriormente)";
   div.innerHTML=
     '<label class="ns-stat-criterion">Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
-      opts({favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)",ambos:"Ambos (cada equipe)"},data.lado||"favorito")+'</select></label>'+
+      opts({favorito:"Favorito",zebra:"Zebra",ambos:"Ambos (cada equipe)"},data.lado||"favorito")+'</select></label>'+
     '<label class="ns-stat-criterion ns-home-filter-wrap">Mando de campo<select class="ns-home-filter" aria-label="Mando de campo">'+
       opts({indiferente:"Indiferente",mandante:"Mandante",visitante:"Visitante"},data.mando_preferido||"indiferente")+'</select></label>'+
     '<label class="ns-indicator-field">Indicador<select class="ns-metric" aria-label="Indicador">'+
@@ -493,6 +493,8 @@ function details(rows){
 function show(response){
   loaded=response;
   $("#ns-results").hidden=false;
+  aiSuggestions=[];
+  $("#ns-ai-output").innerHTML='<p>Clique em Analisar oportunidades para procurar limites de odds ou indicadores adicionais, com a mesma data de corte.</p>';
   $("#ns-method").textContent=response.aviso;
   const body=$("#ns-summary");
   body.innerHTML=response.resultados.length?response.resultados.map((r,i)=>
@@ -537,10 +539,82 @@ $("#ns-form").addEventListener("submit",async e=>{
     const r=await fetch("/api/apostas/nostradamus/testar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config)});
     const response=await r.json();
     if(!r.ok)throw new Error(typeof response.detail==="string"?response.detail:"Falha ao analisar os jogos.");
+    lastSimulationConfig=JSON.parse(JSON.stringify(config));
     show(response);
   }catch(e){say(e.message,true);}
   finally{button.disabled=false;button.textContent="Executar backtest";}
 });
+// Otimizador explicável: a seleção usa SOMENTE o período de treino;
+// validação posterior serve para exibir evidência, não para escolher regra.
+function aiSummary(x){
+  if(!x||!x.entradas)return '<span class="ns-ai-muted">Sem entradas cotadas</span>';
+  const v=x.total_reais;
+  return '<strong class="'+pnlClass(v)+'">'+money(v)+'</strong>'+
+    ' <span class="ns-ai-muted">('+fmt(x.entradas,0)+' entradas · média '+
+    money(x.media_reais)+'/entrada)</span>';
+}
+function drawAi(result){
+  aiSuggestions=Array.isArray(result.sugestoes)?result.sugestoes:[];
+  let html='<p class="ns-ai-explanation">'+esc(result.metodo||"")+" "+
+    esc(result.mensagem||"")+'</p>';
+  if(result.data_divisao){
+    html+='<p class="ns-ai-window">Data de corte preservada: <strong>'+
+      esc(result.corte)+'</strong> · Treino até '+esc(result.data_divisao)+
+      ' · Validação: jogos posteriores, até o mesmo corte.</p>';
+    html+='<div class="ns-ai-baseline">'+
+      '<div>Estratégia atual · treino: '+aiSummary(result.base_treino)+'</div>'+
+      '<div>Estratégia atual · validação: '+aiSummary(result.base_validacao)+'</div></div>';
+  }
+  if(aiSuggestions.length){
+    html+='<div class="ns-ai-cards">'+aiSuggestions.map((item,index)=>
+      '<article class="ns-ai-card">'+
+      '<div class="ns-ai-card-top"><strong>'+esc(item.descricao)+
+      '</strong><span class="ns-ai-status">'+esc(item.avaliacao)+'</span></div>'+
+      '<div>Com a regra · treino: '+aiSummary(item.treino)+'</div>'+
+      '<div>Com a regra · validação: '+aiSummary(item.validacao)+'</div>'+
+      '<button type="button" class="ns-button secondary" data-ai-apply="'+index+
+      '">Adicionar critério e testar</button></article>').join("")+'</div>';
+  }else{
+    html+='<p class="ns-ai-empty">Nenhuma sugestão aprovada na etapa de treinamento. Preserve a estratégia atual até haver mais evidências.</p>';
+  }
+  html+='<p class="ns-ai-caution">'+esc(result.aviso||
+    "Análise retrospectiva exploratória. Sugestões não garantem lucro e não são recomendações de aposta.")+'</p>';
+  $("#ns-ai-output").innerHTML=html;
+}
+$("#ns-ai-run").addEventListener("click",async()=>{
+  if(!loaded||!lastSimulationConfig)return;
+  const button=$("#ns-ai-run");
+  button.disabled=true;button.textContent="Analisando histórico…";
+  $("#ns-ai-output").textContent="Procurando padrões nos jogos do período de treino e verificando os jogos posteriores…";
+  try{
+    const response=await fetch("/api/apostas/nostradamus/otimizar",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(lastSimulationConfig)
+    });
+    const result=await response.json();
+    if(!response.ok)throw new Error(typeof result.detail==="string"?result.detail:
+      "Falha ao analisar a estratégia.");
+    drawAi(result);
+  }catch(error){
+    $("#ns-ai-output").textContent=error.message;
+  }finally{
+    button.disabled=false;button.textContent="Analisar oportunidades";
+  }
+});
+$("#ns-ai-output").addEventListener("click",event=>{
+  const btn=event.target.closest("[data-ai-apply]");
+  if(!btn)return;
+  const index=Number(btn.dataset.aiApply);
+  if(!Number.isInteger(index)||index<0||index>=aiSuggestions.length)return;
+  if($("#ns-conditions").children.length>=10){
+    say("Limite de 10 condições: remova uma antes de aplicar esta sugestão.",true);
+    return;
+  }
+  conditionLine(aiSuggestions[index].condicao);
+  // Não salvar a estratégia automaticamente; o usuário decide após conferir.
+  $("#ns-form").requestSubmit();
+});
+
 async function init(){
   try{
     const response=await fetch("/api/apostas/nostradamus/metadata");

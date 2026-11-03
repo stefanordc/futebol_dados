@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-indicador-odds-v6'),
+assert.ok(html.includes('nostradamus-ia-otimizacao-v7'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -92,8 +92,8 @@ assert.ok(src.includes("saved.campeonato_id?[saved.campeonato_id]:[]"),
 assert.ok(src.includes("function closeLeagues()"),"Dropdown deve fechar ao usar Escape e clicar fora");
 
 /* Favorito/zebra vem de odds reais e ganha o mando como detalhe, não como regra. */
-assert.ok(js.includes('favorito:"Favorito (menor odd)"'),"Seletor deve priorizar favorito");
-assert.ok(js.includes('zebra:"Zebra (maior odd)"'),"Seletor deve priorizar zebra");
+assert.ok(js.includes('favorito:"Favorito"'),"Seletor deve exibir somente Favorito");
+assert.ok(js.includes('zebra:"Zebra"'),"Seletor deve exibir somente Zebra");
 assert.ok(js.includes('opts(favoriteMarkets,"back_favorito")'),"Back favorito é o padrão");
 assert.ok(js.includes('roleLabel(c.lado,c.mando)'),"Mostrar Favorito/Zebra (Mandante/Visitante)");
 assert.ok(js.includes('matchLabel(r)'),"Exibir favorito e zebra identificados nos detalhes");
@@ -171,3 +171,18 @@ assert.ok(css.includes('.ns-condition.ns-odd-active .ns-indicator-field'),
   "O campo indicador deve manter destaque também ao selecionar odds");
 assert.ok(html.includes('as estatísticas e as <strong>odds dos mercados</strong> aparecem juntas'),
   "Documentar a disposição unificada dos indicadores");
+
+/* O assistente recomenda limites de odds e indicadores sem salvar automaticamente. */
+assert.ok(html.includes('id="ns-ai-panel"'),"Otimização deve aparecer no painel de resultados");
+assert.ok(html.includes('id="ns-ai-run"'),"Botão de análise de oportunidades");
+assert.ok(js.includes('"/api/apostas/nostradamus/otimizar"'),
+  "Análise busca sugestões do backend com recorte cronológico");
+assert.ok(js.includes('JSON.stringify(lastSimulationConfig)'),
+  "A data de corte aplicada ao backtest deve ser preservada na otimização");
+assert.ok(js.includes('data-ai-apply'),"O usuário pode escolher aplicar um critério");
+assert.ok(js.includes('conditionLine(aiSuggestions[index].condicao)'),
+  "Aplicação deve adicionar uma condição existente sem apagar as demais");
+assert.ok(js.includes('$("#ns-form").requestSubmit()'),
+  "Aplicação deve recalcular o backtest sem salvar a estratégia automaticamente");
+assert.ok(!js.includes('localStorage.setItem(store'),"Análise não deve salvar a estratégia silenciosamente");
+assert.ok(css.includes('.ns-ai-panel'),"Painel da otimização deve ser estilizado");
