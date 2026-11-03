@@ -19,18 +19,44 @@ const localTime=value=>{
 function metricLine(label,value){
   return '<div><span>'+esc(label)+'</span><strong>'+value+'</strong></div>';
 }
-function groupTable(items){
-  if(!items?.length)return '<p class="gl-note">Nenhuma entrada nesta categoria.</p>';
-  return '<div class="gl-scroll"><table class="gl-table gl-finance-table">'+
-    '<thead><tr><th>Nome</th><th>Programadas</th><th>Executadas</th><th>Não executadas</th><th>Greens</th><th>Reds</th>'+
-    '<th>Win Rate</th><th>L/P</th><th>ROI</th></tr></thead><tbody>'+
-    items.map(r=>'<tr><td>'+esc(r.nome)+'</td><td>'+r.entradas+'</td>'+
-      '<td>'+(r.executadas||0)+'</td><td>'+(r.nao_executadas||0)+'</td>'+
-      '<td>'+r.greens+'</td><td>'+r.reds+'</td>'+
+function groupTable(items,columnName){
+  if(!items?.length){
+    return '<p class="gl-report-empty">Nenhuma entrada cadastrada neste período.</p>';
+  }
+  const title=esc(columnName);
+  return '<div class="gl-scroll"><table class="gl-table gl-finance-table gl-group-table">'+
+    '<thead><tr><th>'+title+'</th><th>Programadas</th><th>Executadas</th>'+
+    '<th>Sem saldo</th><th>Pendentes</th><th>Greens</th><th>Reds</th>'+
+    '<th>Win Rate</th><th>Stake executada</th><th>L/P (R$)</th><th>ROI</th>'+
+    '</tr></thead><tbody>'+
+    items.map(r=>'<tr><th scope="row">'+esc(r.nome)+'</th>'+
+      '<td>'+Number(r.entradas||0)+'</td>'+
+      '<td>'+Number(r.executadas||0)+'</td>'+
+      '<td>'+Number(r.nao_executadas||0)+'</td>'+
+      '<td>'+Number(r.pendentes||0)+'</td>'+
+      '<td>'+Number(r.greens||0)+'</td>'+
+      '<td>'+Number(r.reds||0)+'</td>'+
       '<td>'+perc(r.win_rate)+'</td>'+
+      '<td>'+brl(r.stake_executada)+'</td>'+
       '<td class="'+cls(r.lucro_prejuizo)+'">'+brl(r.lucro_prejuizo)+'</td>'+
-      '<td>'+perc(r.roi)+'</td></tr>').join("")+'</tbody></table></div>';
+      '<td class="'+cls(r.lucro_prejuizo)+'">'+perc(r.roi)+'</td></tr>').join("")+
+    '</tbody></table></div>';
 }
+function renderBreakdown(data,month){
+  const all=data.agrupamentos||{
+    por_metodo:[],por_liga:[],por_clube:[]
+  };
+  const m=(data.resumo_mensal||[]).find(row=>row.mes===month);
+  const groups=month==="todos"?all:{
+    por_metodo:m?.por_estrategia||[],
+    por_liga:m?.por_liga||[],
+    por_clube:m?.por_clube||[],
+  };
+  $("#gl-report-by-method").innerHTML=groupTable(groups.por_metodo,"Método");
+  $("#gl-report-by-league").innerHTML=groupTable(groups.por_liga,"Liga");
+  $("#gl-report-by-club").innerHTML=groupTable(groups.por_clube,"Clube");
+}
+
 function render(data){
   $("#gl-report-content").hidden=false;
   $("#gl-report-summary").innerHTML=[
@@ -78,17 +104,12 @@ function render(data){
       '<td>'+brl(r.banca_depois)+'</td>'+
       '<td>'+management(r)+'</td><td>'+nextManagement(r)+'</td></tr>'
     ).join(""):'<tr><td colspan="8">Nenhuma movimentação financeira registrada.</td></tr>';
-  $("#gl-report-breakdown").innerHTML=months.length?months.map(m=>
-    '<details class="gl-month-detail"><summary><strong>'+
-      monthName(m.mes)+'</strong> · '+(m.executadas||0)+' / '+m.entradas+
-      ' executadas · '+(m.nao_executadas||0)+' sem saldo · L/P '+
-      brl(m.lucro_prejuizo)+' · ROI '+perc(m.roi)+'</summary>'+
-      '<div class="gl-finance-subgroups"><details><summary>Por estratégia</summary>'+
-      groupTable(m.por_estrategia)+'</details>'+
-      '<details><summary>Por liga</summary>'+groupTable(m.por_liga)+'</details>'+
-      '<details><summary>Por clube</summary>'+groupTable(m.por_clube)+
-      '</details></div></details>').join(""):
-      '<p class="gl-note">Ainda não há partidas liquidadas para analisar.</p>';
+  const period=$("#gl-report-period");
+  period.innerHTML='<option value="todos">Todos os meses</option>'+
+    months.map(m=>'<option value="'+esc(m.mes)+'">'+monthName(m.mes)+'</option>')
+      .join("");
+  period.addEventListener("change",()=>renderBreakdown(data,period.value));
+  renderBreakdown(data,"todos");
 }
 fetch("/api/apostas/galileu/gameplay/relatorios",{cache:"no-store",credentials:"same-origin"})
   .then(async response=>{
