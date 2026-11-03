@@ -510,9 +510,10 @@ def _financial_group_results(bets):
     for group,values in groups.items():
         output=[]
         for key,rows in values.items():
-            name=(rows[-1].get("metodo_nome") or "Método sem nome")
-                if group=="por_metodo" and isinstance(key,tuple) and key[0]=="m" else (
-                    key[1] if isinstance(key,tuple) else key)
+            if group=="por_metodo" and isinstance(key,tuple):
+                name=(rows[-1].get("metodo_nome") or "Método sem nome") if key[0]=="m" else key[1]
+            else:
+                name=key
             output.append({"nome":str(name),**summarize(rows)})
         output.sort(key=lambda row:(-row["entradas"],row["nome"].casefold()))
         results[group]=output
