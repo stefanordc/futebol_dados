@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS galileu_private.sessoes (
   token_hash char(64) NOT NULL UNIQUE,
   corte date NOT NULL,
   banca_inicial numeric(16,2) NOT NULL CHECK (banca_inicial>0),
-  banca_atual numeric(16,2) NOT NULL CHECK (banca_atual>=0),
+  banca_atual numeric(16,2) NOT NULL,
   gestao_pct numeric(6,3) NOT NULL CHECK (gestao_pct>0 AND gestao_pct<=100),
   stake_fixa numeric(16,2) CHECK (stake_fixa IS NULL OR stake_fixa>0),
   indice_rodada integer NOT NULL DEFAULT 0 CHECK (indice_rodada>=0),
