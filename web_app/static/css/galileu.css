@@ -199,3 +199,30 @@
   .gl-actions .gl-note{margin:0}
   .gl-dialog{padding:17px}
 }
+
+
+/* A área inteira do confronto abre os detalhes; controles internos mantêm ação própria. */
+.gl-game-card{cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.gl-game-card:hover{border-color:var(--df-orange)}
+.gl-game-card:focus-visible{outline:2px solid var(--df-orange);outline-offset:3px}
+.gl-game-card-actions{min-width:156px}
+.gl-game-card-actions .gl-finish-game{font-size:12px;min-height:40px;white-space:nowrap}
+.gl-game-card-actions button{width:100%}
+.gl-game-card-actions button:focus-visible,
+.gl-method-action:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+.gl-game-entries{display:grid;gap:5px;margin-top:5px}
+.gl-game-entry{font-size:12px;line-height:1.55;color:var(--df-secondary)}
+.gl-validated-method .gl-method-action{margin-top:17px;min-height:42px}
+.gl-validated-method .gl-method-action:disabled{opacity:.62;cursor:not-allowed}
+.gl-round-results{padding-top:20px;margin-top:22px;border-top:1px solid var(--df-border)}
+.gl-round-results h3{font-size:18px;margin:0 0 10px}
+.gl-round-results .gl-scroll{overflow-x:auto;margin-top:14px}
+.gl-round-results .gl-table{width:100%;font-size:12px;white-space:nowrap}
+.gl-round-results .gl-table th,.gl-round-results .gl-table td{padding:10px 12px}
+.gl-round-results .gl-table tfoot{font-weight:800;border-top:2px solid var(--df-orange)}
+#gl-round-results[hidden]{display:none!important}
+@media(max-width:650px){
+  .gl-game-card-actions{flex-wrap:wrap;gap:8px}
+  .gl-game-card-actions .gl-primary,
+  .gl-game-card-actions .gl-finish-game{width:calc(50% - 4px)}
+}
