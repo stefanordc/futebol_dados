@@ -537,7 +537,7 @@ def _monthly_boundary(rounds,index):
 def _default_stake(sess):
     if sess["stake_fixa"] is not None:
         return _brl(sess["stake_fixa"])
-    return _brl(_rounded(Decimal(sess.get("banca_base_mes") or sess["banca_inicial"])*Decimal(sess["gestao_pct"])/100))
+    return _brl(_rounded(Decimal(sess["banca_base_mes"] if sess.get("banca_base_mes") is not None else sess["banca_inicial"])*Decimal(sess["gestao_pct"])/100))
 
 
 def estado(token):
