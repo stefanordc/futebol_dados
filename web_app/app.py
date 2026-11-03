@@ -20,6 +20,7 @@ import queries_x1
 import queries_x1_analise
 import queries_x1_texto
 import queries_nostradamus
+import queries_nostradamus_aovivo
 import queries_nostradamus_ai
 import queries_estrategias
 import queries_galileu
@@ -185,6 +186,14 @@ def nostradamus_metadata():
 def nostradamus_testar(payload: dict):
     try:
         return queries_nostradamus.testar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/nostradamus/ao-vivo/testar")
+def nostradamus_ao_vivo_testar(payload: dict):
+    try:
+        return queries_nostradamus_aovivo.simular(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
