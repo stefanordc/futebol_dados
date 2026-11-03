@@ -6,6 +6,7 @@ on:
       - 'web_app/queries_nostradamus_ai.py'
       - 'web_app/tests/test_nostradamus_ai.py'
       - 'web_app/tests/test_nostradamus.py'
+      - 'web_app/tests/test_nostradamus_goleada.py'
       - 'web_app/static/js/nostradamus.js'
       - 'web_app/queries_estrategias.py'
       - 'web_app/tests/test_estrategias.py'
@@ -20,6 +21,7 @@ on:
       - 'web_app/queries_nostradamus_ai.py'
       - 'web_app/tests/test_nostradamus_ai.py'
       - 'web_app/tests/test_nostradamus.py'
+      - 'web_app/tests/test_nostradamus_goleada.py'
       - 'web_app/static/js/nostradamus.js'
       - 'web_app/queries_estrategias.py'
       - 'web_app/tests/test_estrategias.py'
@@ -47,6 +49,7 @@ jobs:
         working-directory: web_app
         run: |
           python -m unittest discover -s tests -p 'test_nostradamus.py' -v
+          python -m unittest discover -s tests -p 'test_nostradamus_goleada.py' -v
           python -m unittest discover -s tests -p 'test_nostradamus_ai.py' -v
       - name: Regressão das condições no navegador
         working-directory: web_app
