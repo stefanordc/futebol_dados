@@ -328,8 +328,8 @@ def _disabled_methods(sid):
 
 
 def _is_disabled(method_id,game_date,disabled):
-    record=disabled.get(int(method_id))
-    return bool(record and str(game_date)[:7]>=record["desde"])
+    """Uma retirada já registrada bloqueia qualquer nova validação do método."""
+    return int(method_id) in disabled
 
 
 def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
@@ -790,6 +790,10 @@ def estado(token):
         "metodos_fechamento":_method_monthly_table(
             bets,method_catalog,disabled,month)
             if closure_access and boundary and month else [],
+        "metodos_catalogo":[
+            {"id":m["id"],"nome":m["nome"]}
+            for m in sorted(method_catalog,key=lambda m:m["nome"].casefold())
+        ],
         "metodos_desativados":[{
             "metodo_id":mid,"nome":info["nome"],"efetivo_desde":info["desde"]
         } for mid,info in sorted(disabled.items())],
@@ -845,6 +849,52 @@ def _lock(cur,token):
     return sess
 
 
+def retirar_metodo(token,payload):
+    """Retira um método desta gameplay imediatamente, preservando o histórico.
+
+    A exclusão atômica das entradas pendentes impede que sejam liquidadas.
+    As entradas já apuradas e os métodos do Nostradamus permanecem intactos.
+    """
+    if not isinstance(payload,dict) or type(payload.get("metodo_id")) is not int:
+        raise ValueError("Selecione um método válido para retirar.")
+    method_id=payload["metodo_id"]
+    if method_id<=0:
+        raise ValueError("Selecione um método válido para retirar.")
+    method=next((m for m in _methods() if m["id"]==method_id),None)
+    if method is None:
+        raise ValueError("Este método não está mais cadastrado no Nostradamus.")
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            sess=_lock(cur,token)
+            cur.execute("""
+                INSERT INTO galileu_private.metodos_desativados
+                    (sessao_id,metodo_id,nome_metodo,efetivo_desde)
+                VALUES (%s,%s,%s,%s)
+                ON CONFLICT (sessao_id,metodo_id) DO NOTHING
+                RETURNING metodo_id
+            """,(sess["id"],method_id,method["nome"],str(sess["mes_base"])))
+            if cur.fetchone() is None:
+                raise ValueError("Este método já foi retirado do Galileu.")
+            cur.execute("""
+                DELETE FROM galileu_private.entradas
+                WHERE sessao_id=%s AND metodo_id=%s
+                  AND tipo='metodo' AND status='pendente'
+                RETURNING id
+            """,(sess["id"],method_id))
+            canceladas=len(cur.fetchall())
+            cur.execute("""
+                UPDATE galileu_private.sessoes
+                SET versao=versao+1,atualizado_em=now()
+                WHERE id=%s
+            """,(sess["id"],))
+        conn.commit()
+    return {
+        "mensagem":"Método retirado do Galileu. Não haverá novas entradas com ele.",
+        "metodo_id":method_id,
+        "entradas_canceladas":canceladas,
+    }
+
+
 def registrar(token,payload):
     if not isinstance(payload,dict):
         raise ValueError("Entrada inválida.")
@@ -886,8 +936,8 @@ def registrar(token,payload):
                     WHERE sessao_id=%s AND metodo_id=%s
                 """,(sess["id"],method_id))
                 disabled_row=cur.fetchone()
-                if disabled_row and str(game["data"])[:7]>=str(disabled_row["efetivo_desde"]):
-                    raise ValueError("Método retirado da gameplay para este mês.")
+                if disabled_row:
+                    raise ValueError("Método retirado do Galileu. Atualize a rodada.")
                 # A confirmação só precisa revalidar o método selecionado,
                 # em vez de recalcular TODOS os métodos a cada entrada.
                 selected=next((m for m in _methods() if m["id"]==method_id),None)
