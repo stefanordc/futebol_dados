@@ -328,8 +328,9 @@ def _disabled_methods(sid):
 
 
 def _is_disabled(method_id,game_date,disabled):
-    """Uma retirada já registrada bloqueia qualquer nova validação do método."""
-    return int(method_id) in disabled
+    """Respeita o início da retirada, sem alterar os meses já percorridos."""
+    record=disabled.get(int(method_id))
+    return bool(record and str(game_date)[:7]>=record["desde"])
 
 
 def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
@@ -937,7 +938,7 @@ def registrar(token,payload):
                 """,(sess["id"],method_id))
                 disabled_row=cur.fetchone()
                 if disabled_row:
-                    raise ValueError("Método retirado do Galileu. Atualize a rodada.")
+                    raise ValueError("Método retirado da gameplay do Galileu. Atualize a rodada.")
                 # A confirmação só precisa revalidar o método selecionado,
                 # em vez de recalcular TODOS os métodos a cada entrada.
                 selected=next((m for m in _methods() if m["id"]==method_id),None)
