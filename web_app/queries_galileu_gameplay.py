@@ -534,6 +534,17 @@ def _monthly_boundary(rounds,index):
     return False,None
 
 
+def _closing_boundary(rounds):
+    """Fechamento também nos meses sem partidas, ao atingir o último dia."""
+    boundary,month=_monthly_boundary(rounds,0)
+    if boundary:
+        return True,month,False
+    window=_window_at(rounds,0)
+    if window and not window["jogos"] and window["limite"]==_month_end(window["limite"]):
+        return True,window["limite"].strftime("%Y-%m"),True
+    return False,None,False
+
+
 def _default_stake(sess):
     if sess["stake_fixa"] is not None:
         return _brl(sess["stake_fixa"])
@@ -570,8 +581,9 @@ def estado(token):
         g["entradas"]=by_game.get(g["jogo_id"],[])
         if g["jogo_id"] not in closed:
             visible.append(g)
-    boundary,month=_monthly_boundary(rounds,0)
+    boundary,month,empty_closure=_closing_boundary(rounds)
     revealed=sess["fase"] in ("revelada","concluida")
+    closure_access=revealed or (empty_closure and sess["fase"]=="aberta")
     fechamentos=_fechamentos(sess["id"])
     history=_summary(bets,sess["banca_inicial"],fechamentos)
     mes_fechado=any(str(row["mes"])==month for row in fechamentos) if month else False
@@ -623,9 +635,9 @@ def estado(token):
         "saldo_disponivel":_brl(max(Decimal("0"),
             Decimal(sess["banca_atual"])-sum(
                 (Decimal(b["stake"]) for b in current),Decimal("0")))),
-        "mes_encerrado":month if revealed and boundary else None,
-        "fechamento_pendente":bool(revealed and boundary and not mes_fechado),
-        "fechamento_realizado":bool(revealed and boundary and mes_fechado),
+        "mes_encerrado":month if closure_access and boundary else None,
+        "fechamento_pendente":bool(closure_access and boundary and not mes_fechado),
+        "fechamento_realizado":bool(closure_access and boundary and mes_fechado),
         "resumo_mensal":history,
         "pode_avancar":revealed and len(rounds)>1,
         "periodo_vazio":not bool(raw_games),
@@ -1038,10 +1050,12 @@ def fechar_mes(token,payload):
     with get_conn() as conn:
         with conn.cursor() as cur:
             sess=_lock(cur,token)
-            if sess["fase"]!="revelada":
-                raise ValueError("Finalize a rodada antes de fechar o mês.")
             rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
-            boundary,month=_monthly_boundary(rounds,0)
+            boundary,month,empty_closure=_closing_boundary(rounds)
+            if sess["fase"]!="revelada" and not (
+                sess["fase"]=="aberta" and empty_closure
+            ):
+                raise ValueError("Finalize a rodada antes de fechar o mês.")
             if not boundary or not month:
                 raise ValueError("Este período não representa o fechamento do mês.")
             if month!=str(sess["mes_base"]):
@@ -1125,8 +1139,10 @@ def proxima(token):
             current_cutoff=_date(sess.get("corte_atual") or sess["corte"])
             rounds=_rounds(current_cutoff,catalog)
             current=_window_at(rounds,0)
-            if sess["fase"]=="revelada":
-                boundary,month=_monthly_boundary(rounds,0)
+            boundary,month,empty_closure=_closing_boundary(rounds)
+            if sess["fase"]=="revelada" or (
+                sess["fase"]=="aberta" and current and not current["jogos"]
+            ):
                 if boundary:
                     cur.execute("""
                         SELECT 1 FROM galileu_private.fechamentos_mensais
@@ -1134,6 +1150,8 @@ def proxima(token):
                     """,(sess["id"],month))
                     if not cur.fetchone():
                         raise ValueError("Antes de avançar, conclua o fechamento mensal: aporte, saque e stake.")
+            if sess["fase"]=="revelada":
+                pass
             elif sess["fase"]=="aberta" and current and not current["jogos"]:
                 # Período sem partidas: só avançar o calendário, sem
                 # inventar placares, entradas ou balanço.
