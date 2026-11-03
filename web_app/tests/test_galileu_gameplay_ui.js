@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v11"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v12"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -73,6 +73,21 @@ assert.ok(js.includes('event.target.matches("[data-game-card]")'),
 assert.ok(js.includes('data-finish-game'),"Card deve permitir Finalizar jogo");
 assert.ok(js.includes('post("finalizar-jogo",{jogo_id:g.jogo_id})'),
   "O jogo finalizado precisa ser salvo no Supabase");
+/* Retirada imediata de método em qualquer rodada. */
+for(const id of ["gl-method-management","gl-disable-method-form",
+                 "gl-disable-method-select","gl-disable-method-submit",
+                 "gl-disabled-methods"]){
+  assert.ok(html.includes('id="'+id+'"'),"Controle de métodos ausente: "+id);
+}
+assert.ok(js.includes('post("retirar-metodo",{metodo_id:id})'),
+  "Retirada imediata deve chamar endpoint autenticado");
+assert.ok(js.includes('renderMethodManagement();renderGames()'),
+  "Jogos e métodos ativos devem ser atualizados após a retirada");
+assert.ok(py.includes('def retirar_metodo(token,payload):'),
+  "Endpoint deve cancelar pendentes e desativar método");
+assert.ok(py.includes("AND tipo='metodo' AND status='pendente'"),
+  "Cancelar apenas entradas pendentes do método");
+
 assert.ok(js.includes('data-method-entry'),"Cada método tem botão de entrada");
 assert.ok(js.includes('methodAlreadyEntered(game,m.id)'),
   "Não permitir repetir o método no mesmo confronto");
