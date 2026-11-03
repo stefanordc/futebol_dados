@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101218">
+<script>(function(){try{let t=localStorage.getItem("df_theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","dark")}})()</script>
+<title>Relatórios Galileu · Banca | Dados Futebol</title>
+<link rel="stylesheet" href="/static/css/app.css?v=28">
+<link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
+<link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v1">
+</head>
+<body data-page="bet-x1">
+<a class="df-skip" href="#main-content">Pular para o conteúdo</a>
+<div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
+<header id="df-topbar-mount"></header>
+<main id="main-content" class="match-wrap df-common-page x1-main">
+<section class="x1-hero">
+  <div class="df-eyebrow">GALILEU · RELATÓRIOS FINANCEIROS</div>
+  <h1>Relatórios da banca</h1>
+  <p>Acompanhe o resultado das entradas separado dos aportes, saques e reajustes da stake. Cada fechamento mensal gera um registro permanente nesta gameplay.</p>
+  <nav class="x1-nav" aria-label="Apostas">
+    <a href="/apostas/x1">x1 · Confronto</a>
+    <a href="/apostas/nostradamus">Nostradamus · Backtesting</a>
+    <a href="/apostas/galileu">Galileu · Gameplay</a>
+    <a href="/apostas/galileu/relatorios" aria-current="page">Relatórios · Banca</a>
+  </nav>
+</section>
+<div id="gl-report-message" role="status" aria-live="polite"></div>
+<section id="gl-report-content" hidden>
+  <section class="gl-panel">
+    <div class="df-eyebrow">VISÃO GERAL</div>
+    <h2>Evolução financeira</h2>
+    <div id="gl-report-summary" class="gl-kpis"></div>
+    <p class="gl-note">ROI = lucro/prejuízo líquido das apostas dividido pelas stakes liquidadas. Aportes e saques não compõem o lucro e não alteram o ROI.</p>
+  </section>
+  <section class="gl-panel">
+    <h2>Fechamentos mensais</h2>
+    <div class="gl-scroll"><table class="gl-table gl-finance-table">
+      <thead><tr><th>Mês</th><th>Banca-base</th><th>L/P das apostas</th><th>Saldo no fechamento</th><th>Aportes</th><th>Saques</th><th>Base seguinte</th><th>ROI</th><th>Situação</th></tr></thead>
+      <tbody id="gl-report-months"></tbody>
+    </table></div>
+  </section>
+  <section class="gl-panel">
+    <h2>Movimentações da banca</h2>
+    <p class="gl-note">Lançamentos auditáveis: aportes, saques, mudanças de gestão e a atualização da banca-base no início do próximo mês.</p>
+    <div class="gl-scroll"><table class="gl-table gl-finance-table">
+      <thead><tr><th>Registro</th><th>Mês</th><th>Operação</th><th>Valor</th><th>Banca antes</th><th>Banca depois</th><th>Gestão anterior</th><th>Gestão nova</th></tr></thead>
+      <tbody id="gl-report-movements"></tbody>
+    </table></div>
+  </section>
+  <section class="gl-panel">
+    <h2>Resultados detalhados</h2>
+    <div id="gl-report-breakdown"></div>
+    <p class="gl-note">Os mesmos jogos podem aparecer para os dois clubes envolvidos. Portanto, os resultados por clube não são somáveis entre si.</p>
+  </section>
+</section>
+<p class="x1-disclaimer">Resultados de gameplay, sem apostas reais. Odds históricas importadas podem não ter estado disponíveis antes do jogo; Lay é estimado. 18+.</p>
+</main></div></div>
+<div id="df-toast" role="status" aria-live="polite"></div>
+<script src="/static/js/shell.js?v=galileu-financeiro-v1" defer></script>
+<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v1" defer></script>
+</body></html>
