@@ -264,8 +264,10 @@ function restore(saved){
 }
 function setTab(tab){
   const saved=tab==="salvas";
-  $("#ns-workbench").hidden=saved;
+  const inplay=tab==="ao-vivo";
+  $("#ns-workbench").hidden=saved||inplay;
   $("#ns-saved").hidden=!saved;
+  $("#ns-inplay").hidden=!inplay;
   document.querySelectorAll("[data-ns-tab]").forEach(b=>{
     const active=b.dataset.nsTab===tab;
     b.classList.toggle("is-active",active);
@@ -752,7 +754,8 @@ async function init(){
     conditionLine();
     await fetchSaved();
     await importLegacy();
-    setTab(new URLSearchParams(location.search).get("aba")==="salvas"?"salvas":"simular");
+    const initialTab=new URLSearchParams(location.search).get("aba");
+    setTab(initialTab==="salvas"||initialTab==="ao-vivo"?initialTab:"simular");
   }catch(e){say(e.message,true);}
 }
 init();
