@@ -264,3 +264,41 @@
   .gl-bulk-preview{grid-template-columns:1fr}
   .gl-bulk-dialog .gl-dialog-footer button{width:100%}
 }
+
+
+/* Fechamento mensal e relatórios financeiros */
+#gl-close-form[hidden],#gl-month-confirmed[hidden],
+.gl-close-question label[hidden],#gl-close-stake-wrap[hidden],
+#gl-report-content[hidden]{display:none!important}
+.gl-close-questions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gl-close-question{border:1px solid var(--df-border);border-radius:11px;padding:14px;
+  display:grid;align-content:start;gap:13px;background:var(--df-surface)}
+.gl-close-question label,.gl-stake-choice-details label{display:grid;gap:8px;
+  font-size:13px;font-weight:700;color:var(--df-secondary)}
+.gl-close-question input,.gl-close-question select{min-height:44px;width:100%;
+  padding:10px 12px;color:var(--df-text);background:var(--df-raised);
+  border:1px solid var(--df-border);border-radius:9px;font:inherit}
+.gl-stake-choice-details{display:grid;gap:12px}
+.gl-close-preview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+  margin:15px 0}
+.gl-close-preview span{display:grid;gap:5px;font-size:12px;color:var(--df-secondary);
+  background:var(--df-surface);border:1px solid var(--df-border);
+  padding:13px;border-radius:10px}
+.gl-close-preview strong{font-size:20px;color:var(--df-text)}
+.gl-report-link{color:var(--df-orange);font-weight:800;text-decoration:underline}
+.gl-finance-table{min-width:800px;width:100%;font-size:12px;white-space:nowrap}
+.gl-finance-table th,.gl-finance-table td{padding:12px 14px;text-align:left}
+.gl-finance-subgroups{display:grid;gap:12px;margin-top:14px}
+.gl-finance-subgroups details{padding:12px;border:1px solid var(--df-border);
+  border-radius:9px;background:var(--df-surface)}
+.gl-finance-subgroups summary{cursor:pointer;font-weight:700}
+.gl-finance-subgroups .gl-scroll{margin-top:12px}
+#gl-report-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:950px){
+  .gl-close-questions{grid-template-columns:minmax(0,1fr)}
+  #gl-report-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .gl-close-preview{grid-template-columns:minmax(0,1fr)}
+  #gl-report-summary{grid-template-columns:minmax(0,1fr)}
+}
