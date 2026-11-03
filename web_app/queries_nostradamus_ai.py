@@ -153,6 +153,15 @@ def _display(condition):
     return side+" · "+ns.METRICAS[condition["metrica"]]+" ≥ "+str(condition["valor"]).replace(".",",")
 
 
+def _display_original(rule):
+    """Rótulo curto para identificar uma regra existente, sem mudar seus dados."""
+    if rule["tipo"]=="odd":
+        return _display(rule)
+    side={"favorito":"Favorito","zebra":"Zebra","ambos":"Ambos",
+          "mandante":"Mandante","visitante":"Visitante"}.get(rule["lado"],"Equipe")
+    return side+" · "+ns.METRICAS.get(rule["metrica"],rule["metrica"])
+
+
 def analisar(payload,rows=None):
     """Encontra regras candidatas em treinamento e relata validação não utilizada.
 
@@ -162,11 +171,9 @@ def analisar(payload,rows=None):
     if not isinstance(payload,dict):
         raise ValueError("Parâmetros inválidos.")
     conditions=ns._valid_conditions(payload.get("condicoes"))
-    if len(conditions)>=10:
-        return {"sugestoes":[],"mensagem":"Limite de 10 condições atingido.",
-                "metodo":"Busca de regra única e validação cronológica"}
     baseline=ns.testar(payload,rows=rows,capture=True)
     originals=baseline.pop("_dados_otimizacao")
+    raw_rows=baseline.pop("_jogos_originais")
     # Sem preço, não existe retorno monetário para aprender.
     priced=[r for r in originals if r.get("unidades") is not None]
     train,validation,boundary=_split(priced)
@@ -174,48 +181,90 @@ def analisar(payload,rows=None):
         return {"sugestoes":[],"corte":baseline["corte"],
                 "base":_score(priced),
                 "mensagem":"Amostra insuficiente com odds: são necessárias pelo menos 8 entradas de treino e 5 de validação, em datas distintas.",
-                "metodo":"Regra de decisão interpretável, treino cronológico 65% e validação 35%."}
+                "metodo":"Regras interpretáveis, treino cronológico 65% e validação 35%."}
     original_train=_score(train)
     original_valid=_score(validation)
     ranked=[]
-    for condition in _proposals(train):
-        subset=[r for r in train if _passes(r,condition)]
-        if len(subset)<max(MIN_CANDIDATE_TRAIN,ceil(len(train)*.4)) or len(subset)==len(train):
-            continue
-        proposal_train=_score(subset)
-        profit_gain=proposal_train["total_reais"]-original_train["total_reais"]
-        mean_gain=proposal_train["media_reais"]-original_train["media_reais"]
-        if mean_gain<=0 or profit_gain<=0:
-            continue
-        # Avalia validação apenas depois de classificar no treino.
-        ranked.append((profit_gain,mean_gain,len(subset),condition,proposal_train))
-    ranked.sort(key=lambda t:(-t[0],-t[1],-t[2],_display(t[3])))
+
+    # Inclusões: fazem apenas uma filtragem adicional das partidas já aprovadas.
+    # O limite de 10 condições impede ADICIONAR, mas não impede REMOVER.
+    if len(conditions)<10:
+        existing={str(x) for x in conditions}
+        for condition in _proposals(train):
+            if str(ns._valid_conditions([condition])[0]) in existing:
+                continue
+            subset=[r for r in train if _passes(r,condition)]
+            if len(subset)<max(MIN_CANDIDATE_TRAIN,ceil(len(train)*.4)) or len(subset)==len(train):
+                continue
+            score=_score(subset)
+            gain=score["total_reais"]-original_train["total_reais"]
+            mean=score["media_reais"]-original_train["media_reais"]
+            if gain<=0 or mean<=0:
+                continue
+            ranked.append({
+                "acao":"adicionar","condicao":condition,"indice":None,
+                "descricao":_display(condition),"treino":score,"ganho":gain,
+                "ganho_medio":mean,"amostra_validacao":None,
+            })
+
+    # Remoções: reexecuta as regras remanescentes sobre o MESMO universo bruto,
+    # na MESMA data de corte. Assim pode recuperar partidas que o filtro excluía.
+    # Não se olha o resultado da validação para escolher o que sugerir.
+    if len(conditions)>1:
+        for i in range(len(conditions)):
+            remaining=[c for j,c in enumerate(conditions) if j!=i]
+            alternative={**payload,"condicoes":remaining}
+            candidate=ns.testar(alternative,rows=raw_rows,capture=True)
+            candidate_rows=candidate.pop("_dados_otimizacao")
+            candidate.pop("_jogos_originais",None)
+            priced_candidate=[r for r in candidate_rows if r.get("unidades") is not None]
+            older=[r for r in priced_candidate if r["data"]<=boundary]
+            newer=[r for r in priced_candidate if r["data"]>boundary]
+            if len(older)<max(MIN_CANDIDATE_TRAIN,ceil(len(train)*.4)):
+                continue
+            score=_score(older)
+            gain=score["total_reais"]-original_train["total_reais"]
+            mean=score["media_reais"]-original_train["media_reais"]
+            if gain<=0 or mean<=0:
+                continue
+            ranked.append({
+                "acao":"remover","condicao":None,"indice":i,
+                "descricao":"Remover regra "+str(i+1)+": "+_display_original(conditions[i]),
+                "treino":score,"ganho":gain,"ganho_medio":mean,
+                "amostra_validacao":newer,
+            })
+
+    ranked.sort(key=lambda item:(
+        -item["ganho"],-item["ganho_medio"],
+        -item["treino"]["entradas"],item["descricao"],
+    ))
     top=[]
-    for _,_,_,cond,score in ranked:
-        if any(_display(item["condicao"])==_display(cond) for item in top):
-            continue
-        selected=[r for r in validation if _passes(r,cond)]
-        validated=_score(selected)
+    for item in ranked[:3]:
+        if item["acao"]=="adicionar":
+            subset=[r for r in validation if _passes(r,item["condicao"])]
+        else:
+            subset=item["amostra_validacao"]
+        validated=_score(subset)
         top.append({
-            "descricao":_display(cond),
-            "condicao":cond,
-            "treino":score,
+            "acao":item["acao"],
+            "indice":item["indice"],
+            "descricao":item["descricao"],
+            "condicao":item["condicao"],
+            "treino":item["treino"],
             "validacao":validated,
             "avaliacao":("Sinal positivo na validação"
-                if len(selected)>=MIN_CANDIDATE_VALID
+                if len(subset)>=MIN_CANDIDATE_VALID
                 and validated["total_reais"] is not None
                 and validated["media_reais"]>original_valid["media_reais"]
                 else "Sem confirmação na validação"),
         })
-        if len(top)==3:
-            break
     return {
         "corte":baseline["corte"],"data_divisao":boundary,
         "base_treino":original_train,"base_validacao":original_valid,
         "sugestoes":top,
         "avaliadas":len(ranked),
-        "metodo":"Busca de limiares (árvore de decisão de um nível), treino cronológico de 65% e validação posterior de 35%.",
-        "mensagem":("Nenhuma regra adicional aumentou lucro total e médio no treino com amostra mínima."
+        "metodo":"Busca de inclusão ou remoção de uma regra; treino cronológico 65% e validação posterior 35%.",
+        "mensagem":("Nenhuma inclusão ou remoção de regra aumentou lucro total e médio no treino com amostra mínima."
                     if not top else
                     "Sugestões escolhidas apenas no treino. A validação posterior não influencia a escolha."),
         "aviso":"Resultados retrospectivos, sem garantia de lucro. A data de captura das odds importadas não comprova disponibilidade pré-jogo; Lay é estimado. Validação não substitui teste prospectivo.",

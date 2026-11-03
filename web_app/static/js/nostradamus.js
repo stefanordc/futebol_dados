@@ -9,7 +9,7 @@ const pnlClass=v=>v==null?"":Number(v)>=0?"ns-green":"ns-red";
 const oddLabel=r=>r.tipo_odd==="lay_estimado"?"Lay estimado":r.tipo_odd==="api_casa"?"Casa / histórico":r.tipo_odd==="hipotetica"?"Hipotética":r.tipo_odd==="registrada_antes"?"FotMob pré-jogo":"";
 
 const store="df_nostradamus_estrategias_v1",status=$("#ns-feedback");
-let meta=null,loaded=null,stored=[],editing=null,lastSimulationConfig=null,aiSuggestions=[];
+let meta=null,loaded=null,stored=[],editing=null,lastSimulationConfig=null,aiSuggestions=[],aiUndoStack=[];
 const today=new Date(),localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
 $("#ns-corte").max=localToday;
 const prior=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
@@ -494,6 +494,8 @@ function show(response){
   loaded=response;
   $("#ns-results").hidden=false;
   aiSuggestions=[];
+  aiUndoStack=[];
+  updateAiUndo();
   $("#ns-ai-output").innerHTML='<p>Clique em Analisar oportunidades para procurar limites de odds ou indicadores adicionais, com a mesma data de corte.</p>';
   $("#ns-method").textContent=response.aviso;
   const body=$("#ns-summary");
@@ -601,10 +603,13 @@ function drawAi(result){
       '<article class="ns-ai-card">'+
       '<div class="ns-ai-card-top"><strong>'+esc(item.descricao)+
       '</strong><span class="ns-ai-status">'+esc(item.avaliacao)+'</span></div>'+
-      '<div>Com a regra · treino: '+aiSummary(item.treino)+'</div>'+
-      '<div>Com a regra · validação: '+aiSummary(item.validacao)+'</div>'+
+      '<div>Com a '+(item.acao==="remover"?"remoção":"regra")+' · treino: '+
+        aiSummary(item.treino)+'</div>'+
+      '<div>Com a '+(item.acao==="remover"?"remoção":"regra")+' · validação: '+
+        aiSummary(item.validacao)+'</div>'+
       '<button type="button" class="ns-button secondary" data-ai-apply="'+index+
-      '">Adicionar critério e testar</button></article>').join("")+'</div>';
+      '">'+(item.acao==="remover"?"Remover regra":"Adicionar regra")+
+      '</button></article>').join("")+'</div>';
   }else{
     html+='<p class="ns-ai-empty">Nenhuma sugestão aprovada na etapa de treinamento. Preserve a estratégia atual até haver mais evidências.</p>';
   }
@@ -632,18 +637,73 @@ $("#ns-ai-run").addEventListener("click",async()=>{
     button.disabled=false;button.textContent="Analisar oportunidades";
   }
 });
+// As sugestões alteram somente o formulário. O usuário decide quando testar ou salvar.
+function updateAiUndo(){
+  $("#ns-ai-undo").disabled=aiUndoStack.length===0;
+}
+function replaceAiConditions(conditions){
+  const target=$("#ns-conditions");
+  target.innerHTML="";
+  conditions.forEach(condition=>conditionLine(condition));
+}
+function aiJumpToRules(){
+  $("#ns-conditions").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("#ns-ai-go-conditions").addEventListener("click",aiJumpToRules);
+$("#ns-ai-test-shortcut").addEventListener("click",()=>{
+  $("#ns-form").requestSubmit();
+});
+$("#ns-ai-save-shortcut").addEventListener("click",()=>{
+  $("#ns-save").click();
+});
+$("#ns-ai-undo").addEventListener("click",()=>{
+  const previous=aiUndoStack.pop();
+  if(!previous)return;
+  replaceAiConditions(previous);
+  updateAiUndo();
+  say("Última alteração sugerida pela IA desfeita. Execute um novo backtest para atualizar os resultados.");
+  aiJumpToRules();
+});
 $("#ns-ai-output").addEventListener("click",event=>{
   const btn=event.target.closest("[data-ai-apply]");
-  if(!btn)return;
+  if(!btn||btn.disabled)return;
   const index=Number(btn.dataset.aiApply);
   if(!Number.isInteger(index)||index<0||index>=aiSuggestions.length)return;
-  if($("#ns-conditions").children.length>=10){
-    say("Limite de 10 condições: remova uma antes de aplicar esta sugestão.",true);
-    return;
+  const suggestion=aiSuggestions[index];
+  const current=values().condicoes;
+  if(suggestion.acao==="remover"){
+    const expected=lastSimulationConfig?.condicoes?.[suggestion.indice];
+    const removeIndex=expected?current.findIndex(item=>JSON.stringify(item)===JSON.stringify(expected)):-1;
+    if(removeIndex<0){
+      say("A regra original foi alterada. Execute uma nova análise antes de removê-la.",true);
+      return;
+    }
+    if(current.length<=1){
+      say("Uma estratégia precisa ter pelo menos uma condição.",true);
+      return;
+    }
+    aiUndoStack.push(current);
+    $("#ns-conditions").children[removeIndex].remove();
+    drawCount();
+  }else{
+    if(current.length>=10){
+      say("Limite de 10 condições: remova uma antes de adicionar.",true);
+      return;
+    }
+    const candidate=suggestion.condicao;
+    const exact=JSON.stringify(candidate);
+    if(current.some(item=>JSON.stringify(item)===exact)){
+      say("Este critério já está na estratégia.",true);
+      return;
+    }
+    aiUndoStack.push(current);
+    conditionLine(candidate);
   }
-  conditionLine(aiSuggestions[index].condicao);
-  // Não salvar a estratégia automaticamente; o usuário decide após conferir.
-  $("#ns-form").requestSubmit();
+  updateAiUndo();
+  btn.disabled=true;
+  btn.textContent=suggestion.acao==="remover"?"Regra removida":"Regra adicionada";
+  say("Critério alterado somente no formulário. Use Testar alterações para ver o resultado ou Desfazer última.");
+  aiJumpToRules();
 });
 
 async function init(){

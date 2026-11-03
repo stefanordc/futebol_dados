@@ -294,3 +294,17 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-summary-coverage{margin:12px 0 0;color:var(--df-secondary,#a4afbf);
   font-size:12px;line-height:1.5}
 .ns-summary-coverage[hidden],#ns-summary-total[hidden]{display:none!important}
+
+
+/* Atalhos explícitos: aplicar sugestões não inicia nem salva o backtest. */
+.ns-ai-shortcuts{display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+  margin-top:16px;padding:12px 0;border-top:1px solid var(--df-border);
+  border-bottom:1px solid var(--df-border)}
+.ns-ai-shortcuts .ns-button{min-height:40px;font-size:12px}
+.ns-ai-shortcuts .ns-button:disabled,
+.ns-ai-card .ns-button:disabled{opacity:.55;cursor:not-allowed}
+.ns-ai-card .ns-button{font-weight:800}
+@media(max-width:670px){
+  .ns-ai-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ns-ai-shortcuts .ns-button{width:100%;white-space:normal}
+}
