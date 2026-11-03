@@ -33,6 +33,14 @@ assert.ok(js.includes('game.metodos.length?"method":"stats"'),
 assert.ok(js.includes("Método validado"),"Carimbo visível");
 assert.ok(js.includes('$("#gl-finish").addEventListener'),"Finalizar rodada");
 assert.ok(js.includes('$("#gl-next").addEventListener'),"Próxima rodada");
+assert.ok(html.indexOf('id="gl-next"')>html.indexOf('id="gl-close-submit"'),
+  "Botão Próximo mês deve aparecer depois do fechamento mensal");
+assert.ok(html.indexOf('id="gl-next"')<html.indexOf('id="gl-month-history"'),
+  "Botão Próximo mês deve aparecer antes do histórico de meses anteriores");
+assert.equal(html.split('id="gl-next"').length-1,1,
+  "Botão de avançar mês deve existir apenas uma vez");
+assert.ok(css.includes(".gl-next-month-actions"),
+  "Navegação acima do histórico mensal precisa de estilo");
 assert.ok(js.includes('$("#gl-restart").addEventListener'),"Reiniciar progresso");
 assert.ok(js.includes('$("#gl-close-form").addEventListener'),"Fechamento financeiro deve registrar decisões mensais");
 assert.ok(js.includes('gl-entry-market'),"Entrada manual deve permitir mercado");
