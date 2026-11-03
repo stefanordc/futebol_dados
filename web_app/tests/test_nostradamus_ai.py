@@ -78,6 +78,43 @@ class TestNostradamusAI(TestCase):
         self.assertNotEqual(original["base_validacao"]["total_reais"],
                             modified["base_validacao"]["total_reais"])
 
+    def test_tambem_pode_sugerir_remover_regra_que_prejudica_resultado(self):
+        rows, cutoff=sample()
+        payload=config(cutoff)
+        payload["condicoes"].append({
+            "lado":"favorito","mando_preferido":"indiferente",
+            "metrica":"gols_feitos","comparador":"ge",
+            "referencia":"valor","valor":0,
+        })
+        # A regra adicional restringe o universo e deve ser reavaliada
+        # exclusivamente com os mesmos dados e a mesma data de corte.
+        original_testar=ns.testar
+        calls=[]
+        def monitor(config_,rows=None,capture=False):
+            calls.append((config_["corte"],len(config_["condicoes"]),rows is not None))
+            return original_testar(config_,rows=rows,capture=capture)
+        with patch.object(ns,"testar",side_effect=monitor):
+            result=ai.analisar(payload,rows)
+        self.assertTrue(all(day==cutoff.isoformat() for day,_,_ in calls))
+        self.assertTrue(any(count==1 for _,count,_ in calls))
+        self.assertTrue(all(with_rows for _,_,with_rows in calls))
+        for suggestion in result["sugestoes"]:
+            self.assertIn(suggestion["acao"],("adicionar","remover"))
+            if suggestion["acao"]=="remover":
+                self.assertIn(suggestion["indice"],(0,1))
+                self.assertIsNone(suggestion["condicao"])
+            else:
+                self.assertIsNotNone(suggestion["condicao"])
+
+    def test_remocao_elegivel_nao_exige_espaco_para_adicionar(self):
+        rows, cutoff=sample()
+        payload=config(cutoff)
+        payload["condicoes"]=payload["condicoes"]*10
+        result=ai.analisar(payload,rows)
+        self.assertIn("sugestoes",result)
+        self.assertEqual(result["corte"],cutoff.isoformat())
+        self.assertTrue(all(s["acao"]=="remover" for s in result["sugestoes"]))
+
     def test_sem_odds_nao_gera_lucros_ficticios(self):
         rows,cutoff=sample()
         for row in rows:
