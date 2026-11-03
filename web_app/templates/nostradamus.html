@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-total-v8">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-atalhos-v9">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -64,8 +64,14 @@
     </div>
     <button type="button" id="ns-ai-run" class="ns-button primary">Analisar oportunidades</button>
   </div>
+  <div class="ns-ai-shortcuts" aria-label="Atalhos da estratégia">
+    <button id="ns-ai-go-conditions" class="ns-button secondary" type="button">Ir aos critérios</button>
+    <button id="ns-ai-test-shortcut" class="ns-button secondary" type="button">Testar alterações</button>
+    <button id="ns-ai-undo" class="ns-button secondary" type="button" disabled>Desfazer última</button>
+    <button id="ns-ai-save-shortcut" class="ns-button secondary" type="button">Salvar estratégia</button>
+  </div>
   <div id="ns-ai-output" class="ns-ai-output" aria-live="polite">
-    <p>Execute o backtest e depois clique em Analisar oportunidades. As sugestões não alteram sua estratégia até você aplicá-las.</p>
+    <p>Execute o backtest e depois clique em Analisar oportunidades. As sugestões apenas alteram o formulário; testar e salvar são ações separadas.</p>
   </div>
 </section></section>
 </div>
@@ -75,5 +81,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-total-v8" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-atalhos-v9" defer></script>
 </body></html>
