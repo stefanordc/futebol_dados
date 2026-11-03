@@ -308,3 +308,10 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   .ns-ai-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .ns-ai-shortcuts .ns-button{width:100%;white-space:normal}
 }
+
+/* Detalhe dos quatro preços de goleada derivados dos placares exatos. */
+.ns-goleada-model{margin:10px 0;padding:10px 12px;border:1px solid var(--df-border,#334155);border-radius:9px;background:var(--df-raised,#1d2430);font-size:12px;line-height:1.55}
+.ns-goleada-model strong{display:block;margin-bottom:5px}
+.ns-goleada-model small{display:block;color:var(--df-secondary,#b3bdd1);line-height:1.5;margin-top:6px}
+.ns-goleada-pairs{display:grid;gap:4px;grid-template-columns:repeat(2,minmax(180px,1fr))}
+@media(max-width:650px){.ns-goleada-pairs{grid-template-columns:1fr}}

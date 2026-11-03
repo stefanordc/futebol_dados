@@ -267,7 +267,8 @@ def _market(game,market):
     if odd is None:
         return None
     return {"mercado":market,"nome":ns.MERCADOS[market],"odd":round(odd,3),
-            "estimada":origin=="lay_estimado","origem":origin,
+            "estimada":origin in ("lay_estimado","modelo_cs_back","modelo_cs_lay"),
+            "origem":origin,
             "favorito_casa":favorite}
 
 
