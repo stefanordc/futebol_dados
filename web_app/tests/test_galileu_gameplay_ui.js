@@ -35,8 +35,9 @@ assert.ok(js.includes('$("#gl-finish").addEventListener'),"Finalizar rodada");
 assert.ok(js.includes('$("#gl-next").addEventListener'),"Próxima rodada");
 assert.ok(html.indexOf('id="gl-next"')>html.indexOf('id="gl-close-submit"'),
   "Botão Próximo mês deve aparecer depois do fechamento mensal");
-assert.ok(html.indexOf('id="gl-next"')<html.indexOf('id="gl-month-history"'),
-  "Botão Próximo mês deve aparecer antes do histórico de meses anteriores");
+assert.ok(!html.includes('id="gl-month-history"') &&
+  !js.includes('function renderHistory()'),
+  "O histórico duplicado não deve aparecer no Galileu");
 assert.equal(html.split('id="gl-next"').length-1,1,
   "Botão de avançar mês deve existir apenas uma vez");
 assert.ok(css.includes(".gl-next-month-actions"),
