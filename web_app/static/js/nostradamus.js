@@ -335,13 +335,14 @@ function renderSaved(){
       '<td>'+esc(meta?.objetivos?.[s.objetivo]||s.objetivo)+'</td>'+
       '<td><div class="ns-saved-row-actions"><button type="button" data-rules="'+s.id+
         '" aria-controls="ns-rules-'+s.id+'" aria-expanded="false">Ver regras</button>'+
-        '<button type="button" data-edit="'+s.id+'">Editar</button></div></td></tr>'+
+        '<button type="button" data-edit="'+s.id+'">Editar</button>'+
+        '<button type="button" class="ns-delete-strategy" data-delete="'+s.id+'" aria-label="Excluir '+esc(s.nome)+'">Excluir</button></div></td></tr>'+
       '<tr class="ns-saved-details" id="ns-rules-'+s.id+'" hidden><td colspan="5">'+
       '<div class="ns-saved-details-title">Condições · '+esc(s.nome)+'</div>'+
       '<ol class="ns-db-rules">'+s.condicoes.map(r=>'<li>'+formatRule(r)+'</li>').join("")+'</ol>'+
       '</td></tr>').join("")+'</tbody></table></div>';
 }
-$("#ns-saved-list").addEventListener("click",event=>{
+$("#ns-saved-list").addEventListener("click",async event=>{
   const rules=event.target.closest("[data-rules]");
   if(rules){
     const panel=document.getElementById("ns-rules-"+rules.dataset.rules);
@@ -350,6 +351,29 @@ $("#ns-saved-list").addEventListener("click",event=>{
     panel.hidden=isOpen;
     rules.setAttribute("aria-expanded",String(!isOpen));
     rules.textContent=isOpen?"Ver regras":"Ocultar regras";
+    return;
+  }
+  const remove=event.target.closest("[data-delete]");
+  if(remove){
+    const item=stored.find(row=>String(row.id)===remove.dataset.delete);
+    if(!item)return;
+    if(!window.confirm('Excluir permanentemente a estratégia "'+item.nome+
+      '" do Nostradamus?\n\nEla deixará de aparecer nas novas validações do Galileu. '+
+      'O histórico das entradas já registradas será preservado.'))return;
+    remove.disabled=true;
+    try{
+      const deleted=await api("/api/apostas/nostradamus/estrategias/"+item.id,
+        jsonPost("DELETE",{versao:item.versao}));
+      if(!deleted.excluida)throw Error("Exclusão não confirmada.");
+      await fetchSaved();
+      if(stored.some(row=>Number(row.id)===Number(item.id)))
+        throw Error("O registro ainda aparece no banco. Atualize a página.");
+      if(editing&&Number(editing.id)===Number(item.id))resetEditing();
+      say('Estratégia "'+item.nome+'" excluída do Nostradamus.');
+    }catch(error){
+      remove.disabled=false;
+      say(error.message,true);
+    }
     return;
   }
   const edit=event.target.closest("[data-edit]");
