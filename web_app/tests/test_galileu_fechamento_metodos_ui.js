@@ -66,4 +66,44 @@ assert.ok(!nodes["#gl-method-performance-table"].innerHTML.includes(
   'data-remove-method="7"'),"Depois do fechamento não se pode retirar retroativamente");
 assert.equal(nodes["#gl-method-removal-note"].hidden,true);
 assert.ok(html.includes('galileu-gameplay-v13'),"Atualizar cache do JS");
+/* Teste do aviso realmente renderizado no fechamento. */
+const alertStart=src.indexOf("function renderLossStreakAlerts(){");
+const alertEnd=src.indexOf("function renderMonth(){",alertStart);
+assert.ok(alertStart>=0&&alertEnd>alertStart,"Helper de alerta mensal não encontrado");
+const alertNodes={
+  "#gl-loss-streak-alert":{hidden:true},
+  "#gl-loss-streak-list":{innerHTML:""},
+};
+const alertState={
+  alertas_prejuizo_3_meses:[{
+    metodo_id:7,nome:"Lay Zebra & teste",
+    meses:[
+      {mes:"2026-01",lucro_prejuizo:-40},
+      {mes:"2026-02",lucro_prejuizo:-10},
+      {mes:"2026-03",lucro_prejuizo:-15},
+    ],
+    prejuizo_total:-65,
+  }],
+};
+const alertCtx={
+  state:alertState,
+  $:id=>alertNodes[id],
+  escapeHTML:context.escapeHTML,
+  brl:context.brl,
+};
+vm.runInNewContext(src.slice(alertStart,alertEnd)+
+  "globalThis.renderAlerts=renderLossStreakAlerts;",alertCtx);
+alertCtx.renderAlerts();
+assert.equal(alertNodes["#gl-loss-streak-alert"].hidden,false);
+const alertHTML=alertNodes["#gl-loss-streak-list"].innerHTML;
+assert.ok(alertHTML.includes("Lay Zebra &amp; teste"),"Nome deve ser escapado");
+assert.ok(alertHTML.includes("01/2026"));
+assert.ok(alertHTML.includes("02/2026"));
+assert.ok(alertHTML.includes("03/2026"));
+assert.ok(alertHTML.includes("R$ -65.00"),"Total deve aparecer");
+alertState.alertas_prejuizo_3_meses=[];
+alertCtx.renderAlerts();
+assert.equal(alertNodes["#gl-loss-streak-alert"].hidden,true);
+assert.equal(alertNodes["#gl-loss-streak-list"].innerHTML,"");
+
 console.log("Fechamento mensal: tabela real, zero entradas, bloqueio e seleção aprovados.");
