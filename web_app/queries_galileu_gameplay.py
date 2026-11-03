@@ -523,6 +523,9 @@ def estado(token):
         "jogos_finalizados":len(closed),
         "resumo_rodada":resumo_rodada,
         "entradas":len(bets),
+        "saldo_disponivel":_brl(max(Decimal("0"),
+            Decimal(sess["banca_atual"])-sum(
+                (Decimal(b["stake"]) for b in current),Decimal("0")))),
         "mes_encerrado":month if revealed and boundary else None,
         "resumo_mensal":history,
         "pode_avancar":revealed and len(rounds)>1,
