@@ -72,11 +72,20 @@ $("#gl-setup-form").addEventListener("submit",async e=>{
   btn.disabled=false;btn.textContent="Iniciar gameplay";
 });
 
+function methodAlreadyEntered(game,id){
+  return (game.entradas||[]).some(entry=>entry.tipo==="metodo"&&
+    Number(entry.metodo_id)===Number(id));
+}
+function availableMethods(game){
+  return (game.metodos||[]).filter(m=>!methodAlreadyEntered(game,m.id));
+}
 function gameRows(g){
   const matched=g.metodos?.length>0;
   const done=state.fase!=="aberta";
-  const status=g.entrada;
-  return '<article class="gl-game-card '+(matched?"gl-method-match":"")+'">'+
+  const entries=g.entradas||[];
+  return '<article class="gl-game-card '+(matched?"gl-method-match":"")+
+    '" data-game-card="'+g.jogo_id+'" tabindex="0" aria-label="Abrir informações: '+
+      escapeHTML(g.mandante+' contra '+g.visitante)+'">'+
     '<div class="gl-game-card-main">'+
       '<div class="gl-game-meta">'+dateBR(g.data)+' · '+escapeHTML(g.rodada||"Rodada")+'</div>'+
       '<button type="button" class="gl-game-open" data-details="'+g.jogo_id+'">'+
@@ -88,18 +97,24 @@ function gameRows(g){
         '<span>X <strong>'+price(g.odds_match.empate)+'</strong></span>'+
         '<span>2 <strong>'+price(g.odds_match.visitante)+'</strong></span>'+
       '</div>'+
-      (status?'<div class="gl-game-entry">Entrada: '+escapeHTML(status.tipo==="metodo"?status.metodo:"Manual")+
-        ' · '+escapeHTML(status.mercado)+' · '+brl(status.stake)+
-        (status.status!=="pendente"?
-          ' · <strong class="'+color(status.lucro_prejuizo)+'">'+
-            brl(status.lucro_prejuizo)+'</strong>':"")+'</div>':"")+
+      (entries.length?'<div class="gl-game-entries" aria-label="Entradas confirmadas">'+
+        entries.map(entry=>'<div class="gl-game-entry">Entrada: '+
+          escapeHTML(entry.tipo==="metodo"?(entry.metodo||"Método"):"Manual")+
+          ' · '+escapeHTML(entry.mercado)+' · Odd '+price(entry.odd)+
+          ' · '+brl(entry.stake)+
+          (entry.status!=="pendente"?' · <strong class="'+color(entry.lucro_prejuizo)+'">'+
+            brl(entry.lucro_prejuizo)+'</strong>':"")+
+          '</div>').join("")+'</div>':"")+
     '</div>'+
     '<div class="gl-game-card-actions">'+
       (done?'<div class="gl-score">'+escapeHTML(String(g.placar?.mandante??"—"))+
         ' × '+escapeHTML(String(g.placar?.visitante??"—"))+'</div>':
         '<span class="gl-hidden-score">Placar oculto</span>')+
-      (!done&&!status?'<button type="button" class="gl-primary" data-entry="'+g.jogo_id+'">Fazer entrada</button>':
-        status?'<span class="gl-entry-tag">'+(done?"Apurada":"Confirmada")+'</span>':"")+
+      (!done?'<button type="button" class="gl-primary" data-entry="'+g.jogo_id+
+        '">Fazer entrada</button>'+
+        '<button type="button" class="gl-secondary gl-finish-game" data-finish-game="'+
+          g.jogo_id+'">Finalizar jogo</button>':
+        entries.length?'<span class="gl-entry-tag">Apuradas</span>':"")+
     '</div></article>';
 }
 
@@ -116,7 +131,11 @@ function renderGames(){
     '<section class="gl-round-league"><h3>'+escapeHTML(league)+
       ' <span>'+items.length+' jogos</span></h3>'+
       '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
-  ).join(""):'<div class="gl-empty">Nenhum jogo neste período. Use Avançar período sem jogos para continuar a gameplay sem revelar placares.</div>';
+  ).join(""):'<div class="gl-empty">'+
+    (state.rodada_atual.jogos>0?
+      "Todos os jogos desta etapa foram finalizados. As entradas continuam registradas. Use Finalizar rodada para apurar os resultados.":
+      "Nenhum jogo neste período. Use Avançar período sem jogos para continuar sem revelar placares.")+
+    '</div>';
 }
 function tableRows(group){
   if(!group?.length)return '<p class="gl-note">Nenhuma entrada registrada nesta categoria.</p>';
@@ -129,6 +148,31 @@ function tableRows(group){
        brl(r.lucro_prejuizo)+'</td><td>'+num(r.roi,1)+'%</td></tr>').join("")+
      '</tbody></table></div>';
 }
+function renderRoundResults(){
+  const root=$("#gl-round-results");
+  const entries=state.resumo_rodada||[];
+  const revealed=state.fase==="revelada"||state.fase==="concluida";
+  root.hidden=!revealed;
+  if(!revealed){root.innerHTML="";return;}
+  const total=entries.reduce((acc,x)=>acc+Number(x.lucro_prejuizo||0),0);
+  root.innerHTML='<h3>Resultado da rodada · '+entries.length+' entrada(s)</h3>'+
+    '<p class="gl-note">Os jogos que você finalizou individualmente também entram nesta apuração.</p>'+
+    (entries.length?
+      '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
+      '<th>Confronto</th><th>Placar</th><th>Método</th><th>Mercado</th>'+
+      '<th>Odd</th><th>Stake</th><th>Status</th><th>L/P</th></tr></thead><tbody>'+
+      entries.map(entry=>'<tr><td>'+escapeHTML(entry.confronto)+'</td>'+
+        '<td>'+escapeHTML(entry.placar||"—")+'</td>'+
+        '<td>'+escapeHTML(entry.metodo)+'</td>'+
+        '<td>'+escapeHTML(entry.mercado)+'</td>'+
+        '<td>'+price(entry.odd)+'</td><td>'+brl(entry.stake)+'</td>'+
+        '<td>'+escapeHTML(entry.status)+'</td>'+
+        '<td class="'+color(entry.lucro_prejuizo)+'">'+brl(entry.lucro_prejuizo)+'</td>'+
+      '</tr>').join("")+'</tbody><tfoot><tr><th colspan="7">TOTAL DA RODADA</th>'+
+      '<th class="'+color(total)+'">'+brl(total)+'</th></tr></tfoot></table></div>':
+      '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
+}
+
 function renderMonth(){
   const month=state.mes_encerrado;
   const root=$("#gl-month");
@@ -196,7 +240,7 @@ function render(){
     " · Jogos exibidos até "+dateBR(state.limite_janela)+
     " (máximo de 10 dias e até o fim do mês).";
   const open=state.fase==="aberta";
-  $("#gl-finish").hidden=!open||!state.jogos.length;
+  $("#gl-finish").hidden=!open||!state.rodada_atual.jogos;
   $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
   $("#gl-next").textContent=state.pode_pular_vazio?
     "Avançar período sem jogos":
@@ -206,11 +250,13 @@ function render(){
     open?"Selecione suas entradas e finalize quando os jogos tiverem resultados disponíveis.":
     state.fase==="revelada"?"Rodada finalizada. Placar e resultado das entradas revelados.":
     "Todas as rodadas cadastradas foram percorridas.";
+  $("#gl-games-closed").textContent=state.jogos_finalizados?
+    state.jogos_finalizados+" jogo(s) finalizado(s) e removido(s) desta rodada. Entradas preservadas.":"";
   $("#gl-round-help").textContent=state.pode_pular_vazio?
     "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
     "Rodada encerrada. Consulte os placares e seus resultados virtuais.";
-  renderGames();renderMonth();renderHistory();
+  renderGames();renderRoundResults();renderMonth();renderHistory();
 }
 
 const getGame=id=>state?.jogos?.find(g=>g.jogo_id===Number(id));
@@ -250,14 +296,21 @@ function ruleHTML(rule){
 }
 function methodsHTML(game){
   if(!game.metodos.length)return '<p class="gl-note">Nenhum método salvo passou em todas as condições para este confronto.</p>';
-  return game.metodos.map(m=>
-    '<section class="gl-validated-method"><span class="gl-method-stamp">Método validado</span>'+
+  const closed=state.fase!=="aberta";
+  return game.metodos.map(m=>{
+    const used=methodAlreadyEntered(game,m.id);
+    return '<section class="gl-validated-method"><span class="gl-method-stamp">Método validado</span>'+
       '<h4>'+escapeHTML(m.nome)+'</h4>'+
       '<p>Mercado: '+escapeHTML(m.mercado.nome)+' · Odd '+price(m.mercado.odd)+
       (m.mercado.estimada?" (Lay estimado)":"")+'</p>'+
       '<ol class="gl-method-rules">'+m.regras.map(ruleHTML).join("")+'</ol>'+
-    '</section>').join("");
+      '<button type="button" class="gl-primary gl-method-action" data-method-entry="'+m.id+
+      '" '+(closed||used?'disabled':'')+'>'+
+      (used?"Entrada já realizada":closed?"Rodada encerrada":"Fazer entrada neste método")+
+      '</button></section>';
+  }).join("");
 }
+
 function showDetails(game){
   focusedGame=game;
   detailsTab=game.metodos.length?"method":"stats";
@@ -276,31 +329,72 @@ function drawDetails(){
    '<div class="gl-detail-body">'+(detailsTab==="method"?methodsHTML(g):statsHTML(g))+'</div>';
 }
 $("#gl-details-content").addEventListener("click",event=>{
+  const action=event.target.closest("[data-method-entry]");
+  if(action){
+    const method=focusedGame?.metodos.find(m=>String(m.id)===action.dataset.methodEntry);
+    if(method&&!methodAlreadyEntered(focusedGame,method.id)){
+      const game=focusedGame;
+      $("#gl-details-dialog").close();
+      showEntry(game,method.id);
+    }
+    return;
+  }
   const btn=event.target.closest("[data-detail-tab]");
   if(!btn)return;
   detailsTab=btn.dataset.detailTab;
   drawDetails();
 });
-$("#gl-games").addEventListener("click",e=>{
-  const open=e.target.closest("[data-details]");
-  if(open){const g=getGame(open.dataset.details);if(g)showDetails(g);return;}
+$("#gl-games").addEventListener("click",async e=>{
   const entry=e.target.closest("[data-entry]");
-  if(entry){const g=getGame(entry.dataset.entry);if(g)showEntry(g);}
+  if(entry){
+    const g=getGame(entry.dataset.entry);
+    if(g)showEntry(g);
+    return;
+  }
+  const finish=e.target.closest("[data-finish-game]");
+  if(finish){
+    const g=getGame(finish.dataset.finishGame);
+    if(!g)return;
+    if(!window.confirm("Finalizar "+g.mandante+" × "+g.visitante+
+      "? O jogo será removido da lista e novas entradas não serão aceitas. "+
+      "As entradas já confirmadas serão apuradas ao finalizar a rodada."))return;
+    finish.disabled=true;
+    await mutate(()=>post("finalizar-jogo",{jogo_id:g.jogo_id}));
+    return;
+  }
+  const card=e.target.closest("[data-game-card]");
+  if(card){
+    const g=getGame(card.dataset.gameCard);
+    if(g)showDetails(g);
+  }
+});
+$("#gl-games").addEventListener("keydown",event=>{
+  if(event.target.matches("[data-game-card]")&&
+    (event.key==="Enter"||event.key===" ")){
+    event.preventDefault();
+    const g=getGame(event.target.dataset.gameCard);
+    if(g)showDetails(g);
+  }
 });
 document.querySelectorAll("[data-close]").forEach(button=>button.addEventListener("click",()=>{
   document.getElementById(button.dataset.close)?.close();
 }));
-function showEntry(game){
+function showEntry(game,methodId=null){
   entryGame=game;
   entryMode=null;
+  const available=availableMethods(game);
   $("#gl-entry-title").textContent="Fazer entrada · "+game.mandante+" × "+game.visitante;
-  $("#gl-entry-choice").hidden=!game.metodos.length;
-  $("#gl-entry-form").hidden=Boolean(game.metodos.length);
+  $("#gl-entry-choice").hidden=methodId!==null||!available.length;
+  $("#gl-entry-form").hidden=methodId===null&&Boolean(available.length);
   $("#gl-entry-stake").value=Number(state.stake_padrao).toFixed(2);
-  if(!game.metodos.length)selectEntryMode("manual");
+  if(methodId!==null){
+    selectEntryMode("metodo",methodId);
+  }else if(!available.length){
+    selectEntryMode("manual");
+  }
   $("#gl-entry-dialog").showModal();
 }
-function selectEntryMode(mode){
+function selectEntryMode(mode,methodId=null){
   entryMode=mode;
   $("#gl-entry-choice").hidden=true;
   $("#gl-entry-form").hidden=false;
@@ -308,9 +402,10 @@ function selectEntryMode(mode){
   $("#gl-entry-method-wrap").hidden=!isMethod;
   $("#gl-entry-market-wrap").hidden=isMethod;
   if(isMethod){
-    $("#gl-entry-method").innerHTML=entryGame.metodos.map(m=>
+    $("#gl-entry-method").innerHTML=availableMethods(entryGame).map(m=>
       '<option value="'+m.id+'">'+escapeHTML(m.nome)+" · "+
       escapeHTML(m.mercado.nome)+'</option>').join("");
+    if(methodId!==null)$("#gl-entry-method").value=String(methodId);
   }else{
     $("#gl-entry-market").innerHTML=entryGame.mercados.map(m=>
       '<option value="'+escapeHTML(m.mercado)+'">'+escapeHTML(m.nome)+
@@ -321,7 +416,7 @@ function selectEntryMode(mode){
 function updateEntryPrice(){
   if(!entryMode||!entryGame)return;
   const offer=entryMode==="metodo"?
-    entryGame.metodos.find(m=>String(m.id)===$("#gl-entry-method").value)?.mercado:
+    availableMethods(entryGame).find(m=>String(m.id)===$("#gl-entry-method").value)?.mercado:
     entryGame.mercados.find(m=>m.mercado===$("#gl-entry-market").value);
   $("#gl-entry-odd").textContent=price(offer?.odd);
   $("#gl-entry-odd-source").textContent=offer?.estimada?
@@ -337,14 +432,15 @@ $("#gl-entry-form").addEventListener("submit",async e=>{
   e.preventDefault();
   const stake=$("#gl-entry-stake").value;
   const market=entryMode==="metodo"?
-    entryGame.metodos.find(m=>String(m.id)===$("#gl-entry-method").value)?.mercado:
+    availableMethods(entryGame).find(m=>String(m.id)===$("#gl-entry-method").value)?.mercado:
     entryGame.mercados.find(m=>m.mercado===$("#gl-entry-market").value);
   if(!market){msg("Selecione um mercado com odd disponível.",true);return;}
   if(!window.confirm("Confirmar entrada virtual de "+brl(stake)+
       " no mercado "+market.nome+" à odd "+price(market.odd)+"?"))return;
   const data={jogo_id:entryGame.jogo_id,tipo:entryMode,stake};
   if(entryMode==="metodo"){
-    const m=entryGame.metodos.find(m=>String(m.id)===$("#gl-entry-method").value);
+    const m=availableMethods(entryGame).find(m=>String(m.id)===$("#gl-entry-method").value);
+    if(!m){msg("Este método já recebeu uma entrada neste jogo.",true);return;}
     data.metodo_id=m.id;data.metodo_versao=m.versao;
   }else{
     data.mercado=market.mercado;
