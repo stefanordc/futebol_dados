@@ -135,7 +135,8 @@ class TestNostradamusAI(TestCase):
         many["condicoes"]=many["condicoes"]*10
         result=ai.analisar(many,rows)
         self.assertEqual(result["sugestoes"],[])
-        self.assertIn("Limite de 10",result["mensagem"])
+        self.assertIn("sugestoes",result)
+        self.assertTrue(all(s["acao"]=="remover" for s in result["sugestoes"]))
         invalid=config(cutoff)
         invalid["corte"]="3000-01-01"
         with self.assertRaises(ValueError):
