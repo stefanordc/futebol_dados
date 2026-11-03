@@ -230,7 +230,7 @@ class TestGalileuGameplay(TestCase):
             before=gl.estado("my_secret")
             self.assertTrue(before["iniciado"])
             self.assertEqual(before["banca_atual"],1022.0)
-            self.assertEqual(before["rodada_atual"]["jogos"],2)
+            self.assertEqual(before["rodada_atual"]["jogos"],4)
             self.assertNotIn("placar",before["jogos"][0])
             self.assertNotIn("gols_casa",before["jogos"][0])
             self.assertNotIn("gols_fora",before["jogos"][0])
@@ -322,7 +322,7 @@ class TestGalileuGameplay(TestCase):
              patch.object(gl,"_closed_game_ids",return_value={110}), \
              patch.object(gl,"_fechamentos",return_value=[]):
             before=gl.estado("token")
-            self.assertEqual(before["rodada_atual"]["jogos"],2)
+            self.assertEqual(before["rodada_atual"]["jogos"],4)
             self.assertEqual(before["jogos_finalizados"],1)
             self.assertNotIn(110,[x["jogo_id"] for x in before["jogos"]])
             self.assertEqual(before["entradas"],2)
