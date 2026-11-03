@@ -343,7 +343,7 @@ class TestGalileuGameplay(TestCase):
             def fetchone(self):
                 if self.last=="closed":return None
                 if self.last=="balance":return {"comprometido":Decimal("0")}
-                return {}
+                return {"id":len(events)}
         class Conn:
             def cursor(self):
                 @contextmanager
@@ -365,11 +365,88 @@ class TestGalileuGameplay(TestCase):
                     "jogo_id":110,"tipo":"manual","mercado":"over_25",
                     "stake":amount})
                 self.assertIn("confirmada",result["mensagem"])
+                self.assertEqual(result["entrada"]["stake"],float(amount))
+                self.assertEqual(result["entrada"]["mercado"],"over_25")
+                self.assertEqual(result["entrada"]["status"],"pendente")
+                self.assertEqual(result["versao"],2)
         inserts=[(sql,params) for sql,params in events
                  if "INSERT INTO galileu_private.entradas" in sql]
         self.assertEqual(len(inserts),2)
         self.assertEqual([params[9] for _,params in inserts],
                          [Decimal("20.00"),Decimal("15.00")])
+
+    def test_validacao_da_entrada_recalcula_somente_metodo_selecionado(self):
+        from contextlib import contextmanager
+        from unittest.mock import Mock
+        catalog=fixtures()
+        methods=[
+            {"id":7,"versao":3,"nome":"Over 2,5","objetivo":"over_25",
+             "condicoes":[],"ligas":set(),"jogos":20},
+            {"id":8,"versao":3,"nome":"Lay Zebra","objetivo":"lay_zebra",
+             "condicoes":[],"ligas":set(),"jogos":20},
+        ]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                if "jogos_finalizados" in sql:self.last="closed"
+                elif "COALESCE(SUM(stake)" in sql:self.last="balance"
+                elif "INSERT INTO galileu_private.entradas" in sql:self.last="insert"
+                else:self.last="write"
+            def fetchone(self):
+                if self.last=="closed":return None
+                if self.last=="balance":return {"comprometido":Decimal("0")}
+                if self.last=="insert":return {"id":999}
+                return {}
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def cursor_context():
+                    yield Cursor()
+                return cursor_context()
+            def commit(self):pass
+        @contextmanager
+        def fake_conn():
+            yield Conn()
+        def validate(game,h,a,selected):
+            self.assertEqual([m["id"] for m in selected],[8])
+            return [{
+                "id":8,"nome":"Lay Zebra","versao":3,"objetivo":"lay_zebra",
+                "mercado":{"odd":3.15,"estimada":True,"favorito_casa":True}
+            }]
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"_methods",return_value=methods), \
+             patch.object(gl,"_history",return_value={}), \
+             patch.object(gl,"_team_stats",return_value=({},5)) as stats_mock, \
+             patch.object(gl,"_matched",side_effect=validate) as matched_mock, \
+             patch.object(gl,"get_conn",fake_conn):
+            result=gl.registrar("token",{
+                "jogo_id":110,"tipo":"metodo","stake":"20.00",
+                "metodo_id":8,"metodo_versao":3
+            })
+        self.assertEqual(matched_mock.call_count,1)
+        self.assertEqual(stats_mock.call_count,2)
+        self.assertEqual(result["entrada"]["id"],999)
+        self.assertEqual(result["entrada"]["metodo_id"],8)
+        self.assertEqual(result["entrada"]["metodo"],"Lay Zebra")
+        self.assertEqual(result["entrada"]["status"],"pendente")
+        self.assertIsNone(result["entrada"]["lucro_prejuizo"])
+
+    def test_historico_reutilizado_no_mesmo_catalogo(self):
+        rows=fixtures()
+        gl._history_catalog=None
+        gl._history_data=None
+        with patch.object(ns,"_history_item",wraps=ns._history_item) as spy:
+            first=gl._history(rows)
+            self.assertGreater(spy.call_count,0)
+            calls=spy.call_count
+            second=gl._history(rows)
+            self.assertIs(second,first)
+            self.assertEqual(spy.call_count,calls)
+            # Novo catálogo após atualização invalida o histórico.
+            another=gl._history(list(rows))
+            self.assertIsNot(another,first)
+            self.assertGreater(spy.call_count,calls)
 
     def test_fechar_jogo_individual_registra_progresso_sem_apurar_ou_deletar(self):
         from contextlib import contextmanager

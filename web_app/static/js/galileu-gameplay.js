@@ -446,10 +446,33 @@ $("#gl-entry-form").addEventListener("submit",async e=>{
     data.mercado=market.mercado;
   }
   const btn=$("#gl-entry-confirm");
-  btn.disabled=true;btn.textContent="Confirmando…";
-  const ok=await mutate(()=>post("entrada",data));
-  btn.disabled=false;btn.textContent="Confirmar entrada";
-  if(ok)$("#gl-entry-dialog").close();
+  btn.disabled=true;
+  btn.textContent="Gravando entrada…";
+  msg("");
+  try{
+    // O servidor devolve a entrada depois do COMMIT. Atualizamos o estado
+    // desta partida sem recarregar as estatísticas de todas as ligas.
+    const result=await post("entrada",data);
+    const game=state?.jogos?.find(g=>g.jogo_id===data.jogo_id);
+    if(game&&result.entrada){
+      game.entradas=Array.isArray(game.entradas)?game.entradas:[];
+      game.entradas.push(result.entrada);
+      state.entradas+=1;
+      if(result.versao!=null)state.versao=result.versao;
+      $("#gl-bank-entries").textContent=num(state.entradas,0);
+      renderGames();
+    }else{
+      // Compatibilidade com versões antigas ou atualização em outra aba.
+      await reload();
+    }
+    $("#gl-entry-dialog").close();
+    msg(result.mensagem||"Entrada confirmada e salva.");
+  }catch(error){
+    msg(error.message,true);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Confirmar entrada";
+  }
 });
 
 $("#gl-finish").addEventListener("click",async()=>{
