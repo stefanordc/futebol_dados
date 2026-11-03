@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-total-v8'),
+assert.ok(html.includes('nostradamus-atalhos-v9'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -180,10 +180,14 @@ assert.ok(js.includes('"/api/apostas/nostradamus/otimizar"'),
 assert.ok(js.includes('JSON.stringify(lastSimulationConfig)'),
   "A data de corte aplicada ao backtest deve ser preservada na otimização");
 assert.ok(js.includes('data-ai-apply'),"O usuário pode escolher aplicar um critério");
-assert.ok(js.includes('conditionLine(aiSuggestions[index].condicao)'),
-  "Aplicação deve adicionar uma condição existente sem apagar as demais");
+assert.ok(js.includes('conditionLine(candidate)'),
+  "Botão Adicionar regra deve apenas adicionar a condição ao formulário");
+assert.ok(!js.includes('conditionLine(aiSuggestions[index].condicao)'),
+  "Não acoplar o botão de sugestão à simulação automática");
 assert.ok(js.includes('$("#ns-form").requestSubmit()'),
-  "Aplicação deve recalcular o backtest sem salvar a estratégia automaticamente");
+  "Atalho Testar alterações deve executar a simulação separadamente");
+assert.ok(js.includes('btn.textContent=suggestion.acao==="remover"?"Regra removida":"Regra adicionada"'),
+  "Botão de sugestão confirma inclusão ou remoção sem salvar");
 assert.ok(!js.includes('localStorage.setItem(store'),"Análise não deve salvar a estratégia silenciosamente");
 assert.ok(css.includes('.ns-ai-panel'),"Painel da otimização deve ser estilizado");
 
@@ -204,3 +208,18 @@ assert.ok(src.includes('fmt(grand.maior_good_run,0)')&&src.includes('fmt(grand.m
   "Mostrar sequências cronológicas globais");
 assert.ok(src.includes('fmt(grand.cotadas,0)'),"Explicar entradas cotadas do agregado");
 assert.ok(css.includes('#ns-summary-total .ns-total-row'),"Estilo próprio do rodapé");
+
+/* A IA pode incluir ou remover condições com histórico de desfazer. */
+assert.ok(html.includes('id="ns-ai-go-conditions"'),"Atalho Ir aos critérios");
+assert.ok(html.includes('id="ns-ai-test-shortcut"'),"Atalho Testar alterações");
+assert.ok(html.includes('id="ns-ai-save-shortcut"'),"Atalho Salvar estratégia");
+assert.ok(html.includes('id="ns-ai-undo"'),"Atalho Desfazer última mudança");
+assert.ok(src.includes('>Adicionar regra'),"Cada cartão de inclusão deve ter apenas Adicionar regra");
+assert.ok(src.includes('>Remover regra'),"Sugestões de remoção devem ser explícitas");
+assert.ok(!src.includes('Adicionar critério e testar'),"Não executar teste automaticamente ao incluir sugestão");
+assert.ok(src.includes('if(suggestion.acao==="remover")'),"Aplicar remoção somente quando a IA indicar");
+assert.ok(src.includes('current.findIndex(item=>JSON.stringify(item)===JSON.stringify(expected))'),
+ "Remoção compara com a regra original e evita remover critério errado");
+assert.ok(src.includes('aiUndoStack.push(current)'),"Manter histórico das alterações sugeridas");
+assert.ok(src.includes('const previous=aiUndoStack.pop()'),"Desfazer precisa restaurar regras anteriores");
+assert.ok(css.includes('.ns-ai-shortcuts'),"Atalhos devem estar visíveis e responsivos");
