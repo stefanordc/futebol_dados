@@ -164,8 +164,8 @@ class TestGalileuGameplay(TestCase):
         @contextmanager
         def fake_conn():
             yield Conn()
-        with patch.object(gl,"_catalog",return_value=catalog), \\
-             patch.object(gl,"_lock",return_value=sess), \\
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=sess), \
              patch.object(gl,"get_conn",fake_conn):
             result=gl.proxima("token")
         self.assertEqual(result["corte_atual"],"2026-10-20")
@@ -180,9 +180,9 @@ class TestGalileuGameplay(TestCase):
         sess=session()
         sess["corte_atual"]=date(2026,10,20)
         sess["indice_rodada"]=1
-        with patch.object(gl,"_token_session",return_value=sess), \\
-             patch.object(gl,"_catalog",return_value=catalog), \\
-             patch.object(gl,"_methods",return_value=[]), \\
+        with patch.object(gl,"_token_session",return_value=sess), \
+             patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_methods",return_value=[]), \
              patch.object(gl,"_bet_rows",return_value=[]):
             result=gl.estado("token")
         self.assertEqual(result["corte"],"2026-10-17")
