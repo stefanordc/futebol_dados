@@ -141,6 +141,35 @@ class TestIntegracoes(TestCase):
         self.assertIsNone(alaves["clube_id"])
         self.assertNotIn(99,[s["id"] for s in alaves["sugestoes"]])
 
+    def test_api_neerlandesa_vincula_clubes_exatos_automaticamente(self):
+        self.assertEqual(qi._metadata("/api/download/netherlands/eredivisie/2026"),
+                         ("2026","Eredivisie","Holanda"))
+        holanda=[
+            {"id":192,"clube":"Feyenoord","pais":"Holanda"},
+            {"id":182,"clube":"Excelsior","pais":"Holanda"},
+            {"id":190,"clube":"ADO Den Haag","pais":"Holanda"},
+        ]
+        with patch.object(qi,"fetch_all",return_value=holanda):
+            self.assertEqual(len(qi._catalogo_pais("Netherlands")),3)
+            self.assertEqual(len(qi._catalogo_pais("Países Baixos")),3)
+            result=qi._clubes_preview(
+                [{"Home":"Feyenoord","Away":"Excelsior"},
+                 {"Home":"Den Haag","Away":"Feyenoord"}],"Netherlands")
+        by_name={c["original"]:c for c in result["clubes"]}
+        self.assertEqual(by_name["Feyenoord"]["clube_id"],192)
+        self.assertEqual(by_name["Excelsior"]["clube_id"],182)
+        self.assertTrue(by_name["Feyenoord"]["correspondencia_automatica"])
+        self.assertTrue(by_name["Excelsior"]["correspondencia_automatica"])
+        self.assertIsNone(by_name["Den Haag"]["clube_id"])
+        self.assertEqual(by_name["Den Haag"]["sugestoes"][0]["id"],190)
+
+    def test_ao_trocar_pais_preserva_somente_edicoes_manuais(self):
+        js=(Path(__file__).resolve().parents[1]/"static"/"js"/"integracoes.js").read_text(encoding="utf-8")
+        self.assertIn('if(tr.dataset.manuallyEdited!=="1")continue',js)
+        self.assertIn('document.querySelectorAll("#int-api-clubs tr")',js)
+        self.assertIn('input.addEventListener("input"',js)
+        self.assertIn('select.addEventListener("change"',js)
+
     def test_revisar_clubes_apos_alterar_pais(self):
         qi._PREVIEWS["pais"]={"rows":[{"Home":"Flamengo","Away":"Alavés"}],
                                "criado":qi.time.monotonic()}
