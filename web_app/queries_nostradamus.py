@@ -11,6 +11,7 @@ from datetime import date, datetime
 from itertools import groupby
 from math import isfinite
 from db import fetch_all
+from goleada_correct_score import SCORE_KEYS, estimate_goleada_quotes
 
 METRICAS = {
     "pontos_jogo": "Pontos por jogo",
@@ -58,6 +59,8 @@ MERCADOS = {
     "under_25":"Under 2,5",
     "ambos_marcam":"Ambos marcam",
     "ambos_nao":"Ambos não marcam",
+    "back_goleada_mandante":"Back goleada mandante (modelo Correct Score)",
+    "back_goleada_visitante":"Back goleada visitante (modelo Correct Score)",
     "lay_goleada_favorito":"Lay goleada favorito",
     "lay_goleada_zebra":"Lay goleada zebra",
     "lay_goleada_mandante":"Lay goleada mandante (estratégia antiga)",
@@ -98,6 +101,22 @@ SELECT j.id,j.data,j.temporada,j.campeonato_id,c.nome AS campeonato,
        oa.bookie_btts_no AS api_bookie_btts_no,
        oa.bookie_cs_1_0 AS api_bookie_cs_1_0,
        oa.bookie_cs_0_1 AS api_bookie_cs_0_1,
+       oa.cs_0_0 AS api_cs_0_0,
+       oa.cs_0_1 AS api_cs_0_1,
+       oa.cs_0_2 AS api_cs_0_2,
+       oa.cs_0_3 AS api_cs_0_3,
+       oa.cs_1_0 AS api_cs_1_0,
+       oa.cs_1_1 AS api_cs_1_1,
+       oa.cs_1_2 AS api_cs_1_2,
+       oa.cs_1_3 AS api_cs_1_3,
+       oa.cs_2_0 AS api_cs_2_0,
+       oa.cs_2_1 AS api_cs_2_1,
+       oa.cs_2_2 AS api_cs_2_2,
+       oa.cs_2_3 AS api_cs_2_3,
+       oa.cs_3_0 AS api_cs_3_0,
+       oa.cs_3_1 AS api_cs_3_1,
+       oa.cs_3_2 AS api_cs_3_2,
+       oa.cs_3_3 AS api_cs_3_3,
        ec.xg AS home_xg,ea.xg AS away_xg,
        ec.xgot AS home_xgot,ea.xgot AS away_xgot,
        ec.total_chutes AS home_chutes,ea.total_chutes AS away_chutes,
@@ -147,7 +166,23 @@ LEFT JOIN LATERAL (
         MAX(o.bookie_btts_yes) AS bookie_btts_yes,
         MAX(o.bookie_btts_no) AS bookie_btts_no,
         MAX(o.bookie_cs_1_0) AS bookie_cs_1_0,
-        MAX(o.bookie_cs_0_1) AS bookie_cs_0_1
+        MAX(o.bookie_cs_0_1) AS bookie_cs_0_1,
+        MAX(o.cs_0_0) AS cs_0_0,
+        MAX(o.cs_0_1) AS cs_0_1,
+        MAX(o.cs_0_2) AS cs_0_2,
+        MAX(o.cs_0_3) AS cs_0_3,
+        MAX(o.cs_1_0) AS cs_1_0,
+        MAX(o.cs_1_1) AS cs_1_1,
+        MAX(o.cs_1_2) AS cs_1_2,
+        MAX(o.cs_1_3) AS cs_1_3,
+        MAX(o.cs_2_0) AS cs_2_0,
+        MAX(o.cs_2_1) AS cs_2_1,
+        MAX(o.cs_2_2) AS cs_2_2,
+        MAX(o.cs_2_3) AS cs_2_3,
+        MAX(o.cs_3_0) AS cs_3_0,
+        MAX(o.cs_3_1) AS cs_3_1,
+        MAX(o.cs_3_2) AS cs_3_2,
+        MAX(o.cs_3_3) AS cs_3_3
  FROM public.odds o
  WHERE o.mandante_id=j.casa_id AND o.visitante_id=j.fora_id
    AND o.data_jogo::date=j.data
@@ -310,6 +345,12 @@ ODD_FILTER_MARKETS = {
     "lay_empate": "Match Odds · Lay empate (estimado)",
     "lay_1x0": "Correct Score · Lay 1x0 (estimado)",
     "lay_0x1": "Correct Score · Lay 0x1 (estimado)",
+    "back_goleada_mandante":"Goleada mandante · Back (modelo CS)",
+    "back_goleada_visitante":"Goleada visitante · Back (modelo CS)",
+    "lay_goleada_mandante":"Goleada mandante · Lay (modelo CS)",
+    "lay_goleada_visitante":"Goleada visitante · Lay (modelo CS)",
+    "lay_goleada_favorito":"Goleada favorito · Lay (modelo CS)",
+    "lay_goleada_zebra":"Goleada zebra · Lay (modelo CS)",
 }
 
 def _odd_limit(value, label):
@@ -425,7 +466,8 @@ def _requires_favorite(market,conditions):
     return market in ("back_favorito","lay_favorito","back_zebra","lay_zebra",
                       "lay_goleada_favorito","lay_goleada_zebra") or any(
         (condition.get("tipo")=="odd" and condition["mercado"] in (
-            "back_favorito","lay_favorito","back_zebra","lay_zebra")) or
+            "back_favorito","lay_favorito","back_zebra","lay_zebra",
+            "lay_goleada_favorito","lay_goleada_zebra")) or
         (condition.get("tipo")!="odd" and (
             condition["lado"] in ("favorito","zebra") or
             condition["referencia"] in ("favorito","zebra")))
@@ -518,6 +560,8 @@ def _settle(key,goals_home,goals_away):
       "over_35":total>=4,"under_25":total<=2,
       "ambos_marcam":goals_home>0 and goals_away>0,
       "ambos_nao":goals_home==0 or goals_away==0,
+      "back_goleada_mandante":goals_home-goals_away>=3,
+      "back_goleada_visitante":goals_away-goals_home>=3,
       "lay_goleada_mandante":goals_home-goals_away<3,
       "lay_goleada_visitante":goals_away-goals_home<3,
       "lay_1x0":not(goals_home==1 and goals_away==0),
@@ -546,8 +590,20 @@ API_MARKETS={
     "lay_0x1":("api_lay_cs_0_1","api_bookie_cs_0_1"),
 }
 
+def _model_cs_quotes(r):
+    values=tuple(_n(r.get(f"api_cs_{home}_{away}")) for home,away in SCORE_KEYS)
+    return estimate_goleada_quotes(values)
+
+
 def _odds_for_game(r,market,manual):
     if manual is not None:return manual,"hipotetica"
+    if market in ("back_goleada_mandante","back_goleada_visitante",
+                  "lay_goleada_mandante","lay_goleada_visitante"):
+        quotes=_model_cs_quotes(r)
+        odd=quotes.get(market) if quotes else None
+        if odd is None:
+            return None,None
+        return odd,("modelo_cs_lay" if market.startswith("lay_") else "modelo_cs_back")
     field=API_MARKETS.get(market)
     if field:
         price=_n(r.get(field[0]))
@@ -771,6 +827,10 @@ def testar(payload,rows=None,capture=False):
                       "historico_mandante":min(len(histories[hkey]),length) if length is not None else len(histories[hkey]),
                       "historico_visitante":min(len(histories[akey]),length) if length is not None else len(histories[akey]),
                       "condicoes":details,
+                      "goleada_cs":_model_cs_quotes(g) if (
+                          "goleada" in market or any(
+                            c.get("tipo")=="odd" and "goleada" in c["mercado"]
+                            for c in conditions)) else None,
                     })
         for g in games:
             hkey=(g["campeonato_id"],g["temporada"],g["casa_id"])
@@ -810,7 +870,11 @@ def testar(payload,rows=None,capture=False):
                     "Odds Back são preços de casas do banco; como a data de captura da API "
                     "não comprova preço pré-jogo, o retorno é uma estimativa retrospectiva. "
                     "Odds Lay são estimadas, não executáveis, com comissão fixa de 4,5%. "
-                    "Sem cotação, o resultado financeiro fica indisponível. "
+                    "As odds de goleada Back/Lay vêm de um modelo Poisson independente "
+                    "ajustado aos Correct Scores 0x0–3x3, com projeção das caudas 4+ "
+                    "e diferença ilustrativa de um tick na escada Betfair. "
+                    "Não são odds reais de mercado nem comprovam disponibilidade pré-jogo. "
+                    "Sem Correct Score suficiente, o resultado financeiro fica indisponível. "
                     "O passado não garante resultado futuro."}
     if capture:
         response["_dados_otimizacao"]=captured
