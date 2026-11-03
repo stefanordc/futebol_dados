@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-goleada-cs-v12">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v1">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -19,6 +19,7 @@
 <nav class="ns-subtabs" aria-label="Seções do Nostradamus">
 <button type="button" class="ns-subtab is-active" data-ns-tab="simular" aria-selected="true">Simular estratégia</button>
 <button type="button" class="ns-subtab" data-ns-tab="salvas" aria-selected="false">Estratégias salvas</button>
+<button type="button" class="ns-subtab" data-ns-tab="ao-vivo" aria-selected="false">Entradas ao vivo · minuto</button>
 <a class="ns-subtab" href="/apostas/nostradamus/conectar-api">Conectar API</a>
 </nav>
 <div id="ns-workbench">
@@ -76,11 +77,84 @@
   </div>
 </section></section>
 </div>
+<section id="ns-inplay" class="ns-panel" hidden aria-labelledby="ns-inplay-title">
+  <div class="ns-heading">
+    <div class="df-eyebrow">BACKTEST · PLACAR EM TEMPO REAL</div>
+    <h2 id="ns-inplay-title">Simular entrada durante o jogo</h2>
+    <p class="x1-help">Filtre partidas que realmente apresentavam o placar escolhido no minuto informado e escolha o mercado da entrada. Exemplo: favorito vencendo por 2 gols aos 60 minutos, Lay visitante. Você pode especificar o total exato de gols e os gols de cada equipe.</p>
+  </div>
+  <form id="ns-inplay-form">
+    <div class="ns-fields ns-inplay-fields">
+      <label>Data de corte (inclusive)
+        <input id="ns-inplay-corte" type="date" required>
+      </label>
+      <label>Campeonato
+        <select id="ns-inplay-liga"><option value="">Todos os campeonatos</option></select>
+      </label>
+      <label>Minuto da entrada
+        <input id="ns-inplay-minuto" type="number" min="1" max="90" step="1" value="60" required>
+      </label>
+      <label>Quem está vencendo nesse minuto
+        <select id="ns-inplay-vencendo">
+          <option value="favorito" selected>Favorito (pelas odds 1X2)</option>
+          <option value="zebra">Zebra (pelas odds 1X2)</option>
+          <option value="mandante">Mandante</option>
+          <option value="visitante">Visitante</option>
+          <option value="empate">Empate</option>
+          <option value="qualquer">Qualquer placar</option>
+        </select>
+      </label>
+      <label>Diferença exata de gols
+        <input id="ns-inplay-diferenca" type="number" min="0" max="30" step="1" value="2" placeholder="Ex.: 2">
+      </label>
+      <label>Total exato de gols no minuto
+        <input id="ns-inplay-total" type="number" min="0" max="30" step="1" placeholder="Qualquer total">
+      </label>
+      <label>Gols exatos do favorito
+        <input id="ns-inplay-favorito" type="number" min="0" max="30" step="1" placeholder="Qualquer">
+      </label>
+      <label>Gols exatos da zebra
+        <input id="ns-inplay-zebra" type="number" min="0" max="30" step="1" placeholder="Qualquer">
+      </label>
+      <label>Gols exatos do mandante
+        <input id="ns-inplay-mandante" type="number" min="0" max="30" step="1" placeholder="Qualquer">
+      </label>
+      <label>Gols exatos do visitante
+        <input id="ns-inplay-visitante" type="number" min="0" max="30" step="1" placeholder="Qualquer">
+      </label>
+      <label>Mercado da entrada
+        <select id="ns-inplay-mercado" required></select>
+      </label>
+      <label>Odd hipotética no minuto (opcional)
+        <input id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" placeholder="Ex.: 1.15">
+      </label>
+    </div>
+    <p class="ns-info">Os gols vêm da tabela de finalizações, incluindo gols contra. São excluídas partidas cujos gols registrados não conferem com o placar final. Favorito e zebra dependem das odds 1X2 vinculadas ao jogo. Não há cotação histórica confiável no minuto da entrada: sem odd hipotética, são exibidos apenas greens, reds e win rate, sem retorno financeiro.</p>
+    <div class="ns-actions">
+      <button id="ns-inplay-submit" type="submit" class="ns-button primary">Simular entradas no minuto escolhido</button>
+    </div>
+  </form>
+  <div id="ns-inplay-feedback" class="x1-help" role="status" aria-live="polite"></div>
+  <section id="ns-inplay-results" hidden aria-label="Resultados da simulação ao vivo">
+    <div id="ns-inplay-kpis" class="ns-inplay-kpis"></div>
+    <h3>Resultado por campeonato</h3>
+    <div class="ns-scroll"><table class="ns-table ns-inplay-table">
+      <thead><tr><th>Campeonato</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Resultado (R$)</th><th>Good run</th><th>Bad run</th></tr></thead>
+      <tbody id="ns-inplay-leagues"></tbody>
+    </table></div>
+    <h3>Jogos identificados no minuto da entrada</h3>
+    <p id="ns-inplay-coverage" class="x1-help"></p>
+    <div id="ns-inplay-games" class="ns-scroll"></div>
+    <p id="ns-inplay-warning" class="x1-help"></p>
+  </section>
+</section>
+
 <div id="ns-feedback" role="status" aria-live="polite"></div><section id="ns-saved" class="ns-panel" hidden><div class="ns-heading"><h2>Estratégias salvas no Supabase</h2><button type="button" class="ns-button secondary" id="ns-create">+ Nova estratégia</button></div><p class="x1-help">Estratégias cadastradas no banco de dados, com data de criação e última atualização. Use Ver regras para consultar ou Editar para modificar.</p><div id="ns-saved-list"></div></section>
 
 <p class="x1-disclaimer">Simulação histórica, não recomendação de aposta. A execução retrospectiva não demonstra lucratividade futura; dados ausentes, preço de entrada, liquidez, comissão e seleção de estratégias podem enviesar resultados. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-goleada-cs-v12" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v1" defer></script>
+<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v1" defer></script>
 </body></html>
