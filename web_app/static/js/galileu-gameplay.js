@@ -476,6 +476,24 @@ function renderMethodPerformance(){
   }
   $("#gl-method-removal-note").hidden=!pending;
 }
+function renderLossStreakAlerts(){
+  const alerts=state.alertas_prejuizo_3_meses||[];
+  const root=$("#gl-loss-streak-alert");
+  root.hidden=!alerts.length;
+  const target=$("#gl-loss-streak-list");
+  if(!alerts.length){
+    target.innerHTML="";
+    return;
+  }
+  const displayMonth=m=>String(m).slice(5,7)+"/"+String(m).slice(0,4);
+  target.innerHTML='<ul class="gl-loss-streak-items">'+alerts.map(item=>
+    '<li><strong>'+escapeHTML(item.nome)+'</strong>'+
+    '<div>Prejuízo em três meses consecutivos: '+
+    item.meses.map(m=>escapeHTML(displayMonth(m.mes))+': '+brl(m.lucro_prejuizo)).join(' · ')+
+    '</div><div><strong>Total acumulado: '+brl(item.prejuizo_total)+'</strong></div></li>'
+  ).join("")+'</ul>';
+}
+
 function renderMonth(){
   const month=state.mes_encerrado;
   const root=$("#gl-month");
@@ -501,6 +519,7 @@ function renderMonth(){
   $("#gl-month-kpis").innerHTML=fields.map(([label,value])=>
     '<div><span>'+label+'</span><strong>'+value+'</strong></div>').join("");
   renderMethodPerformance();
+  renderLossStreakAlerts();
   $("#gl-month-groups").innerHTML=[
     ["Por estratégias",data.por_estrategia],
     ["Por ligas",data.por_liga],
