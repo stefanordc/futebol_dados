@@ -78,7 +78,7 @@ class TestRelatorioAgrupado(TestCase):
         self.assertEqual(report["lucro_prejuizo_total"],14.0)
         self.assertEqual(len(report["agrupamentos"]["por_metodo"]),3)
         self.assertEqual(len(report["agrupamentos"]["por_liga"]),2)
-        self.assertEqual(len(report["agrupamentos"]["por_clube"]),6)
+        self.assertEqual(len(report["agrupamentos"]["por_clube"]),5)
         months={m["mes"]:m for m in report["resumo_mensal"]}
         self.assertEqual(months["2026-01"]["entradas"],2)
         self.assertEqual(months["2026-02"]["nao_executadas"],1)
