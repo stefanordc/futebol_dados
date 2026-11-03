@@ -241,6 +241,15 @@ def galileu_gameplay_entrada(payload: dict,request: Request):
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
+@app.post("/api/apostas/galileu/gameplay/finalizar-jogo")
+def galileu_gameplay_finalizar_jogo(payload: dict,request: Request):
+    try:
+        return queries_galileu_gameplay.finalizar_jogo(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
 @app.post("/api/apostas/galileu/gameplay/finalizar")
 def galileu_gameplay_finalizar(request: Request):
     try:
