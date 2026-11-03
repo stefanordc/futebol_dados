@@ -7,6 +7,8 @@ on:
       - 'web_app/tests/test_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/tests/test_galileu_financeiro_ui.js'
+      - 'web_app/sql/galileu_gestao_mensal_relatorios.sql'
       - 'web_app/sql/galileu_gameplay.sql'
       - 'web_app/queries_estrategias.py'
       - 'web_app/static/js/galileu.js'
@@ -23,6 +25,8 @@ on:
       - 'web_app/tests/test_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/tests/test_galileu_financeiro_ui.js'
+      - 'web_app/sql/galileu_gestao_mensal_relatorios.sql'
       - 'web_app/sql/galileu_gameplay.sql'
       - 'web_app/queries_estrategias.py'
       - 'web_app/static/js/galileu.js'
@@ -45,6 +49,7 @@ jobs:
           node --check web_app/static/js/galileu.js
           node --check web_app/static/js/galileu-report.js
           node --check web_app/static/js/galileu-gameplay.js
+          node --check web_app/static/js/galileu-financeiro.js
       - name: Sem vazamento e apuração de banca
         working-directory: web_app
         run: |
@@ -53,4 +58,6 @@ jobs:
           python -m unittest discover -s tests -p 'test_galileu_gameplay_route.py' -v
       - name: Interface gameplay
         working-directory: web_app
-        run: node tests/test_galileu_gameplay_ui.js
+        run: |
+          node tests/test_galileu_gameplay_ui.js
+          node tests/test_galileu_financeiro_ui.js

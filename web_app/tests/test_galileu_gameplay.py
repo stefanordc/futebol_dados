@@ -43,6 +43,8 @@ def session(phase="aberta"):
             "corte":date(2026,10,17),
             "corte_atual":date(2026,10,17),
             "banca_inicial":Decimal("1000.00"),
+            "banca_base_mes":Decimal("1000.00"),
+            "mes_base":"2026-10",
             "banca_atual":Decimal("1022.00"),
             "gestao_pct":Decimal("2.00"),
             "stake_fixa":None,"indice_rodada":0,"fase":phase,
@@ -57,7 +59,11 @@ class TestGalileuGameplay(TestCase):
 
     def test_stake_padrao_e_validacao_de_dinheiro(self):
         s=session()
-        self.assertEqual(gl._default_stake(s),20.44)
+        self.assertEqual(gl._default_stake(s),20.00)
+        s["banca_base_mes"]=Decimal("1500.00")
+        self.assertEqual(gl._default_stake(s),30.00)
+        s["banca_base_mes"]=Decimal("0.00")
+        self.assertEqual(gl._default_stake(s),0.00)
         s["stake_fixa"]=Decimal("23.55")
         self.assertEqual(gl._default_stake(s),23.55)
         self.assertEqual(gl._money("20.00","Stake"),Decimal("20.00"))
@@ -184,7 +190,8 @@ class TestGalileuGameplay(TestCase):
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
              patch.object(gl,"_bet_rows",return_value=[]), \
-             patch.object(gl,"_closed_game_ids",return_value=set()):
+             patch.object(gl,"_closed_game_ids",return_value=set()), \
+             patch.object(gl,"_fechamentos",return_value=[]):
             result=gl.estado("token")
         self.assertEqual(result["corte"],"2026-10-17")
         self.assertEqual(result["corte_atual"],"2026-10-20")
@@ -220,7 +227,8 @@ class TestGalileuGameplay(TestCase):
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
              patch.object(gl,"_bet_rows",return_value=[]), \
-             patch.object(gl,"_closed_game_ids",return_value=set()):
+             patch.object(gl,"_closed_game_ids",return_value=set()), \
+             patch.object(gl,"_fechamentos",return_value=[]):
             before=gl.estado("my_secret")
             self.assertTrue(before["iniciado"])
             self.assertEqual(before["banca_atual"],1022.0)
@@ -312,7 +320,8 @@ class TestGalileuGameplay(TestCase):
              patch.object(gl,"_catalog",return_value=catalog), \
              patch.object(gl,"_methods",return_value=[]), \
              patch.object(gl,"_bet_rows",return_value=bets), \
-             patch.object(gl,"_closed_game_ids",return_value={110}):
+             patch.object(gl,"_closed_game_ids",return_value={110}), \
+             patch.object(gl,"_fechamentos",return_value=[]):
             before=gl.estado("token")
             self.assertEqual(before["rodada_atual"]["jogos"],2)
             self.assertEqual(before["jogos_finalizados"],1)
@@ -652,6 +661,206 @@ class TestGalileuGameplay(TestCase):
             with self.assertRaisesRegex(ValueError,"mais de uma vez"):
                 gl.registrar_metodos_em_lote("token",{
                     "stake":"20.00","versao":1,"selecoes":[item,item]})
+
+    def test_fechamento_em_mes_sem_jogos_e_obrigatorio(self):
+        from contextlib import contextmanager
+        sess=session(phase="aberta")
+        sess["corte"]=date(2025,1,21)
+        sess["corte_atual"]=date(2025,1,21)
+        sess["mes_base"]="2025-01"
+        catalog=[{"id":10,"data":date(2025,2,2),"campeonato_id":1}]
+        rounds=gl._rounds(sess["corte_atual"],catalog)
+        self.assertEqual(gl._round_at(rounds,0),[])
+        self.assertEqual(gl._closing_boundary(rounds),(True,"2025-01",True))
+        statements=[]
+        class Cursor:
+            def execute(self,sql,params):statements.append((sql,params))
+            def fetchone(self):return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):statements.append(("COMMIT",None))
+        @contextmanager
+        def fake_conn():yield Conn()
+        with patch.object(gl,"_catalog",return_value=catalog), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"fechamento mensal"):
+                gl.proxima("token")
+            self.assertFalse(any("UPDATE" in sql for sql,_ in statements))
+            result=gl.fechar_mes("token",{
+                "fazer_aporte":False,"fazer_saque":False,
+                "alterar_stake":False})
+        self.assertEqual(result["mes"],"2025-01")
+        self.assertEqual(result["banca_base_seguinte"],1022)
+        self.assertTrue(any("INSERT INTO galileu_private.fechamentos_mensais"
+                            in sql for sql,_ in statements))
+
+    def test_relatorio_mensal_separa_lucro_de_aporte_saque(self):
+        bets=[
+            {"data":date(2025,1,10),"status":"green","stake":Decimal("20"),
+             "lucro_prejuizo":Decimal("10"),"metodo_nome":"Método A",
+             "tipo":"metodo","campeonato":"Liga 1",
+             "mandante":"A","visitante":"B"},
+            {"data":date(2025,2,4),"status":"red","stake":Decimal("20"),
+             "lucro_prejuizo":Decimal("-20"),"metodo_nome":"Método A",
+             "tipo":"metodo","campeonato":"Liga 1",
+             "mandante":"A","visitante":"B"},
+        ]
+        closings=[{"mes":"2025-01","banca_base_inicio":Decimal("1000"),
+                   "banca_fechamento":Decimal("1010"),
+                   "aporte":Decimal("100"),"saque":Decimal("50"),
+                   "banca_base_seguinte":Decimal("1060")}]
+        result=gl._summary(bets,Decimal("1000"),closings)
+        self.assertEqual(len(result),2)
+        self.assertEqual(result[0]["banca_inicio"],1000)
+        self.assertEqual(result[0]["banca_fechamento"],1010)
+        self.assertEqual(result[0]["lucro_prejuizo"],10)
+        self.assertEqual(result[0]["aporte"],100)
+        self.assertEqual(result[0]["saque"],50)
+        self.assertEqual(result[0]["banca_fim"],1060)
+        self.assertEqual(result[0]["roi"],50)
+        self.assertEqual(result[1]["banca_inicio"],1060)
+        self.assertEqual(result[1]["banca_fechamento"],1040)
+        self.assertEqual(result[1]["banca_fim"],1040)
+        self.assertEqual(result[1]["roi"],-100)
+
+    def test_fechar_mes_registra_movimentos_e_nova_base_uma_vez(self):
+        from contextlib import contextmanager
+        sess=session(phase="revelada")
+        sess["corte_atual"]=date(2026,10,20)
+        sess["banca_atual"]=Decimal("1010")
+        rows=fixtures()
+        executed=[]
+        class Cursor:
+            def execute(self,sql,params):executed.append((sql,params))
+            def fetchone(self):return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def c():yield Cursor()
+                return c()
+            def commit(self):executed.append(("COMMIT",None))
+        @contextmanager
+        def fake_conn():yield Conn()
+        payload={"fazer_aporte":True,"aporte":"100.00",
+                 "fazer_saque":True,"saque":"25.00",
+                 "alterar_stake":True,"tipo_stake":"percentual",
+                 "valor_stake":"3.00"}
+        with patch.object(gl,"_catalog",return_value=rows), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            outcome=gl.fechar_mes("token",payload)
+        self.assertEqual(outcome["banca_fechamento"],1010)
+        self.assertEqual(outcome["banca_base_seguinte"],1085)
+        kinds=[params[2] for sql,params in executed
+               if "INSERT INTO galileu_private.movimentacoes" in sql]
+        self.assertEqual(kinds,["aporte","saque","reajuste_stake","virada_mes"])
+        closing=[params for sql,params in executed
+                 if "INSERT INTO galileu_private.fechamentos_mensais" in sql][0]
+        self.assertEqual(closing[3],Decimal("1000"))
+        self.assertEqual(closing[7],Decimal("1085"))
+        update=[params for sql,params in executed
+                if "UPDATE galileu_private.sessoes SET" in sql][0]
+        self.assertEqual(update[:3],(Decimal("1085"),Decimal("1085"),"2026-11"))
+        self.assertEqual(update[3],Decimal("3.00"))
+        self.assertEqual(executed[-1][0],"COMMIT")
+
+    def test_fechar_mes_sem_movimentos_mantem_percentual(self):
+        from contextlib import contextmanager
+        sess=session(phase="revelada")
+        sess["corte_atual"]=date(2026,10,20)
+        executed=[]
+        class Cursor:
+            def execute(self,sql,params):executed.append((sql,params))
+            def fetchone(self):return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):pass
+        @contextmanager
+        def fake_conn():yield Conn()
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            response=gl.fechar_mes("token",{
+                "fazer_aporte":False,"fazer_saque":False,"alterar_stake":False})
+        self.assertEqual(response["banca_base_seguinte"],1022)
+        kinds=[params[2] for sql,params in executed
+               if "INSERT INTO galileu_private.movimentacoes" in sql]
+        self.assertEqual(kinds,["virada_mes"])
+        update=[params for sql,params in executed
+                if "UPDATE galileu_private.sessoes SET" in sql][0]
+        self.assertEqual(update[3],Decimal("2.00"))
+        self.assertIsNone(update[4])
+
+    def test_fechamento_rejeita_saque_superior_e_duplicidade(self):
+        from contextlib import contextmanager
+        sess=session(phase="revelada")
+        sess["corte_atual"]=date(2026,10,20)
+        sql=[]
+        class Cursor:
+            def __init__(self,existing):self.existing=existing
+            def execute(self,query,params):sql.append(query)
+            def fetchone(self):return {"ok":1} if self.existing else None
+        class Conn:
+            def __init__(self,existing):self.existing=existing
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor(self.existing)
+                return ctx()
+            def commit(self):pass
+        @contextmanager
+        def fake_conn():yield Conn(False)
+        invalid={"fazer_aporte":False,"fazer_saque":True,
+                 "saque":"2000.00","alterar_stake":False}
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"Saque maior"):
+                gl.fechar_mes("token",invalid)
+        self.assertFalse(any("INSERT" in q for q in sql))
+        sql.clear()
+        @contextmanager
+        def existing_conn():yield Conn(True)
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",existing_conn):
+            with self.assertRaisesRegex(ValueError,"já foi fechado"):
+                gl.fechar_mes("token",{
+                    "fazer_aporte":False,"fazer_saque":False,"alterar_stake":False})
+        self.assertFalse(any("INSERT" in q for q in sql))
+
+    def test_avancar_mes_exige_fechamento_financeiro(self):
+        from contextlib import contextmanager
+        sess=session(phase="revelada")
+        sess["corte_atual"]=date(2026,10,20)
+        executed=[]
+        class Cursor:
+            def execute(self,sql,params):executed.append(sql)
+            def fetchone(self):return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):pass
+        @contextmanager
+        def fake_conn():yield Conn()
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=sess), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"fechamento mensal"):
+                gl.proxima("token")
+        self.assertFalse(any("UPDATE galileu_private.sessoes" in q for q in executed))
+
+    def test_report_api_sem_sessao_nao_carrega_dados_privados(self):
+        with patch.object(gl,"fetch_all",side_effect=AssertionError("Sem consultas")):
+            self.assertEqual(gl.relatorios(None),{"iniciado":False})
 
     def test_token_hash_nao_retorna_token(self):
         digest=gl._hash("token-secreto-e-aleatorio")

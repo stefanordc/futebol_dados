@@ -210,6 +210,18 @@ def pagina_galileu_relatorio():
 
 # Galileu Gameplay: sessão privada por navegador, com cookie HttpOnly.
 # Rotas antigas de sinais/relatório seguem disponíveis para compatibilidade.
+@app.get("/apostas/galileu/relatorios")
+def pagina_galileu_relatorios():
+    return FileResponse(TEMPLATES / "galileu_financeiro.html")
+
+
+@app.get("/api/apostas/galileu/gameplay/relatorios")
+def galileu_gameplay_relatorios(request: Request):
+    return queries_galileu_gameplay.relatorios(
+        request.cookies.get(queries_galileu_gameplay.COOKIE)
+    )
+
+
 @app.get("/api/apostas/galileu/gameplay/estado")
 def galileu_gameplay_estado(request: Request):
     return queries_galileu_gameplay.estado(
@@ -264,6 +276,15 @@ def galileu_gameplay_finalizar(request: Request):
     try:
         return queries_galileu_gameplay.finalizar(
             request.cookies.get(queries_galileu_gameplay.COOKIE))
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/fechar-mes")
+def galileu_gameplay_fechar_mes(payload: dict,request: Request):
+    try:
+        return queries_galileu_gameplay.fechar_mes(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 

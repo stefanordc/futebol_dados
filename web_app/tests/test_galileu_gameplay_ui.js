@@ -12,8 +12,12 @@ const ids=[
   "gl-round-title","gl-round-cutoff","gl-games","gl-games-closed","gl-round-results","gl-finish","gl-next",
   "gl-bulk-toolbar","gl-bulk-open","gl-bulk-info","gl-bulk-dialog",
   "gl-bulk-form","gl-bulk-stake","gl-bulk-count","gl-bulk-total","gl-bulk-confirm",
-  "gl-month","gl-month-kpis","gl-month-groups","gl-adjust-form",
-  "gl-adjust-type","gl-adjust-value","gl-entry-dialog",
+  "gl-month","gl-month-kpis","gl-month-groups","gl-close-form",
+  "gl-month-confirmed","gl-close-deposit-choice","gl-close-withdraw-choice",
+  "gl-close-stake-choice","gl-close-deposit","gl-close-withdraw",
+  "gl-close-stake-type","gl-close-stake-value","gl-close-submit",
+  "gl-close-bank-before","gl-close-bank-after","gl-close-stake-after",
+  "gl-bank-original","gl-entry-dialog",
   "gl-entry-choice","gl-entry-method-button","gl-entry-manual-button",
   "gl-entry-method","gl-entry-market","gl-entry-stake",
   "gl-entry-confirm","gl-entry-cancel","gl-details-dialog",
@@ -21,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v7"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v8"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -30,7 +34,7 @@ assert.ok(js.includes("Método validado"),"Carimbo visível");
 assert.ok(js.includes('$("#gl-finish").addEventListener'),"Finalizar rodada");
 assert.ok(js.includes('$("#gl-next").addEventListener'),"Próxima rodada");
 assert.ok(js.includes('$("#gl-restart").addEventListener'),"Reiniciar progresso");
-assert.ok(js.includes('$("#gl-adjust-form").addEventListener'),"Reajuste ao fim do mês");
+assert.ok(js.includes('$("#gl-close-form").addEventListener'),"Fechamento financeiro deve registrar decisões mensais");
 assert.ok(js.includes('gl-entry-market'),"Entrada manual deve permitir mercado");
 assert.ok(js.includes('gl-entry-method'),"Entrada com método deve solicitar método");
 assert.ok(js.includes('done?"')||js.includes('const done=state.fase!=="aberta"'),
@@ -137,3 +141,21 @@ assert.ok(py.includes('SELECT jogo_id,metodo_id FROM galileu_private.entradas'),
 assert.ok(html.includes('id="gl-bulk-stake"'),"Stake de cada entrada deve ser editável");
 assert.ok(html.includes('id="gl-bulk-list"'),"Prévia permite verificar todos os métodos");
 assert.ok(css.includes('.gl-bulk-toolbar'),"Estilizar ação principal em lote");
+
+/* Gestão mensal de stake e relatórios. */
+assert.ok(js.includes('brl(state.banca_base_mes)'),"Banca exibida deve ser a base do mês");
+assert.ok(js.includes('state.fechamento_pendente'),"Exigir fechamento quando mudar mês");
+assert.ok(js.includes('$("#gl-next").disabled=Boolean(state.fechamento_pendente)'),
+  "Bloquear próxima rodada antes do fechamento");
+assert.ok(js.includes('post("fechar-mes",payload)'),"Registrar decisões da virada no servidor");
+assert.ok(js.includes('"gl-close-deposit-choice"'),"Perguntar por aporte");
+assert.ok(js.includes('"gl-close-withdraw-choice"'),"Perguntar por saque");
+assert.ok(js.includes('"gl-close-stake-choice"'),"Perguntar reajuste de stake");
+assert.ok(html.includes('href="/apostas/galileu/relatorios"'),"Aba Relatórios deve ser acessível");
+assert.ok(py.includes('sess["banca_base_mes"] if sess.get("banca_base_mes") is not None'),
+  "Stake percentual precisa usar banca-base mensal mesmo que seja zero");
+assert.ok(py.includes('def fechar_mes(token,payload):'),
+  "Fechamento mensal precisa ser transacional e persistido");
+assert.ok(py.includes('def relatorios(token):'),"Relatórios precisam estar ligados à sessão atual");
+assert.ok(py.includes('fechamentos_mensais'),"Armazenar histórico de fechamentos");
+assert.ok(py.includes('galileu_private.movimentacoes'),"Armazenar aportes e saques auditáveis");

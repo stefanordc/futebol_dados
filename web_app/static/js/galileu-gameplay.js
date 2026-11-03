@@ -285,7 +285,8 @@ function renderMonth(){
   };
   $("#gl-month-title").textContent="Resumo de "+month.slice(5)+"/"+month.slice(0,4);
   const fields=[
-    ["Banca atual",brl(data.banca_fim)],
+    ["Banca-base do mês",brl(data.banca_inicio)],
+    ["Saldo após apostas",brl(data.banca_fechamento)],
     ["Lucro / Prejuízo",brl(data.lucro_prejuizo)],
     ["ROI",num(data.roi,2)+"%"],
     ["Entradas",num(data.entradas,0)],
@@ -301,9 +302,75 @@ function renderMonth(){
   ].map(([label,rows])=>'<details class="gl-month-detail"><summary>'+
      escapeHTML(label)+'</summary>'+tableRows(rows)+'</details>').join("")+
      '<p class="gl-note">Na visão por clubes, a mesma entrada é atribuída aos dois participantes; os totais por clube não devem ser somados.</p>';
-  $("#gl-adjust-type").value=state.stake_fixa==null?"percentual":"fixo";
-  setAdjustInput();
+  $("#gl-close-form").hidden=!state.fechamento_pendente;
+  $("#gl-month-confirmed").hidden=!state.fechamento_realizado;
+  if(state.fechamento_pendente)updateClosePreview();
 }
+function updateClosePreview(){
+  if(!state?.fechamento_pendente)return;
+  const deposits=$("#gl-close-deposit-choice").value;
+  const withdrawals=$("#gl-close-withdraw-choice").value;
+  const adjustment=$("#gl-close-stake-choice").value;
+  const depositOn=deposits==="sim",withdrawOn=withdrawals==="sim",changeOn=adjustment==="sim";
+  $("#gl-close-deposit-wrap").hidden=!depositOn;
+  $("#gl-close-withdraw-wrap").hidden=!withdrawOn;
+  $("#gl-close-stake-wrap").hidden=!changeOn;
+  const deposit=depositOn?Number($("#gl-close-deposit").value):0;
+  const withdrawal=withdrawOn?Number($("#gl-close-withdraw").value):0;
+  const closing=Number(state.banca_atual);
+  const next=closing+deposit-withdrawal;
+  const method=changeOn?$("#gl-close-stake-type").value:
+    state.stake_fixa!=null?"fixo":"percentual";
+  const changeValue=changeOn?Number($("#gl-close-stake-value").value):
+    (method==="fixo"?Number(state.stake_fixa):Number(state.gestao_pct));
+  const nextStake=method==="fixo"?changeValue:Math.round(next*changeValue)/100;
+  const allSelected=[deposits,withdrawals,adjustment].every(x=>x==="sim"||x==="nao");
+  const invalid=!allSelected||!Number.isFinite(next)||next<0||
+    (depositOn&&(!Number.isFinite(deposit)||deposit<=0))||
+    (withdrawOn&&(!Number.isFinite(withdrawal)||withdrawal<=0))||
+    (changeOn&&(!Number.isFinite(changeValue)||changeValue<=0))||
+    (method==="percentual"&&changeValue>100)||
+    (method==="fixo"&&changeValue>next);
+  $("#gl-close-bank-before").textContent=brl(closing);
+  $("#gl-close-bank-after").textContent=brl(next);
+  $("#gl-close-stake-after").textContent=brl(nextStake);
+  $("#gl-close-info").textContent=!allSelected?
+    "Responda Sim ou Não às três perguntas para registrar o fechamento.":
+    invalid?"Confira os valores: saque não pode exceder o saldo com aportes e a stake deve ser válida.":
+    "Aporte e saque não entram no lucro/ROI. A nova banca-base ficará fixa durante o próximo mês.";
+  $("#gl-close-submit").disabled=invalid;
+}
+["gl-close-deposit-choice","gl-close-withdraw-choice","gl-close-stake-choice",
+ "gl-close-deposit","gl-close-withdraw","gl-close-stake-type","gl-close-stake-value"]
+.forEach(id=>document.getElementById(id).addEventListener("input",updateClosePreview));
+$("#gl-close-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  updateClosePreview();
+  const btn=$("#gl-close-submit");
+  if(btn.disabled)return;
+  const deposit=$("#gl-close-deposit-choice").value==="sim";
+  const withdrawal=$("#gl-close-withdraw-choice").value==="sim";
+  const adjust=$("#gl-close-stake-choice").value==="sim";
+  const payload={
+    fazer_aporte:deposit,
+    fazer_saque:withdrawal,
+    alterar_stake:adjust,
+    aporte:deposit?$("#gl-close-deposit").value:null,
+    saque:withdrawal?$("#gl-close-withdraw").value:null,
+    tipo_stake:adjust?$("#gl-close-stake-type").value:null,
+    valor_stake:adjust?$("#gl-close-stake-value").value:null,
+  };
+  if(!window.confirm(
+    "Confirmar o fechamento de "+state.mes_encerrado+
+    " e definir "+$("#gl-close-bank-after").textContent+
+    " como banca-base do próximo mês? O registro ficará no relatório financeiro."
+  ))return;
+  btn.disabled=true;
+  btn.textContent="Registrando fechamento…";
+  await mutate(()=>post("fechar-mes",payload));
+  btn.textContent="Confirmar fechamento do mês";
+});
+
 function renderHistory(){
   const items=state.resumo_mensal||[];
   $("#gl-month-history").hidden=!items.length;
@@ -319,11 +386,12 @@ function render(){
   $("#gl-setup").hidden=started;
   $("#gl-gameplay").hidden=!started;
   if(!started)return;
-  $("#gl-bank-initial").textContent=brl(state.banca_inicial);
+  $("#gl-bank-initial").textContent=brl(state.banca_base_mes);
+  $("#gl-bank-original").textContent="Banca original: "+brl(state.banca_inicial);
   $("#gl-bank-current").textContent=brl(state.banca_atual);
   $("#gl-bank-stake").textContent=brl(state.stake_padrao);
   $("#gl-bank-percent").textContent=state.stake_fixa==null?
-    num(state.gestao_pct,2)+"% da banca":"Stake fixa";
+    num(state.gestao_pct,2)+"% da banca-base do mês":"Stake fixa";
   $("#gl-bank-entries").textContent=num(state.entradas,0);
   $("#gl-round-title").textContent="Rodada "+state.rodada_indice;
   // O intervalo exibido é sempre de até 10 dias e nunca cruza o mês.
@@ -342,7 +410,9 @@ function render(){
   const open=state.fase==="aberta";
   $("#gl-finish").hidden=!open||!state.rodada_atual.jogos;
   $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
-  $("#gl-next").textContent=state.pode_pular_vazio?
+  $("#gl-next").disabled=Boolean(state.fechamento_pendente);
+  $("#gl-next").textContent=state.fechamento_pendente?
+    "Conclua o fechamento mensal para avançar":state.pode_pular_vazio?
     "Avançar período sem jogos":
     state.pode_avancar?"Próxima rodada":"Concluir gameplay";
   $("#gl-round-status").textContent=state.pode_pular_vazio?
@@ -592,24 +662,6 @@ $("#gl-restart").addEventListener("click",async()=>{
   const reply=window.prompt("Esta ação apaga TODAS as entradas e o progresso da gameplay. Digite REINICIAR para confirmar:");
   if(reply!=="REINICIAR")return;
   await mutate(()=>request("/api/apostas/galileu/gameplay/reiniciar",{method:"DELETE"}));
-});
-function setAdjustInput(){
-  const kind=$("#gl-adjust-type").value;
-  $("#gl-adjust-label").firstChild.textContent=kind==="fixo"?"Nova stake fixa (R$)":"Novo percentual (%)";
-  $("#gl-adjust-value").value=kind==="fixo"?
-    Number(state.stake_padrao).toFixed(2):String(state.gestao_pct);
-  $("#gl-adjust-value").max=kind==="fixo"?String(state.banca_atual):"100";
-}
-$("#gl-adjust-type").addEventListener("change",setAdjustInput);
-$("#gl-adjust-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const btn=$("#gl-adjust-form button[type=submit]");
-  btn.disabled=true;
-  await mutate(()=>post("reajustar",{
-    tipo:$("#gl-adjust-type").value,
-    valor:$("#gl-adjust-value").value
-  }));
-  btn.disabled=false;
 });
 reload().catch(err=>msg(err.message,true));
 })();
