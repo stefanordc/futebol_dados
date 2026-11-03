@@ -1,0 +1,108 @@
+"""Backtest ao vivo por placar no minuto de entrada — sem cotações inventadas."""
+from datetime import date
+from unittest import TestCase
+from unittest.mock import patch
+
+import queries_nostradamus_aovivo as live
+
+
+def config(**updates):
+    base={
+        "corte":"2026-10-30","minuto":60,"vencendo":"favorito",
+        "diferenca_gols":2,"mercado":"lay_visitante",
+        "odd_hipotetica":3.0,"campeonato_ids":[],
+    }
+    base.update(updates)
+    return base
+
+
+def partida(identifier,fav_home,h60,a60,final_home,final_away,day="2026-10-01"):
+    return {
+        "id":identifier,"data":date.fromisoformat(day),"campeonato_id":1,
+        "campeonato":"Liga Teste","mandante":"Casa","visitante":"Fora",
+        "gols_casa_minuto":h60,"gols_fora_minuto":a60,
+        "gols_casa":final_home,"gols_fora":final_away,
+        "api_odd_1_ft":1.5 if fav_home else 4.0,
+        "api_odd_2_ft":4.0 if fav_home else 1.5,
+    }
+
+
+class TestAoVivo(TestCase):
+    def test_favorito_vencendo_por_dois_aos_60_e_lay_visitante(self):
+        rows=[
+            partida(1,True,2,0,2,1),   # Lay visitante é green.
+            partida(2,False,0,2,0,3),  # Favorito visitante: Lay visitante é red.
+            partida(3,True,1,0,2,1),   # Diferença de apenas 1 no minuto.
+            partida(4,True,2,0,3,2,day="2026-11-01"),  # Fora do corte.
+        ]
+        result=live.simular(config(),rows=rows)
+        total=result["total"]
+        self.assertEqual(result["entradas"],2)
+        self.assertEqual((total["greens"],total["reds"]),(1,1))
+        self.assertEqual(total["win_rate"],50.0)
+        self.assertEqual(total["valor_reais"],-52.25)
+        self.assertEqual([d["placar_minuto"] for d in result["detalhes"]],["2x0","0x2"])
+        self.assertEqual([d["green"] for d in result["detalhes"]],[True,False])
+        self.assertEqual([d["mercado"] for d in result["detalhes"]],["lay_visitante"]*2)
+
+    def test_placar_exato_gols_favorito_zebra_total_mandante_visitante(self):
+        rows=[partida(1,True,2,0,3,1),partida(2,False,0,2,0,3)]
+        result=live.simular(config(gols_total=2,gols_favorito=2,gols_zebra=0,
+            gols_mandante=2,gols_visitante=0),rows=rows)
+        self.assertEqual(result["entradas"],1)
+        self.assertEqual(result["detalhes"][0]["id"],1)
+        self.assertEqual(result["detalhes"][0]["placar_final"],"3x1")
+
+    def test_sem_odd_mostra_win_rate_sem_inventar_lucro(self):
+        rows=[partida(1,True,2,0,2,1)]
+        result=live.simular(config(odd_hipotetica=None),rows=rows)
+        self.assertEqual(result["total"]["greens"],1)
+        self.assertIsNone(result["total"]["valor_reais"])
+        self.assertIsNone(result["detalhes"][0]["odd"])
+        self.assertIsNone(result["detalhes"][0]["valor_reais"])
+        self.assertIn("Não há odds in-play históricas",result["aviso"])
+
+    def test_em_qualquer_placar_aceita_empate_com_gap_zero(self):
+        rows=[partida(1,True,0,0,1,1),
+              partida(2,False,0,2,0,3)]
+        result=live.simular(config(vencendo="empate",diferenca_gols=0,
+            mercado="lay_empate",odd_hipotetica=2.2),rows=rows)
+        self.assertEqual(result["entradas"],1)
+        self.assertEqual(result["detalhes"][0]["id"],1)
+        self.assertFalse(result["detalhes"][0]["green"])
+
+    def test_nao_inventa_favorito_quando_odds_faltam(self):
+        row=partida(1,True,2,0,3,0)
+        row["api_odd_1_ft"]=None
+        row["api_odd_2_ft"]=None
+        self.assertEqual(live.simular(config(),rows=[row])["entradas"],0)
+        result=live.simular(config(vencendo="mandante",mercado="lay_visitante"),rows=[row])
+        self.assertEqual(result["entradas"],1)
+
+    def test_valida_minuto_placar_e_odd_e_diferenca(self):
+        invalid=[
+            ({"minuto":0},"minuto"),
+            ({"minuto":91},"minuto"),
+            ({"minuto":60.5},"minuto"),
+            ({"diferenca_gols":-1},"Diferença"),
+            ({"gols_total":3.5},"Total"),
+            ({"vencendo":"empate","diferenca_gols":2},"empate"),
+            ({"mercado":"inexistente"},"mercado"),
+            ({"odd_hipotetica":1.0},"Odd"),
+        ]
+        for altered,error in invalid:
+            with self.subTest(altered=altered):
+                with self.assertRaisesRegex(ValueError,error):
+                    live.simular(config(**altered),rows=[])
+
+    def test_nao_consulta_banco_quando_rows_fornecidas(self):
+        with patch.object(live,"fetch_all",side_effect=AssertionError("consulta inesperada")):
+            self.assertEqual(live.simular(config(),rows=[])["entradas"],0)
+
+    def test_sql_exige_gols_auditaveis_e_odds_pareadas(self):
+        self.assertIn("g.gols_casa_conferidos=j.gols_casa",live.SQL)
+        self.assertIn("g.gols_fora_conferidos=j.gols_fora",live.SQL)
+        self.assertIn("f.foi_gol_contra=true",live.SQL)
+        self.assertIn("f.minuto+COALESCE(f.minuto_adicional,0)",live.SQL)
+        self.assertIn("HAVING COUNT(*)=1",live.SQL)
+        self.assertIn("j.data<CURRENT_DATE",live.SQL)
