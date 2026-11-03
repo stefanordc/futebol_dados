@@ -549,17 +549,6 @@ $("#gl-close-form").addEventListener("submit",async event=>{
   btn.textContent="Confirmar fechamento do mês";
 });
 
-function renderHistory(){
-  const items=state.resumo_mensal||[];
-  $("#gl-month-history").hidden=!items.length;
-  $("#gl-history-content").innerHTML=items.map(m=>
-    '<details class="gl-month-detail"><summary>'+escapeHTML(m.mes)+
-    ' · '+brl(m.lucro_prejuizo)+' · '+num(m.roi,1)+'% ROI</summary>'+
-    '<div class="gl-month-history-stats">Banca: '+brl(m.banca_fim)+
-      ' · '+m.entradas+' programadas · '+(m.executadas||0)+' executadas · '+
-      (m.nao_executadas||0)+' sem saldo · '+m.greens+' greens · '+m.reds+
-      ' reds · '+num(m.win_rate,1)+'% win rate</div></details>').join("");
-}
 function render(){
   const started=Boolean(state?.iniciado);
   $("#gl-setup").hidden=started;
@@ -604,7 +593,7 @@ function render(){
     "Sem jogos neste mês. Avance para o próximo mês, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
     "Mês encerrado. Consulte os placares e seus resultados virtuais.";
-  renderMethodManagement();renderGames();renderRoundResults();renderMonth();renderHistory();
+  renderMethodManagement();renderGames();renderRoundResults();renderMonth();
 }
 
 const getGame=id=>state?.jogos?.find(g=>g.jogo_id===Number(id));
