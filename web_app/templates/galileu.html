@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v12">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v13">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -101,6 +101,11 @@
       <span class="gl-count">Mês encerrado</span>
     </div>
     <div id="gl-month-kpis" class="gl-kpis"></div>
+    <section id="gl-loss-streak-alert" class="gl-loss-streak-alert" hidden aria-live="polite">
+      <h3>Atenção: métodos com 3 meses seguidos de prejuízo</h3>
+      <p class="gl-note">O alerta considera o resultado líquido de cada método em três meses consecutivos. Mês com lucro, resultado zero ou sem entradas não gera alerta.</p>
+      <div id="gl-loss-streak-list"></div>
+    </section>
     <section class="gl-method-performance" aria-labelledby="gl-method-performance-title">
       <h3 id="gl-method-performance-title">Desempenho por método neste mês</h3>
       <p class="gl-note">As sequências consideram apenas entradas executadas (greens e reds), em ordem de data e registro. Entradas sem saldo não contam como red. Métodos com zero entradas também aparecem.</p>
@@ -240,5 +245,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=galileu-gameplay-v9" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v12" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v13" defer></script>
 </body></html>
