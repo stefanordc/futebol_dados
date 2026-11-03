@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v13">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v14">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -53,7 +53,7 @@
       <div><span>Gestão / stake padrão</span><strong id="gl-bank-stake">—</strong><small id="gl-bank-percent"></small></div>
       <div><span>Entradas registradas</span><strong id="gl-bank-entries">0</strong></div>
     </div>
-    <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo ajustado por aportes e saques define a base do próximo mês. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
+    <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo virtual ajustado por aportes e saques define a base do próximo mês. A banca pode ficar negativa; nesse caso, a stake percentual automática assume o mínimo de R$ 0,01, que você pode editar. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
     <p class="gl-note">Entradas Back: stake representa o valor apostado. Entradas Lay: stake representa a responsabilidade máxima, com comissão estimada de 4,5% sobre lucros. As odds importadas não têm comprovação de captura pré-jogo.</p>
   </section>
 
@@ -73,7 +73,7 @@
 
   <section class="gl-panel" id="gl-round-section">
     <div class="gl-section-title">
-      <div><div class="df-eyebrow">TEMPORADA · RODADAS</div><h2 id="gl-round-title">Rodada atual</h2></div>
+      <div><div class="df-eyebrow">TEMPORADA · MESES</div><h2 id="gl-round-title">Mês atual</h2></div>
       <span class="gl-count" id="gl-round-dates"></span>
     </div>
     <p class="gl-note" id="gl-round-cutoff" aria-live="polite">Intervalo atual da rodada</p>
@@ -81,15 +81,15 @@
     <div class="gl-bulk-toolbar" id="gl-bulk-toolbar" hidden>
       <div class="gl-bulk-description">
         <strong>Entradas nos métodos validados</strong>
-        <span id="gl-bulk-info">Selecione todos os métodos ainda não utilizados nesta rodada.</span>
+        <span id="gl-bulk-info">Selecione os métodos ainda não utilizados nos jogos deste mês.</span>
       </div>
       <button id="gl-bulk-open" type="button" class="gl-primary">Entrar em todos os métodos validados</button>
     </div>
     <div id="gl-games" class="gl-games"></div>
     <p id="gl-games-closed" class="gl-note" aria-live="polite"></p>
     <div class="gl-actions">
-      <button id="gl-finish" type="button" class="gl-primary">Finalizar rodada</button>
-      <button id="gl-next" type="button" class="gl-primary" hidden>Próxima rodada</button>
+      <button id="gl-finish" type="button" class="gl-primary">Finalizar mês</button>
+      <button id="gl-next" type="button" class="gl-primary" hidden>Próximo mês</button>
       <span id="gl-round-status" class="gl-note"></span>
     </div>
     <div id="gl-round-results" class="gl-round-results" hidden aria-live="polite"></div>
@@ -108,7 +108,7 @@
     </section>
     <section class="gl-method-performance" aria-labelledby="gl-method-performance-title">
       <h3 id="gl-method-performance-title">Desempenho por método neste mês</h3>
-      <p class="gl-note">As sequências consideram apenas entradas executadas (greens e reds), em ordem de data e registro. Entradas sem saldo não contam como red. Métodos com zero entradas também aparecem.</p>
+      <p class="gl-note">As sequências consideram apenas entradas executadas (greens e reds), em ordem de data e registro. Entradas antigas marcadas como sem saldo não contam como red. Métodos com zero entradas também aparecem.</p>
       <div class="gl-scroll" id="gl-method-performance-table" aria-live="polite"></div>
       <p id="gl-method-removal-note" class="gl-note">Marque os métodos que deseja retirar da gameplay a partir do próximo mês. As estratégias continuarão salvas no Nostradamus e o histórico será preservado.</p>
     </section>
@@ -188,7 +188,7 @@
     <button type="button" class="gl-close" data-close="gl-bulk-dialog" aria-label="Cancelar entradas">×</button>
   </div>
   <form id="gl-bulk-form">
-    <p class="gl-note">Você pode programar todos os métodos, mesmo que a soma das stakes ultrapasse a banca. O saldo não é descontado agora; a execução será simulada por data ao finalizar a rodada. Jogos do mesmo dia são tratados como simultâneos porque o horário não está cadastrado.</p>
+    <p class="gl-note">Selecione todas as entradas que deseja fazer no mês. Não há limite pela banca atual: todas serão liquidadas no fechamento, e o saldo virtual poderá ficar negativo. A stake de cada entrada continua editável.</p>
     <div class="gl-bulk-preview">
       <div><span>Entradas selecionadas</span><strong id="gl-bulk-count">0</strong></div>
       <div><span>Stake por entrada</span><strong id="gl-bulk-stake-display">—</strong></div>
@@ -199,14 +199,12 @@
     </label>
     <p id="gl-bulk-balance" class="gl-note" role="status"></p>
     <div class="gl-bulk-tools" aria-label="Seleção dos métodos">
-      <button type="button" class="gl-secondary" id="gl-bulk-affordable">Selecionar até o limite da banca</button>
       <button type="button" class="gl-secondary" id="gl-bulk-all">Selecionar todos</button>
       <button type="button" class="gl-secondary" id="gl-bulk-none">Desmarcar todos</button>
-      <button type="button" class="gl-secondary" id="gl-bulk-fit-stake">Ajustar stake para incluir todos</button>
     </div>
     <div id="gl-bulk-list" class="gl-bulk-list"></div>
     <p id="gl-bulk-feedback" class="gl-note" role="status" aria-live="polite"></p>
-    <p class="gl-note">Apostas programadas que não couberem no saldo disponível na data serão identificadas como não executadas, sem contar como red. Odds históricas e Lay são estimativas, não cotações executáveis. Nenhum placar será revelado agora.</p>
+    <p class="gl-note">Todas as entradas confirmadas serão executadas virtualmente, sem teste de saldo, e afetarão o resultado financeiro. Odds históricas e Lay são estimativas, não cotações executáveis. Nenhum placar será revelado agora.</p>
     <div class="gl-dialog-footer">
       <button type="button" class="gl-secondary" data-close="gl-bulk-dialog">Cancelar</button>
       <button type="submit" class="gl-primary" id="gl-bulk-confirm">Programar entradas selecionadas</button>
@@ -245,5 +243,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=galileu-gameplay-v9" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v13" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v14" defer></script>
 </body></html>
