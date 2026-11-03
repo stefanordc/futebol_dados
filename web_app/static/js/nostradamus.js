@@ -25,6 +25,16 @@ const metricOpts=(data,value)=>{
   return '<optgroup label="Estatísticas de jogo">'+opts(normal,value)+'</optgroup>'+
          '<optgroup label="Dados físicos">'+opts(physical,value)+'</optgroup>';
 };
+// Um único campo Indicador reúne métricas estatísticas, físicas e mercados de odds.
+// Prefixo "odd:" evita colisões de identificadores e mantém o formato salvo na API.
+const indicatorOpts=(metrics,markets,selected)=>{
+  const odds={};
+  Object.entries(markets||{}).forEach(([key,label])=>{
+    odds["odd:"+key]="Odd · "+label;
+  });
+  return metricOpts(metrics,selected)+
+    '<optgroup label="Odds dos mercados">'+opts(odds,selected)+'</optgroup>';
+};
 function normalizeCondition(item={}){
   if(item.tipo==="odd"){
     return {tipo:"odd",mercado:item.mercado||"over_25",
@@ -57,7 +67,8 @@ function normalizeCondition(item={}){
     referencia:modo==="legado"?referencia:opponent,metrica_ref:metricaRef,valor};
 }
 function updateConditionRow(row){
-  const isOdd=row.querySelector(".ns-condition-kind").value==="odd";
+  const isOdd=row.querySelector(".ns-metric").value.startsWith("odd:");
+  row.classList.toggle("ns-odd-active",isOdd);
   row.querySelectorAll(".ns-stat-criterion").forEach(field=>{
     field.hidden=isOdd;
     field.querySelectorAll("input,select").forEach(input=>{input.disabled=isOdd;});
@@ -116,14 +127,13 @@ function conditionLine(item={}){
   const modes={valor:"Valor absoluto",adversario:"Mesmo indicador do adversário"};
   if(data.modo==="legado")modes.legado="Regra personalizada (salva anteriormente)";
   div.innerHTML=
-    '<label class="ns-kind-field">Tipo de critério<select class="ns-condition-kind" aria-label="Tipo de critério">'+
-      opts({indicador:"Estatística das equipes",odd:"Odd de um mercado"},data.tipo||"indicador")+'</select></label>'+
     '<label class="ns-stat-criterion">Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
       opts({favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)",ambos:"Ambos (cada equipe)"},data.lado||"favorito")+'</select></label>'+
     '<label class="ns-stat-criterion ns-home-filter-wrap">Mando de campo<select class="ns-home-filter" aria-label="Mando de campo">'+
       opts({indiferente:"Indiferente",mandante:"Mandante",visitante:"Visitante"},data.mando_preferido||"indiferente")+'</select></label>'+
-    '<label class="ns-stat-criterion">Indicador<select class="ns-metric" aria-label="Indicador">'+
-      metricOpts(meta.metricas,data.metrica)+'</select></label>'+
+    '<label class="ns-indicator-field">Indicador<select class="ns-metric" aria-label="Indicador">'+
+      indicatorOpts(meta.metricas,meta.mercados_odd,
+        data.tipo==="odd"?"odd:"+data.mercado:data.metrica)+'</select></label>'+
     '<label class="ns-stat-criterion">Comparador<select class="ns-comparison" aria-label="Comparador">'+
       opts(meta.comparadores,data.comparador)+'</select></label>'+
     '<button type="button" class="ns-remove" aria-label="Remover condição">Remover</button>'+
@@ -136,8 +146,6 @@ function conditionLine(item={}){
       opts({favorito:"Favorito",zebra:"Zebra"},data.referencia)+'</select></label>'+
     '<label class="ns-refmetric-wrap ns-stat-criterion" hidden>Indicador original<select class="ns-reference-metric" aria-label="Indicador original">'+
       metricOpts(meta.metricas,data.metrica_ref)+'</select></label>'+
-    '<label class="ns-odd-criterion" hidden>Mercado da odd<select class="ns-odd-market" aria-label="Mercado da odd" required>'+
-      opts(meta.mercados_odd||{},data.mercado||"over_25")+'</select></label>'+
     '<label class="ns-odd-criterion" hidden>Odd mínima (opcional)<input class="ns-odd-min" aria-label="Odd mínima" type="number" step="any" min="1.01" max="1000" placeholder="Ex.: 1,70" value="'+
       esc(data.odd_min??"")+'"></label>'+
     '<label class="ns-odd-criterion" hidden>Odd máxima (opcional)<input class="ns-odd-max" aria-label="Odd máxima" type="number" step="any" min="1.01" max="1000" placeholder="Ex.: 2,50" value="'+
@@ -214,10 +222,11 @@ const values=()=>({
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
   comissao_pct:4.5,
   condicoes:[...$("#ns-conditions").children].map(row=>{
-    if(row.querySelector(".ns-condition-kind").value==="odd"){
+    const indicator=row.querySelector(".ns-metric").value;
+    if(indicator.startsWith("odd:")){
       const min=row.querySelector(".ns-odd-min").value.trim();
       const max=row.querySelector(".ns-odd-max").value.trim();
-      return {tipo:"odd",mercado:row.querySelector(".ns-odd-market").value,
+      return {tipo:"odd",mercado:indicator.slice(4),
         odd_min:min===""?null:Number(min),odd_max:max===""?null:Number(max)};
     }
     const mode=row.querySelector(".ns-reference").value;
