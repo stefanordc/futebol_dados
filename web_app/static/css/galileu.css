@@ -372,3 +372,13 @@
 .gl-method-management button{min-height:44px;padding:10px 15px}
 #gl-disabled-methods{margin-top:12px;overflow-wrap:anywhere}
 @media(max-width:640px){.gl-method-management button{width:100%}}
+
+/* Aviso do fechamento: método negativo em três meses consecutivos. */
+.gl-loss-streak-alert{margin:18px 0;padding:16px;border:1px solid var(--df-border);
+  border-left:4px solid #d66a64;border-radius:10px}
+.gl-loss-streak-alert[hidden]{display:none}
+.gl-loss-streak-alert h3{margin:0 0 8px;font-size:17px}
+.gl-loss-streak-alert .gl-note{margin:0 0 10px}
+.gl-loss-streak-items{margin:0;padding-left:20px}
+.gl-loss-streak-items li{margin:12px 0;line-height:1.65}
+.gl-loss-streak-items li strong{font-weight:700}
