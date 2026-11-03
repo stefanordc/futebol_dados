@@ -42,6 +42,61 @@ function groupTable(items,columnName){
       '<td class="'+cls(r.lucro_prejuizo)+'">'+perc(r.roi)+'</td></tr>').join("")+
     '</tbody></table></div>';
 }
+function sortKey(value){
+  const text=String(value??"").trim();
+  const full=text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[, ]+(?:às )?(\d{2}):(\d{2}))?/);
+  if(full){
+    const [,day,month,year,hour="00",minute="00"]=full;
+    return {type:"number",value:Number(year+month+day+hour+minute)};
+  }
+  const monthOnly=text.match(/^(\d{2})\/(\d{4})$/);
+  if(monthOnly)return {type:"number",value:Number(monthOnly[2]+monthOnly[1])};
+  const raw=text.replace(/[−–]/g,"-").replace(/R\$/g,"").replace(/\s/g,"");
+  const ratio=raw.match(/^(\d+)\/(\d+)$/);
+  if(ratio)return {type:"number",value:Number(ratio[1])*1000000+Number(ratio[2])};
+  if(/^-?\d+(?:\.\d{3})*(?:,\d+)?%?$/.test(raw)){
+    return {type:"number",value:Number(raw.replace(/%$/,"").replace(/\./g,"").replace(",","."))};
+  }
+  return {type:"text",value:text};
+}
+function compareKeys(a,b){
+  if(a.type==="number"&&b.type==="number")return a.value-b.value;
+  return String(a.value).localeCompare(String(b.value),"pt-BR",{numeric:true,sensitivity:"base"});
+}
+function sortTable(header){
+  const table=header.closest("table"),body=table?.tBodies?.[0];
+  if(!body)return;
+  const headers=[...table.tHead.rows[0].cells],index=headers.indexOf(header);
+  if(index<0)return;
+  const direction=header.getAttribute("aria-sort")==="ascending"?"descending":"ascending";
+  const factor=direction==="ascending"?1:-1;
+  const rows=[...body.rows].map((row,order)=>({row,order,key:sortKey(row.cells[index]?.textContent)}));
+  rows.sort((a,b)=>factor*compareKeys(a.key,b.key)||a.order-b.order);
+  body.append(...rows.map(item=>item.row));
+  headers.forEach(th=>th.setAttribute("aria-sort",th===header?direction:"none"));
+}
+function prepareSortableTables(){
+  document.querySelectorAll("#gl-report-content table thead th").forEach(th=>{
+    th.tabIndex=0;
+    th.scope="col";
+    th.classList.add("gl-sortable-head");
+    th.title="Clique para ordenar crescente / decrescente";
+    if(!th.hasAttribute("aria-sort"))th.setAttribute("aria-sort","none");
+  });
+}
+const reportRoot=$("#gl-report-content");
+reportRoot.addEventListener("click",event=>{
+  const th=event.target.closest("thead th");
+  if(th&&reportRoot.contains(th))sortTable(th);
+});
+reportRoot.addEventListener("keydown",event=>{
+  if(event.key!=="Enter"&&event.key!==" ")return;
+  const th=event.target.closest("thead th");
+  if(!th||!reportRoot.contains(th))return;
+  event.preventDefault();
+  sortTable(th);
+});
+
 function renderBreakdown(data,month){
   const all=data.agrupamentos||{
     por_metodo:[],por_liga:[],por_clube:[]
@@ -81,6 +136,24 @@ function render(data){
     '<td>'+brl(m.banca_fim)+'</td><td>'+perc(m.roi)+'</td>'+
     '<td>'+(m.fechado?"Fechado":"Em andamento")+'</td></tr>'
   ).join(""):'<tr><td colspan="11">Nenhum período com entradas ou fechamento registrado.</td></tr>';
+  const sum=key=>months.reduce((acc,m)=>acc+Number(m[key]||0),0);
+  const lastClosed=[...months].filter(m=>m.fechado)
+    .sort((a,b)=>String(a.mes).localeCompare(String(b.mes))).at(-1);
+  const last=[...months].sort((a,b)=>String(a.mes).localeCompare(String(b.mes))).at(-1);
+  const allClosed=months.length>0&&months.every(m=>m.fechado);
+  $("#gl-report-months-total").innerHTML=months.length?
+    '<tr class="gl-months-total"><th scope="row">TOTAL</th>'+
+    '<td>'+sum("executadas")+' / '+sum("entradas")+'</td>'+
+    '<td>'+sum("nao_executadas")+'</td><td>—</td>'+
+    '<td class="'+cls(sum("lucro_prejuizo"))+'">'+brl(sum("lucro_prejuizo"))+'</td>'+
+    '<td title="Último saldo de fechamento">'+
+      (lastClosed?brl(lastClosed.banca_fechamento):"—")+'</td>'+
+    '<td>'+brl(sum("aporte"))+'</td><td>'+brl(sum("saque"))+'</td>'+
+    '<td title="Última banca-base seguinte">'+
+      (lastClosed?brl(lastClosed.banca_fim):"—")+'</td>'+
+    '<td>'+perc(data.roi_total)+'</td>'+
+    '<td>'+(allClosed?"Fechados":last?.fechado?"Parcial":"Em andamento")+
+    '</td></tr>':"";
   const labels={
     aporte:"Aporte",saque:"Saque",reajuste_stake:"Reajuste da stake",
     virada_mes:"Atualização da banca-base"
@@ -108,8 +181,12 @@ function render(data){
   period.innerHTML='<option value="todos">Todos os meses</option>'+
     months.map(m=>'<option value="'+esc(m.mes)+'">'+monthName(m.mes)+'</option>')
       .join("");
-  period.addEventListener("change",()=>renderBreakdown(data,period.value));
+  period.addEventListener("change",()=>{
+    renderBreakdown(data,period.value);
+    prepareSortableTables();
+  });
   renderBreakdown(data,"todos");
+  prepareSortableTables();
 }
 fetch("/api/apostas/galileu/gameplay/relatorios",{cache:"no-store",credentials:"same-origin"})
   .then(async response=>{
