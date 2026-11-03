@@ -59,5 +59,5 @@ context.renderMonthTable();
 assert.ok(!nodes["#gl-method-performance-table"].innerHTML.includes(
   'data-remove-method="7"'),"Depois do fechamento não se pode retirar retroativamente");
 assert.equal(nodes["#gl-method-removal-note"].hidden,true);
-assert.ok(html.includes('galileu-gameplay-v11'),"Atualizar cache do JS");
+assert.ok(html.includes('galileu-gameplay-v12'),"Atualizar cache do JS");
 console.log("Fechamento mensal: tabela real, zero entradas, bloqueio e seleção aprovados.");
