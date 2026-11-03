@@ -99,6 +99,27 @@ def editar(strategy_id,payload):
     except errors.UniqueViolation:
         raise ValueError("Já existe outra estratégia com esse nome.") from None
 
+def excluir(strategy_id,versao):
+    """Exclui apenas a estratégia indicada, sem alterar histórico do Galileu.
+
+    A versão evita apagar uma estratégia editada em outra aba.
+    """
+    if type(strategy_id) is not int or strategy_id<1:
+        raise ValueError("ID da estratégia inválido.")
+    if type(versao) is not int or versao<1:
+        raise ValueError("Versão inválida. Atualize a lista antes de excluir.")
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""DELETE FROM public.nostradamus_estrategias
+                           WHERE id=%s AND versao=%s
+                           RETURNING id,nome""",(strategy_id,versao))
+            deleted=cur.fetchone()
+            if deleted is None:
+                raise ValueError("A estratégia foi alterada ou excluída em outra aba. Recarregue.")
+        conn.commit()
+    return {"excluida":True,"id":deleted["id"],"nome":deleted["nome"]}
+
+
 def importar(payload):
     """Migra estratégia antiga sem perder método homônimo com regras diferentes."""
     values=payload.get("estrategias") if isinstance(payload,dict) else None
