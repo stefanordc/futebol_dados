@@ -219,7 +219,7 @@
    const previous=new Map();
    // Não reaproveitar um "Sem vínculo" que não tenha sido escolhido pelo
    // usuário: ele sobrescrevia a correspondência automática após mudar país.
-   if(keepEdits)for(const tr of $("#int-api-clubs tr")){
+   if(keepEdits)for(const tr of document.querySelectorAll("#int-api-clubs tr")){
      if(tr.dataset.manuallyEdited!=="1")continue;
      previous.set(tr.dataset.original,{
        nome:$(".int-standard",tr)?.value,
