@@ -5,6 +5,8 @@ on:
       - 'web_app/queries_galileu.py'
       - 'web_app/queries_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_programadas.py'
+      - 'web_app/sql/galileu_entradas_programadas_sem_saldo.sql'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
       - 'web_app/tests/test_galileu_bulk_money.js'
@@ -24,6 +26,8 @@ on:
       - 'web_app/queries_galileu.py'
       - 'web_app/queries_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_programadas.py'
+      - 'web_app/sql/galileu_entradas_programadas_sem_saldo.sql'
       - 'web_app/tests/test_galileu_gameplay_route.py'
       - 'web_app/tests/test_galileu_gameplay_ui.js'
       - 'web_app/tests/test_galileu_bulk_money.js'
@@ -57,6 +61,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_galileu.py' -v
           python -m unittest discover -s tests -p 'test_galileu_gameplay.py' -v
+          python -m unittest discover -s tests -p 'test_galileu_programadas.py' -v
           python -m unittest discover -s tests -p 'test_galileu_gameplay_route.py' -v
       - name: Interface gameplay
         working-directory: web_app
