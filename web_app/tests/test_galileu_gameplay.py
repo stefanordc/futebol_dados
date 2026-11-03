@@ -595,7 +595,7 @@ class TestGalileuGameplay(TestCase):
                  "stake":v[9]}
                 for i,v in enumerate(values)]
             cursor.query="INSERT"
-        payload={"stake":"20.00","versao":1,"selecoes":[
+        payload={"stake":"1100.00","versao":1,"selecoes":[
             {"jogo_id":110,"metodo_id":7,"metodo_versao":3},
             {"jogo_id":110,"metodo_id":8,"metodo_versao":3},
             {"jogo_id":120,"metodo_id":7,"metodo_versao":3}]}
@@ -614,6 +614,7 @@ class TestGalileuGameplay(TestCase):
         self.assertEqual([(x["jogo_id"],x["metodo_id"]) for x in result["entradas"]],
                          [(110,8),(120,7)])
         self.assertTrue(all(x["status"]=="pendente" for x in result["entradas"]))
+        self.assertTrue(all(x["stake"]==1100.0 for x in result["entradas"]))
         self.assertTrue(all(x["lucro_prejuizo"] is None for x in result["entradas"]))
         self.assertEqual(spy.call_count,2)
         self.assertEqual(inserted.call_count,1)
