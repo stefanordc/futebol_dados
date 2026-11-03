@@ -217,7 +217,10 @@
  function renderClubRows(clubs,catalog,keepEdits){
    const body=$("#int-api-clubs");
    const previous=new Map();
-   if(keepEdits)for(const tr of $$("#int-api-clubs tr")){
+   // Não reaproveitar um "Sem vínculo" que não tenha sido escolhido pelo
+   // usuário: ele sobrescrevia a correspondência automática após mudar país.
+   if(keepEdits)for(const tr of $("#int-api-clubs tr")){
+     if(tr.dataset.manuallyEdited!=="1")continue;
      previous.set(tr.dataset.original,{
        nome:$(".int-standard",tr)?.value,
        clube_id:$(".int-odds-club-id",tr)?.value
@@ -240,6 +243,8 @@
      input.maxLength=150;
      const prior=previous.get(c.original);
      input.value=prior?prior.nome:c.padronizado;
+     input.addEventListener("input",()=>{tr.dataset.manuallyEdited="1";});
+     if(prior)tr.dataset.manuallyEdited="1";
      edit.append(input);
      const ref=document.createElement("td"),select=optionSelector(c,catalog);
      if(prior){
@@ -261,6 +266,7 @@
      };
      markAuto(suggestionApplied,c.similaridade_automatica||100);
      select.addEventListener("change",()=>{
+       tr.dataset.manuallyEdited="1";
        const chosen=catalog.find(x=>String(x.id)===select.value);
        if(chosen)input.value=chosen.clube;
        markAuto(false,0);
