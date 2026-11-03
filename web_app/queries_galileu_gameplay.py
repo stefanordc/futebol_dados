@@ -472,8 +472,11 @@ def _summary(bets,initial,fechamentos=None):
         staked=sum((Decimal(r["stake"]) for r in resolved),Decimal("0"))
         green=sum(r["status"]=="green" for r in resolved)
         red=sum(r["status"]=="red" for r in resolved)
-        return {"entradas":len(rows),"greens":green,"reds":red,
-                "pendentes":len(rows)-len(resolved),
+        skipped=sum(r["status"]=="sem_saldo" for r in rows)
+        pending=sum(r["status"]=="pendente" for r in rows)
+        return {"entradas":len(rows),"executadas":len(resolved),
+                "nao_executadas":skipped,"greens":green,"reds":red,
+                "pendentes":pending,
                 "win_rate":round(100*green/(green+red),2) if green+red else 0,
                 "lucro_prejuizo":_brl(pnl),
                 "roi":round(float(pnl/staked*100),2) if staked else 0}
@@ -632,9 +635,11 @@ def estado(token):
         "jogos_finalizados":len(closed),
         "resumo_rodada":resumo_rodada,
         "entradas":len(bets),
-        "saldo_disponivel":_brl(max(Decimal("0"),
-            Decimal(sess["banca_atual"])-sum(
-                (Decimal(b["stake"]) for b in current),Decimal("0")))),
+        # Não descontamos stakes apenas programadas do saldo atual.
+        "saldo_disponivel":_brl(sess["banca_atual"]),
+        "exposicao_programada":_brl(sum(
+            (Decimal(b["stake"]) for b in current if b["status"]=="pendente"),
+            Decimal("0"))),
         "mes_encerrado":month if closure_access and boundary else None,
         "fechamento_pendente":bool(closure_access and boundary and not mes_fechado),
         "fechamento_realizado":bool(closure_access and boundary and mes_fechado),
@@ -642,7 +647,7 @@ def estado(token):
         "pode_avancar":revealed and len(rounds)>1,
         "periodo_vazio":not bool(raw_games),
         "pode_pular_vazio":sess["fase"]=="aberta" and not raw_games and len(rounds)>1,
-        "aviso":"Gameplay histórica com odds importadas sem prova de disponibilidade pré-jogo. Lay é estimado; nenhuma aposta é executada.",
+        "aviso":"Gameplay histórica: entradas programadas são simuladas no fechamento, em ordem de data. Jogos no mesmo dia compartilham a banca sem antecipar lucros. Odds históricas não comprovam disponibilidade pré-jogo. Lay estimado; nenhuma aposta real.",
     }
 
 
@@ -715,14 +720,11 @@ def registrar(token,payload):
             """,(sess["id"],gid))
             if cur.fetchone():
                 raise ValueError("Este jogo foi finalizado. Não é possível adicionar entradas.")
-            cur.execute("""
-                SELECT COALESCE(SUM(stake),0) AS comprometido
-                FROM galileu_private.entradas
-                WHERE sessao_id=%s AND indice_rodada=%s
-            """,(sess["id"],sess["indice_rodada"]))
-            committed=Decimal(cur.fetchone()["comprometido"])
-            if stake>Decimal(sess["banca_atual"])-committed:
-                raise ValueError("Stake excede a banca disponível após entradas já confirmadas nesta rodada.")
+            # Programar uma aposta não debita a banca: partidas futuras podem
+            # acontecer em dias diferentes. A liquidação reserva o risco de
+            # cada dia e pode marcar sem_saldo, sem presumir ganhos futuros.
+            if stake>Decimal(sess["banca_atual"]):
+                raise ValueError("A stake individual excede a banca atual.")
             if kind=="metodo":
                 method_id=payload.get("metodo_id")
                 if type(method_id) is not int:
@@ -776,7 +778,7 @@ def registrar(token,payload):
     # A entrada já está persistida. A UI atualiza somente o card e o contador:
     # não precisa executar /estado (catálogo completo + todos os métodos).
     return {
-        "mensagem":"Entrada virtual confirmada. O placar permanece oculto até finalizar a rodada.",
+        "mensagem":"Entrada virtual programada e salva. A execução dependerá do saldo na data do jogo.",
         "versao":int(sess["versao"])+1,
         "entrada":{
             "id":int(created["id"]),
@@ -847,21 +849,15 @@ def registrar_metodos_em_lote(token,payload):
               WHERE sessao_id=%s AND indice_rodada=%s AND tipo='metodo'
             """,(sess["id"],sess["indice_rodada"]))
             previously_used={(int(r["jogo_id"]),int(r["metodo_id"])) for r in cur.fetchall()}
-            cur.execute("""
-              SELECT COALESCE(SUM(stake),0) AS comprometido
-              FROM galileu_private.entradas
-              WHERE sessao_id=%s AND indice_rodada=%s
-            """,(sess["id"],sess["indice_rodada"]))
-            committed=Decimal(cur.fetchone()["comprometido"])
+            # Entradas são PROGRAMADAS, sem reserva da banca para toda a
+            # rodada. A disponibilidade será verificada na data de cada jogo.
             # Removemos apenas os métodos já inseridos, não os manuais.
             remaining=[(gid,mid,ver) for gid,mid,ver in selections
                        if (gid,mid) not in previously_used]
             if not remaining:
                 raise ValueError("Todas as entradas desses métodos já foram registradas.")
-            if stake*len(remaining)>Decimal(sess["banca_atual"])-committed:
-                raise ValueError(
-                    "Saldo insuficiente para "+str(len(remaining))+
-                    " entradas. Reduza a stake ou selecione os métodos individualmente.")
+            if stake>Decimal(sess["banca_atual"]):
+                raise ValueError("A stake por método excede a banca atual.")
             histories=_history(catalog)
             prepared=[]
             stat_cache={}
@@ -914,7 +910,7 @@ def registrar_metodos_em_lote(token,payload):
             """,(sess["id"],))
         conn.commit()
     return {
-        "mensagem":str(len(saved))+" entradas virtuais confirmadas e salvas.",
+        "mensagem":str(len(saved))+" entradas virtuais programadas e salvas. A execução dependerá do saldo nas datas dos jogos.",
         "versao":int(sess["versao"])+1,
         "ignoradas":len(selections)-len(saved),
         "entradas":[{
@@ -979,6 +975,50 @@ def _settlement(market,favorite_home,home,away,odd,stake):
     return "green" if hit else "red",_rounded(pnl)
 
 
+def _liquidar_entradas_por_data(entries, by_id, banca_inicial):
+    """Agenda programada: reserva stakes para todas as entradas de cada dia.
+
+    O banco não possui horário confiável para cada jogo. Por isso, jogos
+    do mesmo DIA são tratados como simultâneos: lucros de uma partida
+    não financiam outra do mesmo dia. A prioridade dentro do dia é o
+    ID da entrada, em ordem de registro. Apenas os dias anteriores
+    podem financiar entradas futuras. Não há débito antecipado na
+    programação. Retorna (id, status, lucro/prejuízo) e banca final.
+    """
+    from collections import defaultdict
+    days=defaultdict(list)
+    for e in entries:
+        game=by_id.get(int(e["jogo_id"]))
+        if game is None:
+            raise ValueError("Uma entrada não pertence à rodada atual.")
+        days[_date(game["data"])].append(e)
+    bank=Decimal(banca_inicial)
+    updates=[]
+    for day in sorted(days):
+        committed=Decimal("0")
+        todays=[]
+        for entry in sorted(days[day],key=lambda e:int(e["id"])):
+            stake=Decimal(entry["stake"])
+            if stake<=bank-committed:
+                committed+=stake
+                game=by_id[int(entry["jogo_id"])]
+                status,pnl=_settlement(
+                    entry["mercado"],entry["favorito_casa"],
+                    game["gols_casa"],game["gols_fora"],
+                    entry["odd"],stake)
+            else:
+                status,pnl="sem_saldo",Decimal("0.00")
+            todays.append((int(entry["id"]),status,_rounded(pnl)))
+        # Só depois de decidir todas as entradas do dia aplicamos os
+        # resultados. Isso impede usar um green no mesmo dia para cobrir
+        # uma entrada cujo horário de início é desconhecido.
+        bank=_rounded(bank+sum((r[2] for r in todays),Decimal("0")))
+        if bank<0:
+            raise ValueError("Saldo negativo ao liquidar a rodada. Revise as entradas.")
+        updates.extend(todays)
+    return updates,bank
+
+
 def finalizar(token):
     catalog=_catalog()
     with get_conn() as conn:
@@ -998,31 +1038,26 @@ def finalizar(token):
               ORDER BY id FOR UPDATE
             """,(sess["id"],sess["indice_rodada"]))
             entries=cur.fetchall()
-            profit=Decimal("0")
-            for entry in entries:
-                game=by_id.get(int(entry["jogo_id"]))
-                if game is None:
-                    raise ValueError("Uma entrada não pertence à rodada atual.")
-                status,amount=_settlement(
-                    entry["mercado"],entry["favorito_casa"],
-                    game["gols_casa"],game["gols_fora"],
-                    entry["odd"],Decimal(entry["stake"]))
+            updates,new_bank=_liquidar_entradas_por_data(
+                entries,by_id,sess["banca_atual"])
+            for entry_id,status,amount in updates:
                 cur.execute("""
                   UPDATE galileu_private.entradas
                   SET status=%s,lucro_prejuizo=%s,finalizada_em=now()
                   WHERE id=%s
-                """,(status,amount,entry["id"]))
-                profit+=amount
-            new_bank=Decimal(sess["banca_atual"])+profit
-            if new_bank<0:
-                raise ValueError("Saldo inválido. Revise o valor das entradas confirmadas.")
+                """,(status,amount,entry_id))
             cur.execute("""
               UPDATE galileu_private.sessoes
               SET banca_atual=%s,fase='revelada',versao=versao+1,atualizado_em=now()
               WHERE id=%s
             """,(_rounded(new_bank),sess["id"]))
         conn.commit()
-    return {"mensagem":"Rodada finalizada. Resultados e lucro/prejuízo liberados."}
+    return {
+        "mensagem":"Rodada finalizada. Entradas executadas e não executadas por falta de saldo foram apuradas.",
+        "executadas":sum(status in ("green","red") for _,status,_ in updates),
+        "sem_saldo":sum(status=="sem_saldo" for _,status,_ in updates),
+        "banca_final":_brl(new_bank),
+    }
 
 
 def fechar_mes(token,payload):
