@@ -279,3 +279,18 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-ai-explanation{font-weight:650}
 .ns-ai-empty{color:var(--df-secondary)}
 @media(max-width:620px){.ns-ai-panel{padding:15px}.ns-ai-heading button{width:100%}}
+
+
+/* Totalização ao final da tabela, sem confundir média com soma. */
+#ns-summary-total .ns-total-row{background:rgba(255,114,35,.075)}
+#ns-summary-total .ns-total-row th,
+#ns-summary-total .ns-total-row td{
+  border-top:2px solid var(--df-orange,#ff7223);
+  border-bottom:1px solid var(--df-border);
+  padding-top:18px;padding-bottom:18px;font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+#ns-summary-total .ns-total-row th{color:var(--df-orange,#ff7223);letter-spacing:.04em}
+.ns-summary-coverage{margin:12px 0 0;color:var(--df-secondary,#a4afbf);
+  font-size:12px;line-height:1.5}
+.ns-summary-coverage[hidden],#ns-summary-total[hidden]{display:none!important}
