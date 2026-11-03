@@ -131,7 +131,11 @@ function renderGames(){
     '<section class="gl-round-league"><h3>'+escapeHTML(league)+
       ' <span>'+items.length+' jogos</span></h3>'+
       '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
-  ).join(""):'<div class="gl-empty">Nenhum jogo neste período. Use Avançar período sem jogos para continuar a gameplay sem revelar placares.</div>';
+  ).join(""):'<div class="gl-empty">'+
+    (state.rodada_atual.jogos>0?
+      "Todos os jogos desta etapa foram finalizados. As entradas continuam registradas. Use Finalizar rodada para apurar os resultados.":
+      "Nenhum jogo neste período. Use Avançar período sem jogos para continuar sem revelar placares.")+
+    '</div>';
 }
 function tableRows(group){
   if(!group?.length)return '<p class="gl-note">Nenhuma entrada registrada nesta categoria.</p>';
@@ -211,7 +215,7 @@ function render(){
     " · Jogos exibidos até "+dateBR(state.limite_janela)+
     " (máximo de 10 dias e até o fim do mês).";
   const open=state.fase==="aberta";
-  $("#gl-finish").hidden=!open||!state.jogos.length;
+  $("#gl-finish").hidden=!open||!state.rodada_atual.jogos;
   $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
   $("#gl-next").textContent=state.pode_pular_vazio?
     "Avançar período sem jogos":
@@ -221,6 +225,8 @@ function render(){
     open?"Selecione suas entradas e finalize quando os jogos tiverem resultados disponíveis.":
     state.fase==="revelada"?"Rodada finalizada. Placar e resultado das entradas revelados.":
     "Todas as rodadas cadastradas foram percorridas.";
+  $("#gl-games-closed").textContent=state.jogos_finalizados?
+    state.jogos_finalizados+" jogo(s) finalizado(s) e removido(s) desta rodada. Entradas preservadas.":"";
   $("#gl-round-help").textContent=state.pode_pular_vazio?
     "Sem jogos nesta janela. Avance para o próximo período, sem alterar a banca.":
     open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
