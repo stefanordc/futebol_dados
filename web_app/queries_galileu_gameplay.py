@@ -562,6 +562,47 @@ def _method_monthly_table(bets,method_catalog,disabled,month):
     return result
 
 
+def _method_loss_streak_alerts(bets,method_catalog,month):
+    """Alerta apenas quando os três meses civis até o fechamento têm saldo negativo.
+
+    Considera o lucro líquido de entradas executadas (green/red), agrupadas
+    pelo ID estável do método. Lucro, empate, ausência de entradas ou mês sem
+    execução interrompem a sequência. Não compara contagens de reds.
+    """
+    reference=date.fromisoformat(str(month)+"-01")
+    last_three=[]
+    for _ in range(3):
+        last_three.append(reference.strftime("%Y-%m"))
+        reference=(reference-timedelta(days=1)).replace(day=1)
+    last_three.reverse()
+    required=set(last_three)
+    profit=defaultdict(lambda:defaultdict(lambda:Decimal("0")))
+    names={int(m["id"]):str(m["nome"]) for m in method_catalog}
+    for bet in bets:
+        if (bet.get("tipo")!="metodo" or bet.get("metodo_id") is None
+                or bet.get("status") not in ("green","red")
+                or bet.get("lucro_prejuizo") is None):
+            continue
+        month_key=str(bet["data"])[:7]
+        if month_key not in required:
+            continue
+        method_id=int(bet["metodo_id"])
+        profit[method_id][month_key]+=Decimal(str(bet["lucro_prejuizo"]))
+        if method_id not in names:
+            names[method_id]=str(bet.get("metodo_nome") or "Método "+str(method_id))
+    alerts=[]
+    for method_id,balances in profit.items():
+        if not all(balances.get(m,Decimal("0"))<0 for m in last_three):
+            continue
+        alerts.append({
+            "metodo_id":method_id,
+            "nome":names[method_id],
+            "meses":[{"mes":m,"lucro_prejuizo":_brl(balances[m])} for m in last_three],
+            "prejuizo_total":_brl(sum((balances[m] for m in last_three),Decimal("0"))),
+        })
+    return sorted(alerts,key=lambda item:(item["nome"].casefold(),item["metodo_id"]))
+
+
 def _financial_group_results(bets):
     """Resultados auditáveis por método, liga e clube, sem inventar cotações.
 
@@ -790,6 +831,9 @@ def estado(token):
         "mes_encerrado":month if closure_access and boundary else None,
         "metodos_fechamento":_method_monthly_table(
             bets,method_catalog,disabled,month)
+            if closure_access and boundary and month else [],
+        "alertas_prejuizo_3_meses":_method_loss_streak_alerts(
+            bets,method_catalog,month)
             if closure_access and boundary and month else [],
         "metodos_catalogo":[
             {"id":m["id"],"nome":m["nome"]}
