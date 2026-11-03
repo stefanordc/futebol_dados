@@ -716,7 +716,7 @@ async function init(){
       ["back_favorito","lay_favorito","back_zebra","lay_zebra"].includes(k)));
     const legacyMarkets=Object.fromEntries(entries.filter(([k])=>
       ["back_mandante","lay_mandante","back_visitante","lay_visitante",
-       "lay_goleada_mandante","lay_goleada_visitante"].includes(k)));
+       "lay_goleada_mandante"].includes(k)));
     const otherMarkets=Object.fromEntries(entries.filter(([k])=>
       !(k in favoriteMarkets)&&!(k in legacyMarkets)));
     $("#ns-objetivo").innerHTML='<optgroup label="Favorito e zebra">'+
