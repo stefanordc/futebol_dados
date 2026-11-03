@@ -960,7 +960,7 @@ class TestGalileuGameplay(TestCase):
                 actions.append(sql)
             def fetchall(self):
                 if "SELECT metodo_id,efetivo_desde" in self.last:
-                    return [{"metodo_id":7,"efetivo_desde":"2026-11"}]
+                    return [{"metodo_id":7,"efetivo_desde":"2026-10"}]
                 return []
         class Conn:
             def cursor(self):
