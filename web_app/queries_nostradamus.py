@@ -607,7 +607,7 @@ def ligas_selecionadas(payload):
     return [old]
 
 
-def testar(payload,rows=None):
+def testar(payload,rows=None,capture=False):
     if not isinstance(payload,dict):raise ValueError("Dados inválidos.")
     cutoff=payload.get("corte")
     try: cutoff=date.fromisoformat(cutoff)
@@ -652,6 +652,7 @@ def testar(payload,rows=None):
     matched_total=0
     sem_classificacao=0
     requires_classification=_requires_favorite(market,conditions)
+    captured=[]
     for d,games_iter in groupby(filtered,key=lambda r:r["data"]):
         games=list(games_iter)
         # Crucial: evaluate ALL same-day games BEFORE adding any to history.
@@ -707,6 +708,14 @@ def testar(payload,rows=None):
                     rec["cotadas"]+=1
                     rec["unidades"]+=units
                     rec["odds_soma"]+=odd
+                if capture:
+                    # Somente atributos conhecidos na data do jogo (o histórico
+                    # é montado ANTES de acrescentar partidas do mesmo dia).
+                    captured.append({
+                        "id":g["id"],"data":d.isoformat(),"unidades":units,
+                        "cotacao":origin,"odd":odd,"partida":g,
+                        "stats_casa":h,"stats_fora":a,"favorito_casa":fav_home,
+                    })
                 if len(rec["jogos"])<400:
                     rec["jogos"].append({
                       "id":g["id"],"data":d.isoformat(),"mandante":g["mandante"],
@@ -747,7 +756,7 @@ def testar(payload,rows=None):
         summary.append(rec)
     recorte_descrito=("até os últimos "+window+" jogos disponíveis" if window!="temporada"
                      else "todos os jogos disponíveis da temporada")
-    return {"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
+    response={"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "campeonato_ids":leagues_selected or [],
             "resultados":summary,"entradas":matched_total,
             "sem_classificacao":sem_classificacao,
@@ -772,3 +781,6 @@ def testar(payload,rows=None):
                     "Odds Lay são estimadas, não executáveis, com comissão fixa de 4,5%. "
                     "Sem cotação, o resultado financeiro fica indisponível. "
                     "O passado não garante resultado futuro."}
+    if capture:
+        response["_dados_otimizacao"]=captured
+    return response
