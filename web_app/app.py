@@ -23,6 +23,7 @@ import queries_nostradamus
 import queries_nostradamus_ai
 import queries_estrategias
 import queries_galileu
+import queries_galileu_gameplay
 import queries_tecnico_avancadas
 import queries_vinculos
 import queries_integracoes
