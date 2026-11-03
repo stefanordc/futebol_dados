@@ -315,3 +315,18 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-goleada-model small{display:block;color:var(--df-secondary,#b3bdd1);line-height:1.5;margin-top:6px}
 .ns-goleada-pairs{display:grid;gap:4px;grid-template-columns:repeat(2,minmax(180px,1fr))}
 @media(max-width:650px){.ns-goleada-pairs{grid-template-columns:1fr}}
+
+/* Backtest por minuto: painel independente das estratégias pré-jogo. */
+#ns-inplay[hidden],#ns-inplay-results[hidden]{display:none!important}
+.ns-inplay-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ns-inplay-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:18px 0 24px}
+.ns-inplay-kpi{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--df-border);border-radius:10px;background:var(--df-raised)}
+.ns-inplay-kpi span{font-size:12px;color:var(--df-secondary)}
+.ns-inplay-kpi strong{font-size:21px;color:var(--df-text)}
+#ns-inplay-results h3{font-size:16px;margin:22px 0 12px}
+.ns-inplay-table{min-width:820px}
+#ns-inplay-feedback{margin:16px 0}
+#ns-inplay-feedback.ns-inplay-error{color:var(--df-negative,#e66)}
+#ns-inplay-warning{line-height:1.65;margin:16px 0}
+@media(max-width:850px){.ns-inplay-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.ns-inplay-fields{grid-template-columns:1fr}}
