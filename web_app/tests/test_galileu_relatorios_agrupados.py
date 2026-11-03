@@ -69,9 +69,9 @@ class TestRelatorioAgrupado(TestCase):
                  "mes_base":"2026-02",
                  "gestao_pct":Decimal("2.00"),
                  "stake_fixa":None}
-        with patch.object(gl,"_token_session",return_value=session), \\
-             patch.object(gl,"_fechamentos",return_value=[]), \\
-             patch.object(gl,"_bet_rows",return_value=self.bets), \\
+        with patch.object(gl,"_token_session",return_value=session), \
+             patch.object(gl,"_fechamentos",return_value=[]), \
+             patch.object(gl,"_bet_rows",return_value=self.bets), \
              patch.object(gl,"_movimentacoes",return_value=[]):
             report=gl.relatorios("cookie_de_teste")
         self.assertTrue(report["iniciado"])
