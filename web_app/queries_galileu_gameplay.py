@@ -380,6 +380,82 @@ def _bet_rows(sid):
     """,(sid,))
 
 
+def _fechamentos(sid):
+    return fetch_all("""
+        SELECT mes,indice_rodada,banca_base_inicio,banca_fechamento,
+               aporte,saque,banca_base_seguinte,gestao_pct_antes,
+               gestao_pct_depois,stake_fixa_antes,stake_fixa_depois,criado_em
+        FROM galileu_private.fechamentos_mensais
+        WHERE sessao_id=%s ORDER BY mes
+    """,(sid,))
+
+
+def _movimentacoes(sid):
+    return fetch_all("""
+        SELECT id,mes_referencia,tipo,valor,banca_antes,banca_depois,
+               gestao_pct_antes,gestao_pct_depois,
+               stake_fixa_antes,stake_fixa_depois,criado_em
+        FROM galileu_private.movimentacoes
+        WHERE sessao_id=%s ORDER BY id
+    """,(sid,))
+
+
+def _format_movimento(row):
+    return {
+        "id":int(row["id"]),"mes":str(row["mes_referencia"]),"tipo":row["tipo"],
+        "valor":_brl(row["valor"]),
+        "banca_antes":_brl(row["banca_antes"]),
+        "banca_depois":_brl(row["banca_depois"]),
+        "gestao_pct_antes":float(row["gestao_pct_antes"])
+            if row["gestao_pct_antes"] is not None else None,
+        "gestao_pct_depois":float(row["gestao_pct_depois"])
+            if row["gestao_pct_depois"] is not None else None,
+        "stake_fixa_antes":_brl(row["stake_fixa_antes"])
+            if row["stake_fixa_antes"] is not None else None,
+        "stake_fixa_depois":_brl(row["stake_fixa_depois"])
+            if row["stake_fixa_depois"] is not None else None,
+        "criado_em":row["criado_em"].isoformat(),
+    }
+
+
+def relatorios(token):
+    """Relatório privado que não carrega odds, estatísticas nem placares."""
+    sess=_token_session(token)
+    if sess is None:
+        return {"iniciado":False}
+    fechamentos=_fechamentos(sess["id"])
+    bets=_bet_rows(sess["id"])
+    movements=_movimentacoes(sess["id"])
+    monthly=_summary(bets,sess["banca_inicial"],fechamentos)
+    overall=[b for b in bets if b["status"] in ("green","red")]
+    profit=sum((Decimal(b["lucro_prejuizo"]) for b in overall),Decimal("0"))
+    exposure=sum((Decimal(b["stake"]) for b in overall),Decimal("0"))
+    funding=sum((Decimal(c["aporte"])-Decimal(c["saque"]) for c in fechamentos),Decimal("0"))
+    return {
+        "iniciado":True,
+        "banca_original":_brl(sess["banca_inicial"]),
+        "banca_base_mes":_brl(sess["banca_base_mes"]),
+        "banca_atual":_brl(sess["banca_atual"]),
+        "mes_base":str(sess["mes_base"]),
+        "gestao_pct":float(sess["gestao_pct"]),
+        "stake_padrao":_default_stake(sess),
+        "aporte_total":_brl(sum((Decimal(c["aporte"]) for c in fechamentos),Decimal("0"))),
+        "saque_total":_brl(sum((Decimal(c["saque"]) for c in fechamentos),Decimal("0"))),
+        "lucro_prejuizo_total":_brl(profit),
+        "roi_total":round(float(profit/exposure*100),2) if exposure else 0,
+        "patrimonio_conferido":_brl(Decimal(sess["banca_inicial"])+funding+profit),
+        "resumo_mensal":monthly,
+        "movimentacoes":[_format_movimento(m) for m in movements],
+        "fechamentos":[{
+            "mes":str(c["mes"]),"banca_base_inicio":_brl(c["banca_base_inicio"]),
+            "banca_fechamento":_brl(c["banca_fechamento"]),
+            "aporte":_brl(c["aporte"]),"saque":_brl(c["saque"]),
+            "banca_base_seguinte":_brl(c["banca_base_seguinte"]),
+        } for c in fechamentos],
+        "entradas":len(bets),
+    }
+
+
 def _closed_game_ids(sid,round_index):
     """Fechamentos não descartam entradas e não revelam placar."""
     return {int(r["jogo_id"]) for r in fetch_all("""
@@ -388,7 +464,7 @@ def _closed_game_ids(sid,round_index):
     """,(sid,round_index))}
 
 
-def _summary(bets,initial):
+def _summary(bets,initial,fechamentos=None):
     """ROI = lucro líquido / soma das stakes (responsabilidades no Lay)."""
     def metric(rows):
         resolved=[r for r in rows if r["status"] in ("green","red")]
@@ -404,11 +480,22 @@ def _summary(bets,initial):
     monthly=defaultdict(list)
     for b in bets:
         monthly[str(b["data"])[:7]].append(b)
+    closings={str(row["mes"]):row for row in (fechamentos or [])}
+    for month in closings:
+        monthly.setdefault(month,[])
     response=[]
     cumulative=Decimal(initial)
     for month,items in sorted(monthly.items()):
         result=metric(items)
-        cumulative+=Decimal(str(result["lucro_prejuizo"]))
+        opening=cumulative
+        closing_balance=opening+Decimal(str(result["lucro_prejuizo"]))
+        closing=closings.get(month)
+        if closing:
+            opening=Decimal(closing["banca_base_inicio"])
+            closing_balance=Decimal(closing["banca_fechamento"])
+            cumulative=Decimal(closing["banca_base_seguinte"])
+        else:
+            cumulative=closing_balance
         by_strategy=defaultdict(list)
         by_league=defaultdict(list)
         by_club=defaultdict(list)
@@ -420,7 +507,13 @@ def _summary(bets,initial):
         def group(groups):
             return [{"nome":key,**metric(value)} for key,value in sorted(groups.items())]
         response.append({
-            "mes":month,"banca_fim":_brl(cumulative),**result,
+            "mes":month,"banca_inicio":_brl(opening),
+            "banca_fechamento":_brl(closing_balance),
+            "aporte":_brl(closing["aporte"]) if closing else 0.0,
+            "saque":_brl(closing["saque"]) if closing else 0.0,
+            "banca_fim":_brl(cumulative),
+            "fechado":bool(closing),
+            **result,
             "por_estrategia":group(by_strategy),
             "por_liga":group(by_league),"por_clube":group(by_club),
         })
@@ -444,7 +537,7 @@ def _monthly_boundary(rounds,index):
 def _default_stake(sess):
     if sess["stake_fixa"] is not None:
         return _brl(sess["stake_fixa"])
-    return _brl(_rounded(Decimal(sess["banca_atual"])*Decimal(sess["gestao_pct"])/100))
+    return _brl(_rounded(Decimal(sess.get("banca_base_mes") or sess["banca_inicial"])*Decimal(sess["gestao_pct"])/100))
 
 
 def estado(token):
@@ -479,7 +572,9 @@ def estado(token):
             visible.append(g)
     boundary,month=_monthly_boundary(rounds,0)
     revealed=sess["fase"] in ("revelada","concluida")
-    history=_summary(bets,sess["banca_inicial"])
+    fechamentos=_fechamentos(sess["id"])
+    history=_summary(bets,sess["banca_inicial"],fechamentos)
+    mes_fechado=any(str(row["mes"])==month for row in fechamentos) if month else False
     resumo_rodada=[]
     if revealed:
         # Apenas após a finalização da rodada: relatório de TODAS as
@@ -509,6 +604,8 @@ def estado(token):
         "corte_atual":current_cutoff.isoformat(),
         "limite_janela":window["limite"].isoformat() if window else None,
         "banca_inicial":_brl(sess["banca_inicial"]),
+        "banca_base_mes":_brl(sess["banca_base_mes"]),
+        "mes_base":str(sess["mes_base"]),
         "banca_atual":_brl(sess["banca_atual"]),
         "gestao_pct":float(sess["gestao_pct"]),
         "stake_fixa":_brl(sess["stake_fixa"]) if sess["stake_fixa"] is not None else None,
@@ -527,6 +624,8 @@ def estado(token):
             Decimal(sess["banca_atual"])-sum(
                 (Decimal(b["stake"]) for b in current),Decimal("0")))),
         "mes_encerrado":month if revealed and boundary else None,
+        "fechamento_pendente":bool(revealed and boundary and not mes_fechado),
+        "fechamento_realizado":bool(revealed and boundary and mes_fechado),
         "resumo_mensal":history,
         "pode_avancar":revealed and len(rounds)>1,
         "periodo_vazio":not bool(raw_games),
@@ -555,10 +654,12 @@ def iniciar(token,payload):
         with conn.cursor() as cur:
             cur.execute("""
               INSERT INTO galileu_private.sessoes
-                (token_hash,corte,corte_atual,banca_inicial,banca_atual,gestao_pct)
-              VALUES (%s,%s,%s,%s,%s,%s)
+                (token_hash,corte,corte_atual,banca_inicial,banca_base_mes,
+                 mes_base,banca_atual,gestao_pct)
+              VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
               RETURNING id
-            """,(_hash(new_token),cutoff,cutoff,initial,initial,percent))
+            """,(_hash(new_token),cutoff,cutoff,initial,initial,
+                 (cutoff+timedelta(days=1)).strftime("%Y-%m"),initial,percent))
             cur.fetchone()
         conn.commit()
     return new_token
@@ -912,6 +1013,110 @@ def finalizar(token):
     return {"mensagem":"Rodada finalizada. Resultados e lucro/prejuízo liberados."}
 
 
+def fechar_mes(token,payload):
+    """Fecha o mês uma única vez e registra movimentações em uma transação."""
+    if not isinstance(payload,dict):
+        raise ValueError("Informe aporte, saque e ajuste de stake.")
+    for key in ("fazer_aporte","fazer_saque","alterar_stake"):
+        if type(payload.get(key)) is not bool:
+            raise ValueError("Responda Sim ou Não para aporte, saque e stake.")
+    aporte=_money(payload.get("aporte"),"Aporte") if payload["fazer_aporte"] else Decimal("0")
+    saque=_money(payload.get("saque"),"Saque") if payload["fazer_saque"] else Decimal("0")
+    mode=payload.get("tipo_stake") if payload["alterar_stake"] else "manter"
+    if mode=="percentual":
+        rate=_pct(payload.get("valor_stake"))
+        fixed=None
+    elif mode=="fixo":
+        rate=None
+        fixed=_money(payload.get("valor_stake"),"Stake fixa")
+    elif mode=="manter":
+        rate=None
+        fixed=None
+    else:
+        raise ValueError("Informe a nova stake como percentual ou valor financeiro.")
+    catalog=_catalog()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            sess=_lock(cur,token)
+            if sess["fase"]!="revelada":
+                raise ValueError("Finalize a rodada antes de fechar o mês.")
+            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+            boundary,month=_monthly_boundary(rounds,0)
+            if not boundary or not month:
+                raise ValueError("Este período não representa o fechamento do mês.")
+            if month!=str(sess["mes_base"]):
+                raise ValueError("O mês da sessão está diferente do calendário. Recarregue a página.")
+            cur.execute("""
+              SELECT 1 FROM galileu_private.fechamentos_mensais
+              WHERE sessao_id=%s AND mes=%s
+            """,(sess["id"],month))
+            if cur.fetchone():
+                raise ValueError("Este mês já foi fechado e não pode ser movimentado novamente.")
+            closing=Decimal(sess["banca_atual"])
+            after_deposit=closing+aporte
+            if saque>after_deposit:
+                raise ValueError("Saque maior que o saldo disponível, incluindo o aporte.")
+            next_base=_rounded(after_deposit-saque)
+            next_rate=rate if rate is not None else Decimal(sess["gestao_pct"])
+            next_fixed=(fixed if mode=="fixo" else None) if payload["alterar_stake"] \
+                else (Decimal(sess["stake_fixa"]) if sess["stake_fixa"] is not None else None)
+            if next_fixed is not None and next_fixed>next_base:
+                raise ValueError("Stake fixa maior que o saldo disponível após o fechamento.")
+            next_month=(date(int(month[:4]),int(month[5:7]),1)+timedelta(days=32)).replace(day=1).strftime("%Y-%m")
+            cur.execute("""
+              INSERT INTO galileu_private.fechamentos_mensais
+                (sessao_id,mes,indice_rodada,banca_base_inicio,banca_fechamento,
+                 aporte,saque,banca_base_seguinte,gestao_pct_antes,gestao_pct_depois,
+                 stake_fixa_antes,stake_fixa_depois)
+              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,(
+                sess["id"],month,sess["indice_rodada"],
+                sess["banca_base_mes"],closing,aporte,saque,next_base,
+                sess["gestao_pct"],next_rate,sess["stake_fixa"],next_fixed,
+            ))
+            cursor_bank=closing
+            def movimento(kind,value,bank_before,bank_after,pct_before,pct_after,
+                          fixed_before,fixed_after):
+                cur.execute("""
+                    INSERT INTO galileu_private.movimentacoes
+                    (sessao_id,mes_referencia,tipo,valor,banca_antes,banca_depois,
+                     gestao_pct_antes,gestao_pct_depois,
+                     stake_fixa_antes,stake_fixa_depois)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,(sess["id"],month,kind,value,bank_before,bank_after,
+                     pct_before,pct_after,fixed_before,fixed_after))
+            if aporte:
+                movimento("aporte",aporte,cursor_bank,cursor_bank+aporte,
+                          sess["gestao_pct"],sess["gestao_pct"],
+                          sess["stake_fixa"],sess["stake_fixa"])
+                cursor_bank+=aporte
+            if saque:
+                movimento("saque",saque,cursor_bank,cursor_bank-saque,
+                          sess["gestao_pct"],sess["gestao_pct"],
+                          sess["stake_fixa"],sess["stake_fixa"])
+                cursor_bank-=saque
+            if payload["alterar_stake"]:
+                movimento("reajuste_stake",Decimal("0"),cursor_bank,cursor_bank,
+                          sess["gestao_pct"],next_rate,sess["stake_fixa"],next_fixed)
+            movimento("virada_mes",Decimal("0"),cursor_bank,cursor_bank,
+                      sess["gestao_pct"],next_rate,sess["stake_fixa"],next_fixed)
+            cur.execute("""
+              UPDATE galileu_private.sessoes SET
+                banca_atual=%s,banca_base_mes=%s,mes_base=%s,
+                gestao_pct=%s,stake_fixa=%s,
+                versao=versao+1,atualizado_em=now()
+              WHERE id=%s
+            """,(next_base,next_base,next_month,next_rate,next_fixed,sess["id"]))
+        conn.commit()
+    return {
+        "mensagem":"Mês fechado. Banca-base do próximo mês atualizada e movimentos registrados.",
+        "mes":month,
+        "banca_fechamento":_brl(closing),
+        "aporte":_brl(aporte),"saque":_brl(saque),
+        "banca_base_seguinte":_brl(next_base),
+    }
+
+
 def proxima(token):
     catalog=_catalog()
     with get_conn() as conn:
@@ -921,7 +1126,14 @@ def proxima(token):
             rounds=_rounds(current_cutoff,catalog)
             current=_window_at(rounds,0)
             if sess["fase"]=="revelada":
-                pass
+                boundary,month=_monthly_boundary(rounds,0)
+                if boundary:
+                    cur.execute("""
+                        SELECT 1 FROM galileu_private.fechamentos_mensais
+                        WHERE sessao_id=%s AND mes=%s
+                    """,(sess["id"],month))
+                    if not cur.fetchone():
+                        raise ValueError("Antes de avançar, conclua o fechamento mensal: aporte, saque e stake.")
             elif sess["fase"]=="aberta" and current and not current["jogos"]:
                 # Período sem partidas: só avançar o calendário, sem
                 # inventar placares, entradas ou balanço.
@@ -949,35 +1161,9 @@ def proxima(token):
 
 
 def reajustar(token,payload):
-    if not isinstance(payload,dict):
-        raise ValueError("Informe o reajuste.")
-    mode=payload.get("tipo")
-    if mode=="percentual":
-        rate=_pct(payload.get("valor"))
-        fixed=None
-    elif mode=="fixo":
-        rate=None
-        fixed=_money(payload.get("valor"),"Stake fixa")
-    else:
-        raise ValueError("Escolha Percentual ou Valor financeiro.")
-    catalog=_catalog()
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            sess=_lock(cur,token)
-            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
-            boundary,_=_monthly_boundary(rounds,0)
-            if sess["fase"]!="revelada" or not boundary:
-                raise ValueError("Reajuste disponível ao encerrar um mês na rodada finalizada.")
-            if fixed is not None and fixed>Decimal(sess["banca_atual"]):
-                raise ValueError("Stake fixa não pode exceder a banca atual.")
-            cur.execute("""
-              UPDATE galileu_private.sessoes SET
-                gestao_pct=COALESCE(%s,gestao_pct),
-                stake_fixa=%s,versao=versao+1,atualizado_em=now()
-              WHERE id=%s
-            """,(rate,fixed,sess["id"]))
-        conn.commit()
-    return {"mensagem":"Gestão de stake atualizada para as próximas entradas."}
+    raise ValueError(
+        "Use o fechamento mensal para registrar mudanças de stake no histórico financeiro."
+    )
 
 
 def reiniciar(token):
