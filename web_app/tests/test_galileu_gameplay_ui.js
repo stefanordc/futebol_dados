@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v12"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v13"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -39,6 +39,19 @@ assert.ok(js.includes('gl-entry-market'),"Entrada manual deve permitir mercado")
 assert.ok(js.includes('gl-entry-method'),"Entrada com método deve solicitar método");
 assert.ok(js.includes('done?"')||js.includes('const done=state.fase!=="aberta"'),
   "Placar condicionado à finalização");
+
+/* O alerta trimestral só aparece na tela de fechamento do mês. */
+for(const id of ["gl-loss-streak-alert","gl-loss-streak-list"]){
+  assert.ok(html.includes('id="'+id+'"'),"Alerta mensal ausente: "+id);
+}
+assert.ok(js.includes("function renderLossStreakAlerts()"),
+  "Renderização do alerta mensal de método negativo");
+assert.ok(js.includes("renderLossStreakAlerts();"),
+  "Alerta deve aparecer no fechamento do mês");
+assert.ok(py.includes("def _method_loss_streak_alerts(bets,method_catalog,month):"),
+  "Cálculo por método e por mês de fechamento");
+assert.ok(py.includes('"alertas_prejuizo_3_meses":_method_loss_streak_alerts('),
+  "API deve devolver alertas somente no fechamento");
 
 assert.ok(py.includes('response["_jogos_originais"]')===false,
   "Dados completos não devem ser retornados no estado do gameplay");
