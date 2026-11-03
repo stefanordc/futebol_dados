@@ -1,8 +1,7 @@
-"""Regressões de liquidação cronológica de entradas programadas do Galileu."""
+"""Regressões da apuração mensal sem limite de saldo no Galileu."""
 from datetime import date
 from decimal import Decimal
 from unittest import TestCase
-from unittest.mock import patch
 
 import queries_galileu_gameplay as gl
 
@@ -29,43 +28,48 @@ class TestProgramadas(TestCase):
         self.assertEqual(bank,Decimal("90.00"))
         self.assertGreater(sum(r["stake"] for r in entries),Decimal("100"))
 
-    def test_se_faltar_saldo_futuro_a_entrada_nao_e_executada(self):
+    def test_todas_entradas_sao_liquidadas_mesmo_com_saldo_baixo(self):
         games={1:jogo(1,"2025-01-01",0,2),2:jogo(2,"2025-01-02")}
         entries=[entrada(11,1,"80"),entrada(12,2,"30")]
         result,bank=gl._liquidar_entradas_por_data(entries,games,Decimal("100"))
-        self.assertEqual(result,[ (11,"red",Decimal("-80.00")),
-                                  (12,"sem_saldo",Decimal("0.00")) ])
-        self.assertEqual(bank,Decimal("20.00"))
+        self.assertEqual(result,[(11,"red",Decimal("-80.00")),
+                                 (12,"green",Decimal("30.00"))])
+        self.assertEqual(bank,Decimal("50.00"))
 
-    def test_mesmo_dia_nao_usa_lucro_de_outra_partida(self):
+    def test_mesmo_dia_liquida_todas_as_entradas(self):
         games={1:jogo(1,"2025-01-01"),2:jogo(2,"2025-01-01"),
                3:jogo(3,"2025-01-02")}
-        entries=[entrada(10,1,"80"),entrada(11,2,"80"),
-                 entrada(12,3,"80")]
+        entries=[entrada(10,1,"80"),entrada(11,2,"80"),entrada(12,3,"80")]
         result,bank=gl._liquidar_entradas_por_data(entries,games,Decimal("100"))
-        self.assertEqual([r[1] for r in result],["green","sem_saldo","green"])
-        self.assertEqual(bank,Decimal("260.00"))
-        self.assertEqual(result[1][2],Decimal("0.00"))
+        self.assertEqual([r[1] for r in result],["green","green","green"])
+        self.assertEqual(bank,Decimal("340.00"))
+        self.assertEqual(result[1][2],Decimal("80.00"))
 
-    def test_mesmo_dia_prioriza_registro_antigo_independente_da_ordem_recebida(self):
+    def test_mesmo_dia_ordenacao_por_id_sem_prioridade_de_saldo(self):
         games={1:jogo(1,"2025-01-01"),2:jogo(2,"2025-01-01",0,2)}
         entries=[entrada(12,2,"60"),entrada(10,1,"60")]
         result,bank=gl._liquidar_entradas_por_data(entries,games,Decimal("100"))
-        self.assertEqual(result,[ (10,"green",Decimal("60.00")),
-                                  (12,"sem_saldo",Decimal("0.00")) ])
-        self.assertEqual(bank,Decimal("160.00"))
+        self.assertEqual(result,[(10,"green",Decimal("60.00")),
+                                 (12,"red",Decimal("-60.00"))])
+        self.assertEqual(bank,Decimal("100.00"))
 
-    def test_lay_responsabilidade_e_reservada_sem_antecipar_comissao(self):
-        games={1:jogo(1,"2025-01-01",2,0),
-               2:jogo(2,"2025-01-01",2,0)}
-        entries=[entrada(1,1,"80","3.00","lay_zebra"),
-                 entrada(2,2,"30")]
+    def test_lay_e_back_sempre_apurados_no_mesmo_dia(self):
+        games={1:jogo(1,"2025-01-01",2,0),2:jogo(2,"2025-01-01",2,0)}
+        entries=[entrada(1,1,"80","3.00","lay_zebra"),entrada(2,2,"30")]
         result,bank=gl._liquidar_entradas_por_data(entries,games,Decimal("100"))
         self.assertEqual(result[0],(1,"green",Decimal("38.20")))
-        self.assertEqual(result[1],(2,"sem_saldo",Decimal("0.00")))
-        self.assertEqual(bank,Decimal("138.20"))
+        self.assertEqual(result[1],(2,"green",Decimal("30.00")))
+        self.assertEqual(bank,Decimal("168.20"))
 
-    def test_nao_revela_placar_e_nao_conta_sem_saldo_como_red(self):
+    def test_banca_negativa_nao_impede_apuracao(self):
+        games={1:jogo(1,"2025-01-01",0,2),2:jogo(2,"2025-01-02",0,2)}
+        entries=[entrada(1,1,"120"),entrada(2,2,"80")]
+        result,bank=gl._liquidar_entradas_por_data(entries,games,Decimal("100"))
+        self.assertEqual(result,[(1,"red",Decimal("-120.00")),
+                                 (2,"red",Decimal("-80.00"))])
+        self.assertEqual(bank,Decimal("-100.00"))
+
+    def test_apuracao_historica_ainda_identifica_sem_saldo_antigo(self):
         bets=[
             {"data":date(2025,1,1),"status":"green",
              "stake":Decimal("80"),"lucro_prejuizo":Decimal("80"),
