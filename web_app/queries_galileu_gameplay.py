@@ -312,10 +312,33 @@ def _matched(game,stat_home,stat_away,methods):
     return valid
 
 
-def _games_for_session(sess,catalog,rounds):
+def _disabled_methods(sid):
+    """Métodos removidos somente desta gameplay, nunca do Nostradamus."""
+    return {
+        int(row["metodo_id"]):{
+            "nome":str(row["nome_metodo"]),
+            "desde":str(row["efetivo_desde"]),
+        }
+        for row in fetch_all("""
+            SELECT metodo_id,nome_metodo,efetivo_desde
+            FROM galileu_private.metodos_desativados
+            WHERE sessao_id=%s ORDER BY metodo_id
+        """,(sid,))
+    }
+
+
+def _is_disabled(method_id,game_date,disabled):
+    record=disabled.get(int(method_id))
+    return bool(record and str(game_date)[:7]>=record["desde"])
+
+
+def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
     games=_round_at(rounds,0)
     history=_history(catalog)
-    methods=_methods()
+    if methods is None:
+        methods=_methods()
+    if disabled is None:
+        disabled=_disabled_methods(sess["id"])
     public=[]
     for g in games:
         # Dados pré-jogo só usam partidas concluídas em dias anteriores.
@@ -328,6 +351,8 @@ def _games_for_session(sess,catalog,rounds):
         markets=_available_markets(g)
         method_details=[]
         for m in methods:
+            if _is_disabled(m["id"],g["data"],disabled):
+                continue
             if m["ligas"] and g["campeonato_id"] not in m["ligas"]:
                 continue
             h,hn=_team_stats(history,g,g["casa_id"],m["jogos"])
@@ -464,6 +489,76 @@ def _closed_game_ids(sid,round_index):
       SELECT jogo_id FROM galileu_private.jogos_finalizados
       WHERE sessao_id=%s AND indice_rodada=%s
     """,(sid,round_index))}
+
+
+def _method_monthly_table(bets,method_catalog,disabled,month):
+    """Um registro por método, inclusive sem apostas; sequência só de greens/reds.
+
+    A ordem considera data da partida e ID da entrada, sem vazamento
+    dos resultados para telas de rodada aberta. Sem saldo/pendente não
+    geram green ou red nem interrompem uma sequência liquidada.
+    """
+    grouped=defaultdict(list)
+    manual=[]
+    for bet in bets:
+        if str(bet["data"])[:7]!=month:
+            continue
+        if bet.get("tipo")=="metodo" and bet.get("metodo_id") is not None:
+            grouped[int(bet["metodo_id"])].append(bet)
+        else:
+            manual.append(bet)
+    named={int(m["id"]):str(m["nome"]) for m in method_catalog}
+    for mid,info in disabled.items():
+        named.setdefault(mid,info["nome"])
+    for mid,entries in grouped.items():
+        named.setdefault(mid,str(entries[-1].get("metodo_nome") or "Método "+str(mid)))
+
+    def totals(items):
+        green=red=best_good=best_bad=good=bad=0
+        pnl=Decimal("0")
+        resolved=0
+        for entry in sorted(items,key=lambda e:(str(e["data"]),int(e["id"]))):
+            status=entry["status"]
+            if status not in ("green","red"):
+                continue
+            resolved+=1
+            pnl+=Decimal(str(entry["lucro_prejuizo"]))
+            if status=="green":
+                green+=1
+                good+=1
+                bad=0
+                best_good=max(best_good,good)
+            else:
+                red+=1
+                bad+=1
+                good=0
+                best_bad=max(best_bad,bad)
+        return {
+            "entradas":len(items),"executadas":resolved,
+            "nao_executadas":sum(e["status"]=="sem_saldo" for e in items),
+            "greens":green,"reds":red,
+            "win_rate":round(green/resolved*100,2) if resolved else 0,
+            "lucro_prejuizo":_brl(pnl),
+            "maior_good_run":best_good,"maior_bad_run":best_bad,
+        }
+
+    result=[]
+    for mid,name in named.items():
+        record=disabled.get(mid)
+        result.append({
+            "metodo_id":mid,"nome":name,
+            "desativado_desde":record["desde"] if record else None,
+            "ativo_no_mes":not bool(record and record["desde"]<=month),
+            **totals(grouped.get(mid,[])),
+        })
+    result.sort(key=lambda x:(-x["entradas"],x["nome"].casefold(),x["metodo_id"]))
+    # Entradas manuais são mostradas em linha de referência, mas não podem
+    # ser removidas como se representassem um método cadastrado.
+    if manual:
+        result.append({"metodo_id":None,"nome":"Entradas manuais",
+                       "desativado_desde":None,"ativo_no_mes":False,
+                       **totals(manual)})
+    return result
 
 
 def _financial_group_results(bets):
@@ -609,7 +704,10 @@ def estado(token):
     catalog=_catalog()
     current_cutoff=_date(sess.get("corte_atual") or sess["corte"])
     rounds=_rounds(current_cutoff,catalog)
-    raw_games,games=_games_for_session(sess,catalog,rounds)
+    method_catalog=_methods()
+    disabled=_disabled_methods(sess["id"])
+    raw_games,games=_games_for_session(
+        sess,catalog,rounds,methods=method_catalog,disabled=disabled)
     window=_window_at(rounds,0)
     bets=_bet_rows(sess["id"])
     current=[b for b in bets if b["indice_rodada"]==sess["indice_rodada"]]
@@ -689,6 +787,12 @@ def estado(token):
             (Decimal(b["stake"]) for b in current if b["status"]=="pendente"),
             Decimal("0"))),
         "mes_encerrado":month if closure_access and boundary else None,
+        "metodos_fechamento":_method_monthly_table(
+            bets,method_catalog,disabled,month)
+            if closure_access and boundary and month else [],
+        "metodos_desativados":[{
+            "metodo_id":mid,"nome":info["nome"],"efetivo_desde":info["desde"]
+        } for mid,info in sorted(disabled.items())],
         "fechamento_pendente":bool(closure_access and boundary and not mes_fechado),
         "fechamento_realizado":bool(closure_access and boundary and mes_fechado),
         "resumo_mensal":history,
@@ -777,6 +881,13 @@ def registrar(token,payload):
                 method_id=payload.get("metodo_id")
                 if type(method_id) is not int:
                     raise ValueError("Selecione um método validado.")
+                cur.execute("""
+                    SELECT efetivo_desde FROM galileu_private.metodos_desativados
+                    WHERE sessao_id=%s AND metodo_id=%s
+                """,(sess["id"],method_id))
+                disabled_row=cur.fetchone()
+                if disabled_row and str(game["data"])[:7]>=str(disabled_row["efetivo_desde"]):
+                    raise ValueError("Método retirado da gameplay para este mês.")
                 # A confirmação só precisa revalidar o método selecionado,
                 # em vez de recalcular TODOS os métodos a cada entrada.
                 selected=next((m for m in _methods() if m["id"]==method_id),None)
@@ -888,6 +999,15 @@ def registrar_metodos_em_lote(token,payload):
                 raise ValueError("Não há jogos nesta rodada.")
             methods={m["id"]:m for m in _methods()}
             cur.execute("""
+              SELECT metodo_id,efetivo_desde
+              FROM galileu_private.metodos_desativados
+              WHERE sessao_id=%s
+            """,(sess["id"],))
+            disabled_lote={
+                int(r["metodo_id"]):{"desde":str(r["efetivo_desde"])}
+                for r in cur.fetchall()
+            }
+            cur.execute("""
               SELECT jogo_id FROM galileu_private.jogos_finalizados
               WHERE sessao_id=%s AND indice_rodada=%s
             """,(sess["id"],sess["indice_rodada"]))
@@ -916,7 +1036,7 @@ def registrar_metodos_em_lote(token,payload):
                     raise ValueError("Um dos jogos não está mais disponível. Atualize a rodada.")
                 if method is None or method["versao"]!=ver or (
                     method["ligas"] and game["campeonato_id"] not in method["ligas"]
-                ):
+                ) or _is_disabled(mid,game["data"],disabled_lote):
                     raise ValueError("Um dos métodos foi alterado. Atualize a rodada.")
                 cache_key=(gid,method["jogos"])
                 if cache_key not in stat_cache:
@@ -1115,6 +1235,11 @@ def fechar_mes(token,payload):
     for key in ("fazer_aporte","fazer_saque","alterar_stake"):
         if type(payload.get(key)) is not bool:
             raise ValueError("Responda Sim ou Não para aporte, saque e stake.")
+    to_disable=payload.get("retirar_metodos",[])
+    if not isinstance(to_disable,list) or len(to_disable)>500 or any(
+        type(mid) is not int or mid<=0 for mid in to_disable
+    ) or len(to_disable)!=len(set(to_disable)):
+        raise ValueError("Informe uma lista válida, sem repetições, dos métodos a retirar.")
     aporte=_money(payload.get("aporte"),"Aporte") if payload["fazer_aporte"] else Decimal("0")
     saque=_money(payload.get("saque"),"Saque") if payload["fazer_saque"] else Decimal("0")
     mode=payload.get("tipo_stake") if payload["alterar_stake"] else "manter"
@@ -1130,6 +1255,9 @@ def fechar_mes(token,payload):
     else:
         raise ValueError("Informe a nova stake como percentual ou valor financeiro.")
     catalog=_catalog()
+    method_names={m["id"]:m["nome"] for m in _methods()} if to_disable else {}
+    if any(mid not in method_names for mid in to_disable):
+        raise ValueError("Um dos métodos selecionados não está mais cadastrado no Nostradamus.")
     with get_conn() as conn:
         with conn.cursor() as cur:
             sess=_lock(cur,token)
@@ -1160,6 +1288,13 @@ def fechar_mes(token,payload):
             if next_fixed is not None and next_fixed>next_base:
                 raise ValueError("Stake fixa maior que o saldo disponível após o fechamento.")
             next_month=(date(int(month[:4]),int(month[5:7]),1)+timedelta(days=32)).replace(day=1).strftime("%Y-%m")
+            for mid in to_disable:
+                cur.execute("""
+                    INSERT INTO galileu_private.metodos_desativados
+                      (sessao_id,metodo_id,nome_metodo,efetivo_desde)
+                    VALUES (%s,%s,%s,%s)
+                    ON CONFLICT (sessao_id,metodo_id) DO NOTHING
+                """,(sess["id"],mid,method_names[mid],next_month))
             cur.execute("""
               INSERT INTO galileu_private.fechamentos_mensais
                 (sessao_id,mes,indice_rodada,banca_base_inicio,banca_fechamento,
@@ -1211,6 +1346,7 @@ def fechar_mes(token,payload):
         "banca_fechamento":_brl(closing),
         "aporte":_brl(aporte),"saque":_brl(saque),
         "banca_base_seguinte":_brl(next_base),
+        "metodos_retirados":len(to_disable),
     }
 
 
