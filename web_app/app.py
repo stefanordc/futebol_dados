@@ -253,6 +253,15 @@ def galileu_gameplay_entrada(payload: dict,request: Request):
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
+@app.post("/api/apostas/galileu/gameplay/retirar-metodo")
+def galileu_gameplay_retirar_metodo(payload: dict,request: Request):
+    try:
+        return queries_galileu_gameplay.retirar_metodo(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
 @app.post("/api/apostas/galileu/gameplay/entradas-metodos")
 def galileu_gameplay_entradas_metodos(payload: dict,request: Request):
     try:
