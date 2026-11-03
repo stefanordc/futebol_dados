@@ -67,4 +67,46 @@ assert.ok(views["#gl-report-by-league"].innerHTML.includes("LaLiga"));
 assert.ok(views["#gl-report-by-club"].innerHTML.includes("Barcelona"));
 ctx.runRenderBreakdown(payload,"2026-02");
 assert.ok(views["#gl-report-by-method"].innerHTML.includes("Nenhuma entrada"));
+/* Teste real da ordenação: moeda brasileira, negativos, datas e números. */
+const sortStart=js.indexOf("function sortKey(value){");
+const sortEnd=js.indexOf("const reportRoot=",sortStart);
+assert.ok(sortStart>0&&sortEnd>sortStart,"Funções de ordenação ausentes");
+const sorter={};
+vm.runInNewContext(js.slice(sortStart,sortEnd)+
+  "globalThis.sortKeyTest=sortKey;globalThis.sortTableTest=sortTable;",sorter);
+assert.equal(sorter.sortKeyTest("R$ 1.270,00").value,1270);
+assert.equal(sorter.sortKeyTest("-R$ 155,30").value,-155.3);
+assert.ok(sorter.sortKeyTest("01/2025").value<sorter.sortKeyTest("02/2025").value);
+assert.ok(sorter.sortKeyTest("02/02/2025, 14:30").value<
+  sorter.sortKeyTest("03/02/2025, 11:30").value);
+assert.ok(sorter.sortKeyTest("326 / 352").value<
+  sorter.sortKeyTest("436 / 452").value);
+const cells=(...texts)=>texts.map(textContent=>({textContent}));
+const rowA={cells:cells("A","-R$ 155,30")};
+const rowB={cells:cells("B","R$ 62,27")};
+const rowC={cells:cells("C","-R$ 432,52")};
+const body={rows:[rowA,rowB,rowC],append(...rows){this.rows=rows;}};
+const table={tBodies:[body],tHead:{rows:[{cells:[]}]}};
+const headers=[0,1].map(()=>({
+  attrs:{},
+  closest:()=>table,
+  getAttribute(key){return this.attrs[key]||"none";},
+  setAttribute(key,value){this.attrs[key]=value;}
+}));
+table.tHead.rows[0].cells=headers;
+sorter.sortTableTest(headers[1]);
+assert.deepEqual(body.rows.map(x=>x.cells[0].textContent),["C","A","B"]);
+sorter.sortTableTest(headers[1]);
+assert.deepEqual(body.rows.map(x=>x.cells[0].textContent),["B","A","C"]);
+assert.equal(headers[1].getAttribute("aria-sort"),"descending");
+assert.ok(html.includes('id="gl-report-months-total"'),"Rodapé mensal deve existir");
+for(const metric of ['sum("executadas")','sum("entradas")','sum("lucro_prejuizo")',
+                     'sum("aporte")','sum("saque")']){
+  assert.ok(js.includes(metric),"Rodapé deve contabilizar "+metric);
+}
+assert.ok(js.includes('lastClosed.banca_fim'),
+  "Não somar bancas de meses distintos no rodapé");
+assert.ok(js.includes('prepareSortableTables();'),
+  "Tabelas criadas ao filtrar meses também devem ser ordenáveis");
+
 console.log("Relatórios: tabelas de métodos, ligas e clubes renderizadas com filtro e vazios.");
