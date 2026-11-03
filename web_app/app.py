@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -204,6 +204,75 @@ def pagina_galileu():
 @app.get("/apostas/galileu/relatorio")
 def pagina_galileu_relatorio():
     return FileResponse(TEMPLATES / "galileu_report.html")
+
+
+
+# Galileu Gameplay: sessão privada por navegador, com cookie HttpOnly.
+# Rotas antigas de sinais/relatório seguem disponíveis para compatibilidade.
+@app.get("/api/apostas/galileu/gameplay/estado")
+def galileu_gameplay_estado(request: Request):
+    return queries_galileu_gameplay.estado(
+        request.cookies.get(queries_galileu_gameplay.COOKIE)
+    )
+
+
+@app.post("/api/apostas/galileu/gameplay/iniciar")
+def galileu_gameplay_iniciar(payload: dict,request: Request,response: Response):
+    try:
+        token=queries_galileu_gameplay.iniciar(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+    response.set_cookie(
+        queries_galileu_gameplay.COOKIE,token,
+        max_age=60*60*24*365,httponly=True,samesite="strict",
+        secure=request.url.scheme=="https",path="/"
+    )
+    return {"mensagem":"Gameplay iniciado. Seu progresso fica salvo no Supabase."}
+
+
+@app.post("/api/apostas/galileu/gameplay/entrada")
+def galileu_gameplay_entrada(payload: dict,request: Request):
+    try:
+        return queries_galileu_gameplay.registrar(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/finalizar")
+def galileu_gameplay_finalizar(request: Request):
+    try:
+        return queries_galileu_gameplay.finalizar(
+            request.cookies.get(queries_galileu_gameplay.COOKIE))
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/proxima")
+def galileu_gameplay_proxima(request: Request):
+    try:
+        return queries_galileu_gameplay.proxima(
+            request.cookies.get(queries_galileu_gameplay.COOKIE))
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/reajustar")
+def galileu_gameplay_reajustar(payload: dict,request: Request):
+    try:
+        return queries_galileu_gameplay.reajustar(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.delete("/api/apostas/galileu/gameplay/reiniciar")
+def galileu_gameplay_reiniciar(request: Request,response: Response):
+    result=queries_galileu_gameplay.reiniciar(
+        request.cookies.get(queries_galileu_gameplay.COOKIE))
+    response.delete_cookie(queries_galileu_gameplay.COOKIE,path="/",samesite="strict")
+    return result
 
 
 @app.post("/api/apostas/galileu/sinais")

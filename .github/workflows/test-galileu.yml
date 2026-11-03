@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'web_app/queries_galileu.py'
+      - 'web_app/queries_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/sql/galileu_gameplay.sql'
       - 'web_app/queries_estrategias.py'
       - 'web_app/static/js/galileu.js'
       - 'web_app/templates/galileu*.html'
@@ -14,6 +18,10 @@ on:
     branches: [main]
     paths:
       - 'web_app/queries_galileu.py'
+      - 'web_app/queries_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_gameplay_ui.js'
+      - 'web_app/sql/galileu_gameplay.sql'
       - 'web_app/queries_estrategias.py'
       - 'web_app/static/js/galileu.js'
       - 'web_app/tests/test_galileu.py'
@@ -29,11 +37,17 @@ jobs:
       - name: Dependências
         run: python -m pip install -r web_app/requirements.txt
       - name: Sintaxe Python
-        run: python -m compileall -q web_app/app.py web_app/queries_galileu.py
+        run: python -m compileall -q web_app/app.py web_app/queries_galileu.py web_app/queries_galileu_gameplay.py
       - name: Sintaxe JavaScript
         run: |
           node --check web_app/static/js/galileu.js
           node --check web_app/static/js/galileu-report.js
+          node --check web_app/static/js/galileu-gameplay.js
       - name: Sem vazamento e apuração de banca
         working-directory: web_app
-        run: python -m unittest discover -s tests -p 'test_galileu.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_galileu.py' -v
+          python -m unittest discover -s tests -p 'test_galileu_gameplay.py' -v
+      - name: Interface gameplay
+        working-directory: web_app
+        run: node tests/test_galileu_gameplay_ui.js
