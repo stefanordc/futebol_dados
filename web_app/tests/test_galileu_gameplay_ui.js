@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v13"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v14"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -68,12 +68,12 @@ assert.ok(css.includes(".gl-month-groups"),"Relatório mensal por grupos");
 console.log("Galileu gameplay: interface, rotas e sigilo de placar verificados.");
 
 assert.ok(js.includes('state.corte_atual'),"Frontend exibe data de corte corrente");
-assert.ok(js.includes('state.limite_janela'),"Frontend exibe limite de dez dias/fim do mês");
+assert.ok(js.includes('state.limite_janela'),"Frontend exibe fim do mês");
 assert.ok(js.includes('state.pode_pular_vazio'),"Frontend suporta janelas vazias");
-assert.ok(js.includes('"Avançar período sem jogos"'),"Período vazio deve poder avançar sem revelar placar");
-assert.ok(py.includes('cursor+timedelta(days=10)'),"Backend limita janela a dez dias");
+assert.ok(js.includes('"Avançar período sem jogos"'),"Mês vazio deve poder avançar");
+assert.ok(!py.includes('cursor+timedelta(days=10)'),"Nenhuma janela de dez dias permanece");
 assert.ok(py.includes('_month_end(first)'),"Backend limita janela ao último dia do mês");
-assert.ok(py.includes('"proximo_corte":next_cut'),"Avanço utiliza maior data exibida");
+assert.ok(py.includes('next_cut=limit'),"Avanço utiliza fim do mês");
 assert.ok(py.includes('corte_atual=%s'),"Corte atualizado precisa persistir no Supabase");
 assert.ok(py.includes('sess.get("corte_atual") or sess["corte"]'),"Leitura deve restaurar sessão existente");
 
@@ -153,7 +153,7 @@ assert.ok(js.includes('title:"Demais jogos"'),"Grupo dos demais jogos em segundo
 assert.ok(js.includes('cohorts.filter(c=>c.games.length)'),"Mostrar apenas os grupos com jogos");
 assert.ok(js.includes('availableMethods(game).map(method=>'),"Cada método disponível recebe uma seleção");
 assert.ok(js.includes('methodAlreadyEntered(game,m.id)'),"Métodos já utilizados não podem ser repetidos");
-assert.ok(js.includes('state?.saldo_disponivel'),"Verificar saldo livre antes de confirmar lote");
+assert.ok(!js.includes('bulkAvailableCents()'),"O lote não verifica saldo disponível");
 assert.ok(js.includes('$("#gl-bulk-dialog").showModal()'),"Exibir prévia antes da confirmação");
 assert.ok(js.includes('post("entradas-metodos",{'),"Salvar lote no backend");
 assert.ok(js.includes('versao:state.versao'),"Validar versão da sessão antes de salvar");
@@ -161,8 +161,8 @@ assert.ok(js.includes('game.entradas.push(entry)'),"Atualizar cards com registro
 assert.ok(js.includes('renderGames();'),"Reordenar e atualizar lotes após salvar");
 assert.ok(py.includes('def registrar_metodos_em_lote(token,payload):'),"Implementar entrada em lote no backend");
 assert.ok(py.includes('if int(sess["versao"])!=expected_version:'),"Prevenir envio de versão obsoleta");
-assert.ok(py.includes('if stake>Decimal(sess["banca_atual"]):'),
-  "Manter verificação da stake individual por método");
+assert.ok(!py.includes('if stake>Decimal(sess["banca_atual"]):'),
+  "A stake individual pode superar a banca virtual");
 assert.ok(py.includes('execute_values(cur,'),"Inserir lote na mesma transação");
 assert.ok(py.includes('SELECT jogo_id,metodo_id FROM galileu_private.entradas'),
   "Remover entradas de métodos já registrados");
@@ -189,46 +189,31 @@ assert.ok(py.includes('fechamentos_mensais'),"Armazenar histórico de fechamento
 assert.ok(py.includes('galileu_private.movimentacoes'),"Armazenar aportes e saques auditáveis");
 
 
-/* O modal oferece alternativas claras quando o lote supera a banca. */
-for(const id of ["gl-bulk-affordable","gl-bulk-all","gl-bulk-none",
-                 "gl-bulk-fit-stake","gl-bulk-feedback"]){
-  assert.ok(html.includes('id="'+id+'"'),"Falta controle financeiro: "+id);
+/* Seleção e liquidação irrestritas, inclusive com banca virtual negativa. */
+for(const id of ["gl-bulk-all","gl-bulk-none","gl-bulk-feedback"]){
+  assert.ok(html.includes('id="'+id+'"'),"Falta controle do lote: "+id);
+}
+for(const obsolete of ["gl-bulk-affordable","gl-bulk-fit-stake"]){
+  assert.ok(!html.includes('id="'+obsolete+'"'),"Remover ajuste pelo saldo: "+obsolete);
 }
 assert.ok(html.includes('id="gl-bulk-stake" type="text" inputmode="decimal"'),
-  "Aceitar valores digitados com vírgula no teclado brasileiro");
-assert.ok(js.includes('bulkSelectedOffers()'),"Enviar apenas métodos escolhidos");
-assert.ok(js.includes('data-bulk-key'),"Cada método pode ser marcado individualmente");
-assert.ok(js.includes('Exposição planejada acima da banca'),
-  "Informar que exposição acima da banca é programação, não dinheiro reservado");
-assert.ok(js.includes('bulkSelected.clear()'),"Reiniciar seleção ao abrir a prévia");
-assert.ok(js.includes('offers.slice(0,limit)'),
-  "Seleção até o saldo precisa respeitar limite de entradas");
-assert.ok(js.includes('Math.floor(bulkAvailableCents()/offers.length)'),
-  "Stake para incluir todos deve ser arredondada para baixo");
-assert.ok(js.includes('bulkSubmitting=true'),"Bloquear envio duplicado enquanto grava");
+  "Aceitar stake em formato brasileiro");
+assert.ok(js.includes('bulkSelectedOffers()'),"Enviar apenas os métodos selecionados");
+assert.ok(js.includes('data-bulk-key'),"Selecionar método por partida");
+assert.ok(js.includes("independentemente da banca"),"Avisar sobre apuração irrestrita");
+assert.ok(js.includes('bulkSubmitting=true'),"Bloquear envio duplicado");
 assert.ok(js.includes('stake:(preview.cents/100).toFixed(2)'),
-  "Enviar stake decimal normalizada ao backend");
-assert.ok(js.includes('preview.cents>preview.available'),
-  "Recusar somente stake individual maior que a banca atual");
+  "Stake decimal normalizada");
+assert.ok(!js.includes("preview.cents>preview.available"),"Sem limite por saldo no lote");
+assert.ok(!js.includes("bulkMaxAffordable"),"Remover cálculo do máximo pela banca");
 
-/* Programações acima da banca: liquidação sequencial sem contar sem saldo como red. */
 assert.ok(py.includes('def _liquidar_entradas_por_data(entries, by_id, banca_inicial):'),
-  "Liquidar entradas em ordem cronológica");
-assert.ok(py.includes('status,pnl="sem_saldo",Decimal("0.00")'),
-  "Sem saldo na data significa não executada, sem prejuízo");
-assert.ok(py.includes('for day in sorted(days):'),"Processar dias em ordem");
-assert.ok(py.includes('if stake<=bank-committed:'),
-  "Impedir execução de duas entradas simultâneas sem capital suficiente");
-assert.ok(py.includes('bank=_rounded(bank+sum('),
-  "Lucro do dia somente pode alimentar entradas do dia seguinte");
+  "Toda entrada deve ser liquidada");
+assert.ok(!py.includes('status,pnl="sem_saldo"'),"Não marcar entrada nova como sem saldo");
+assert.ok(!py.includes('if stake<=bank-committed:'),"Não limitar entradas simultâneas");
+assert.ok(!py.includes('if bank<0:'),"Banca simulada pode ser negativa");
 assert.ok(js.includes('state.exposicao_programada'),
-  "Atualizar exposição programada sem descontar o dinheiro atual");
-assert.ok(js.includes('Entradas não executadas')===false,
-  "O resumo de rodada deve usar rótulos curtos");
-assert.ok(js.includes('Não executada — sem saldo'),
-  "Exibir situação das entradas sem saldo na apuração");
-assert.ok(!js.includes('preview.total>preview.available'),
-  "O frontend não pode bloquear lotes só pela soma das stakes");
+  "Manter exposição informativa de entradas");
 
 /* Fechamento mensal por método e retirada apenas para os meses seguintes. */
 for(const id of ["gl-method-performance-title","gl-method-performance-table",
