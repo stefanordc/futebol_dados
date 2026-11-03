@@ -355,7 +355,7 @@ def _token_session(token):
 
 def _bet_rows(sid):
     return fetch_all("""
-      SELECT e.id,e.jogo_id,e.indice_rodada,e.tipo,e.metodo_nome,e.mercado,
+      SELECT e.id,e.jogo_id,e.indice_rodada,e.tipo,e.metodo_id,e.metodo_versao,e.metodo_nome,e.mercado,
              e.odd,e.stake,e.status,e.lucro_prejuizo,e.cotacao_estimada,
              j.data,c.nome AS campeonato,h.clube AS mandante,v.clube AS visitante
       FROM galileu_private.entradas e
@@ -366,6 +366,14 @@ def _bet_rows(sid):
       WHERE e.sessao_id=%s
       ORDER BY e.id
     """,(sid,))
+
+
+def _closed_game_ids(sid,round_index):
+    """Fechamentos não descartam entradas e não revelam placar."""
+    return {int(r["jogo_id"]) for r in fetch_all("""
+      SELECT jogo_id FROM galileu_private.jogos_finalizados
+      WHERE sessao_id=%s AND indice_rodada=%s
+    """,(sid,round_index))}
 
 
 def _summary(bets,initial):
@@ -438,14 +446,25 @@ def estado(token):
     window=_window_at(rounds,0)
     bets=_bet_rows(sess["id"])
     current=[b for b in bets if b["indice_rodada"]==sess["indice_rodada"]]
-    by_game={int(b["jogo_id"]):{
-        "id":int(b["id"]),"tipo":b["tipo"],"metodo":b["metodo_nome"],
-        "mercado":b["mercado"],"odd":float(b["odd"]),
-        "stake":_brl(b["stake"]),"status":b["status"],
-        "lucro_prejuizo":_brl(b["lucro_prejuizo"]) if b["lucro_prejuizo"] is not None else None,
-    } for b in current}
+    by_game=defaultdict(list)
+    for bet in current:
+        by_game[int(bet["jogo_id"])].append({
+            "id":int(bet["id"]),"tipo":bet["tipo"],
+            "metodo_id":int(bet["metodo_id"]) if bet.get("metodo_id") is not None else None,
+            "metodo":bet["metodo_nome"],"mercado":bet["mercado"],
+            "odd":float(bet["odd"]),"stake":_brl(bet["stake"]),
+            "status":bet["status"],
+            "lucro_prejuizo":_brl(bet["lucro_prejuizo"])
+            if bet["lucro_prejuizo"] is not None else None,
+        })
+    closed=_closed_game_ids(sess["id"],sess["indice_rodada"])
+    # Os jogos fechados desaparecem da lista, mas continuam no calendário
+    # completo para liquidação de TODAS as entradas em Finalizar rodada.
+    visible=[]
     for g in games:
-        g["entrada"]=by_game.get(g["jogo_id"])
+        g["entradas"]=by_game.get(g["jogo_id"],[])
+        if g["jogo_id"] not in closed:
+            visible.append(g)
     boundary,month=_monthly_boundary(rounds,0)
     revealed=sess["fase"] in ("revelada","concluida")
     history=_summary(bets,sess["banca_inicial"])
@@ -466,7 +485,8 @@ def estado(token):
             "inicio":min((g["data"] for g in raw_games),default=None).isoformat() if raw_games else None,
             "fim":max((g["data"] for g in raw_games),default=None).isoformat() if raw_games else None,
         },
-        "jogos":games,
+        "jogos":visible,
+        "jogos_finalizados":len(closed),
         "entradas":len(bets),
         "mes_encerrado":month if revealed and boundary else None,
         "resumo_mensal":history,
@@ -539,6 +559,12 @@ def registrar(token,payload):
             if game is None:
                 raise ValueError("Este jogo não pertence à rodada atual.")
             cur.execute("""
+                SELECT 1 FROM galileu_private.jogos_finalizados
+                WHERE sessao_id=%s AND jogo_id=%s
+            """,(sess["id"],gid))
+            if cur.fetchone():
+                raise ValueError("Este jogo foi finalizado. Não é possível adicionar entradas.")
+            cur.execute("""
                 SELECT COALESCE(SUM(stake),0) AS comprometido
                 FROM galileu_private.entradas
                 WHERE sessao_id=%s AND indice_rodada=%s
@@ -587,13 +613,45 @@ def registrar(token,payload):
                 """,(sess["id"],gid,sess["indice_rodada"],kind,method_id,version,
                      name,market,offer["odd"],stake,offer["estimada"],offer["favorito_casa"]))
             except errors.UniqueViolation:
-                raise ValueError("Já existe uma entrada neste jogo.") from None
+                raise ValueError("Você já fez uma entrada neste método para este jogo.") from None
             cur.execute("""
               UPDATE galileu_private.sessoes
               SET versao=versao+1,atualizado_em=now() WHERE id=%s
             """,(sess["id"],))
         conn.commit()
     return {"mensagem":"Entrada virtual confirmada. O placar permanece oculto até finalizar a rodada."}
+
+
+def finalizar_jogo(token,payload):
+    """Oculta um jogo da lista atual, preservando apostas e liquidação."""
+    if not isinstance(payload,dict) or type(payload.get("jogo_id")) is not int or payload["jogo_id"]<1:
+        raise ValueError("Jogo inválido.")
+    gid=payload["jogo_id"]
+    catalog=_catalog()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            sess=_lock(cur,token)
+            if sess["fase"]!="aberta":
+                raise ValueError("A rodada não está aberta para finalizar jogos.")
+            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+            if not any(int(g["id"])==gid for g in _round_at(rounds,0)):
+                raise ValueError("Jogo fora da rodada atual.")
+            cur.execute("""
+                INSERT INTO galileu_private.jogos_finalizados
+                  (sessao_id,jogo_id,indice_rodada)
+                VALUES (%s,%s,%s)
+                ON CONFLICT (sessao_id,jogo_id) DO NOTHING
+                RETURNING jogo_id
+            """,(sess["id"],gid,sess["indice_rodada"]))
+            if not cur.fetchone():
+                raise ValueError("Este jogo já foi finalizado.")
+            cur.execute("""
+                UPDATE galileu_private.sessoes
+                SET versao=versao+1,atualizado_em=now()
+                WHERE id=%s
+            """,(sess["id"],))
+        conn.commit()
+    return {"mensagem":"Jogo finalizado e removido da lista. Entradas preservadas para a apuração da rodada."}
 
 
 def _settlement(market,favorite_home,home,away,odd,stake):
