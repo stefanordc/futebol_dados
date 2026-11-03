@@ -94,6 +94,27 @@ class TestEstratégias(TestCase):
         conn.commit.assert_called_once()
         conn.close.assert_called_once()
 
+    def test_excluir_exige_versao_e_confirma_commit(self):
+        fake,conn,cur=self._fake_connection([{"id":123,"nome":"Estratégia antiga"}])
+        with patch.object(st,"get_conn",fake):
+            result=st.excluir(123,4)
+        self.assertEqual(result,{"excluida":True,"id":123,"nome":"Estratégia antiga"})
+        query,params=cur.execute.call_args.args
+        self.assertIn("DELETE FROM public.nostradamus_estrategias",query)
+        self.assertIn("versao=%s",query)
+        self.assertEqual(params,(123,4))
+        conn.commit.assert_called_once()
+
+    def test_excluir_rejeita_versao_desatualizada_sem_commit(self):
+        fake,conn,_=self._fake_connection([None])
+        with patch.object(st,"get_conn",fake):
+            with self.assertRaisesRegex(ValueError,"alterada ou excluída"):
+                st.excluir(123,4)
+        conn.commit.assert_not_called()
+        for code,version in ((0,1),(-1,1),(12,0),(12,True),(True,1)):
+            with self.assertRaises(ValueError):
+                st.excluir(code,version)
+
     def test_importar_confirma_transacao_uma_vez(self):
         # Checa se INSERT foi feito e o commit ocorreu após o lote.
         fake,conn,cur=self._fake_connection([None,{"id":555}])
