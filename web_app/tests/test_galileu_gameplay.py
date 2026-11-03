@@ -373,7 +373,7 @@ class TestGalileuGameplay(TestCase):
                 result=gl.registrar("token",{
                     "jogo_id":110,"tipo":"manual","mercado":"over_25",
                     "stake":amount})
-                self.assertIn("confirmada",result["mensagem"])
+                self.assertIn("programada",result["mensagem"])
                 self.assertEqual(result["entrada"]["stake"],float(amount))
                 self.assertEqual(result["entrada"]["mercado"],"over_25")
                 self.assertEqual(result["entrada"]["status"],"pendente")
