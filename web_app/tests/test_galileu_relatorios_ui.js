@@ -13,7 +13,7 @@ assert.ok(!html.includes('id="gl-report-breakdown"></div>'),
 assert.ok(html.includes("Resultado por método"),"Faltou título por método");
 assert.ok(html.includes("Resultado por liga"),"Faltou título por liga");
 assert.ok(html.includes("Resultado por clube"),"Faltou título por clube");
-assert.ok(html.includes('galileu-financeiro-v3'),"Invalidar cache do relatório");
+assert.ok(html.includes('galileu-financeiro-v4'),"Invalidar cache do relatório");
 
 const begin=js.indexOf("function groupTable(items,columnName){");
 const end=js.indexOf("function render(data){",begin);
