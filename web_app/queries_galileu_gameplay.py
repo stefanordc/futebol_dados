@@ -468,6 +468,28 @@ def estado(token):
     boundary,month=_monthly_boundary(rounds,0)
     revealed=sess["fase"] in ("revelada","concluida")
     history=_summary(bets,sess["banca_inicial"])
+    resumo_rodada=[]
+    if revealed:
+        # Apenas após a finalização da rodada: relatório de TODAS as
+        # entradas, inclusive dos jogos removidos da lista individual.
+        placares={int(g["id"]):g for g in raw_games}
+        for bet in current:
+            jogo=placares.get(int(bet["jogo_id"]))
+            resumo_rodada.append({
+                "jogo_id":int(bet["jogo_id"]),
+                "confronto":str(bet["mandante"])+" × "+str(bet["visitante"]),
+                "metodo":bet["metodo_nome"] if bet["tipo"]=="metodo" else "Manual",
+                "mercado":bet["mercado"],
+                "odd":float(bet["odd"]),
+                "stake":_brl(bet["stake"]),
+                "status":bet["status"],
+                "lucro_prejuizo":_brl(bet["lucro_prejuizo"])
+                    if bet["lucro_prejuizo"] is not None else None,
+                "placar":(
+                    str(jogo["gols_casa"])+" × "+str(jogo["gols_fora"])
+                    if jogo is not None else None
+                ),
+            })
     return {
         "iniciado":True,
         "fase":sess["fase"],"versao":int(sess["versao"]),
@@ -487,6 +509,7 @@ def estado(token):
         },
         "jogos":visible,
         "jogos_finalizados":len(closed),
+        "resumo_rodada":resumo_rodada,
         "entradas":len(bets),
         "mes_encerrado":month if revealed and boundary else None,
         "resumo_mensal":history,
