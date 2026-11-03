@@ -676,6 +676,146 @@ def registrar(token,payload):
     }
 
 
+def registrar_metodos_em_lote(token,payload):
+    """Confirma vários métodos da rodada de forma atômica.
+
+    Não aceita odds, nomes de clubes ou preços vindos do navegador.
+    Revalida a correspondência de cada método no servidor, bloqueia a sessão
+    durante a operação e usa um único INSERT para todas as entradas.
+    """
+    if not isinstance(payload,dict):
+        raise ValueError("Informe as entradas a confirmar.")
+    stake=_money(payload.get("stake"),"Stake")
+    expected_version=payload.get("versao")
+    if type(expected_version) is not int:
+        raise ValueError("Atualize a rodada antes de confirmar as entradas.")
+    requested=payload.get("selecoes")
+    if not isinstance(requested,list) or not requested or len(requested)>500:
+        raise ValueError("Selecione de 1 a 500 métodos válidos para a rodada.")
+    selections=[]
+    seen=set()
+    for item in requested:
+        if not isinstance(item,dict):
+            raise ValueError("Seleção de método inválida.")
+        gid=item.get("jogo_id")
+        mid=item.get("metodo_id")
+        ver=item.get("metodo_versao")
+        if type(gid) is not int or gid<=0 or type(mid) is not int or mid<=0 or type(ver) is not int:
+            raise ValueError("Seleção de jogo ou método inválida.")
+        key=(gid,mid)
+        if key in seen:
+            raise ValueError("A mesma combinação de jogo e método foi enviada mais de uma vez.")
+        seen.add(key)
+        selections.append((gid,mid,ver))
+
+    catalog=_catalog()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            sess=_lock(cur,token)
+            if sess["fase"]!="aberta":
+                raise ValueError("Finalize a rodada atual antes de começar novas entradas.")
+            if int(sess["versao"])!=expected_version:
+                raise ValueError("A rodada foi modificada em outra aba. Recarregue para conferir as entradas.")
+            rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+            games={int(g["id"]):g for g in _round_at(rounds,0)}
+            if not games:
+                raise ValueError("Não há jogos nesta rodada.")
+            methods={m["id"]:m for m in _methods()}
+            cur.execute("""
+              SELECT jogo_id FROM galileu_private.jogos_finalizados
+              WHERE sessao_id=%s AND indice_rodada=%s
+            """,(sess["id"],sess["indice_rodada"]))
+            closed={int(r["jogo_id"]) for r in cur.fetchall()}
+            cur.execute("""
+              SELECT jogo_id,metodo_id FROM galileu_private.entradas
+              WHERE sessao_id=%s AND indice_rodada=%s AND tipo='metodo'
+            """,(sess["id"],sess["indice_rodada"]))
+            previously_used={(int(r["jogo_id"]),int(r["metodo_id"])) for r in cur.fetchall()}
+            cur.execute("""
+              SELECT COALESCE(SUM(stake),0) AS comprometido
+              FROM galileu_private.entradas
+              WHERE sessao_id=%s AND indice_rodada=%s
+            """,(sess["id"],sess["indice_rodada"]))
+            committed=Decimal(cur.fetchone()["comprometido"])
+            # Removemos apenas os métodos já inseridos, não os manuais.
+            remaining=[(gid,mid,ver) for gid,mid,ver in selections
+                       if (gid,mid) not in previously_used]
+            if not remaining:
+                raise ValueError("Todas as entradas desses métodos já foram registradas.")
+            if stake*len(remaining)>Decimal(sess["banca_atual"])-committed:
+                raise ValueError(
+                    "Saldo insuficiente para "+str(len(remaining))+
+                    " entradas. Reduza a stake ou selecione os métodos individualmente.")
+            histories=_history(catalog)
+            prepared=[]
+            stat_cache={}
+            for gid,mid,ver in remaining:
+                game=games.get(gid)
+                method=methods.get(mid)
+                if game is None or gid in closed:
+                    raise ValueError("Um dos jogos não está mais disponível. Atualize a rodada.")
+                if method is None or method["versao"]!=ver or (
+                    method["ligas"] and game["campeonato_id"] not in method["ligas"]
+                ):
+                    raise ValueError("Um dos métodos foi alterado. Atualize a rodada.")
+                cache_key=(gid,method["jogos"])
+                if cache_key not in stat_cache:
+                    home,_=_team_stats(histories,game,game["casa_id"],method["jogos"])
+                    away,_=_team_stats(histories,game,game["fora_id"],method["jogos"])
+                    stat_cache[cache_key]=(home,away)
+                home,away=stat_cache[cache_key]
+                validated=_matched(game,home,away,[method])
+                if not validated:
+                    raise ValueError("Um dos métodos não atende mais às regras. Atualize a rodada.")
+                matched=validated[0]
+                offer=matched["mercado"]
+                prepared.append((
+                    sess["id"],gid,sess["indice_rodada"],"metodo",
+                    mid,ver,method["nome"],method["objetivo"],offer["odd"],
+                    stake,offer["estimada"],offer["favorito_casa"],
+                ))
+            # Único INSERT transacional, sem confirmações parciais.
+            # O índice único parcial no banco impede repetir método/jogo.
+            from psycopg2.extras import execute_values
+            try:
+                execute_values(cur,"""
+                  INSERT INTO galileu_private.entradas
+                    (sessao_id,jogo_id,indice_rodada,tipo,metodo_id,metodo_versao,
+                     metodo_nome,mercado,odd,stake,cotacao_estimada,favorito_casa)
+                  VALUES %s
+                  RETURNING id,jogo_id,tipo,metodo_id,metodo_nome,mercado,odd,stake
+                """,prepared,page_size=len(prepared))
+                saved=cur.fetchall()
+            except errors.UniqueViolation:
+                raise ValueError(
+                    "Um dos métodos já possui entrada neste jogo. Atualize a rodada."
+                ) from None
+            if len(saved)!=len(prepared):
+                raise ValueError("Não foi possível confirmar todas as entradas.")
+            cur.execute("""
+              UPDATE galileu_private.sessoes
+              SET versao=versao+1,atualizado_em=now() WHERE id=%s
+            """,(sess["id"],))
+        conn.commit()
+    return {
+        "mensagem":str(len(saved))+" entradas virtuais confirmadas e salvas.",
+        "versao":int(sess["versao"])+1,
+        "ignoradas":len(selections)-len(saved),
+        "entradas":[{
+            "id":int(row["id"]),
+            "jogo_id":int(row["jogo_id"]),
+            "tipo":row["tipo"],
+            "metodo_id":int(row["metodo_id"]),
+            "metodo":row["metodo_nome"],
+            "mercado":row["mercado"],
+            "odd":float(row["odd"]),
+            "stake":_brl(row["stake"]),
+            "status":"pendente",
+            "lucro_prejuizo":None,
+        } for row in saved],
+    }
+
+
 def finalizar_jogo(token,payload):
     """Oculta um jogo da lista atual, preservando apostas e liquidação."""
     if not isinstance(payload,dict) or type(payload.get("jogo_id")) is not int or payload["jogo_id"]<1:
