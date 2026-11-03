@@ -607,6 +607,45 @@ def ligas_selecionadas(payload):
     return [old]
 
 
+def _novo_resumo():
+    """Acumulador sem arredondar: o rodapé não soma médias já arredondadas."""
+    return {"entradas":0,"greens":0,"reds":0,"unidades":0.0,
+            "cotadas":0,"odds_soma":0.0,"good_run":0,"bad_run":0,
+            "maior_good_run":0,"maior_bad_run":0,"jogos":[]}
+
+
+def _registrar_entrada(rec,green,odd,units):
+    """Sequências seguem a ordem cronológica, inclusive no agregado das ligas."""
+    rec["entradas"]+=1
+    rec["greens"]+=int(green)
+    rec["reds"]+=int(not green)
+    if green:
+        rec["good_run"]+=1
+        rec["bad_run"]=0
+        rec["maior_good_run"]=max(rec["maior_good_run"],rec["good_run"])
+    else:
+        rec["bad_run"]+=1
+        rec["good_run"]=0
+        rec["maior_bad_run"]=max(rec["maior_bad_run"],rec["bad_run"])
+    if units is not None:
+        rec["cotadas"]+=1
+        rec["unidades"]+=units
+        rec["odds_soma"]+=odd
+
+
+def _fechar_resumo(rec):
+    """Retorna métricas ponderadas por entradas, com cobertura de odds explícita."""
+    rec["win_rate"]=round(100*rec["greens"]/rec["entradas"],2) if rec["entradas"] else 0
+    rec["odd_media"]=round(rec["odds_soma"]/rec["cotadas"],2) if rec["cotadas"] else None
+    rec["lucro_medio_entrada"]=round(rec["unidades"]*100/rec["cotadas"],2) if rec["cotadas"] else None
+    rec["valor_reais"]=round(rec["unidades"]*100,2) if rec["cotadas"] else None
+    rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
+    del rec["odds_soma"]
+    del rec["good_run"]
+    del rec["bad_run"]
+    return rec
+
+
 def testar(payload,rows=None,capture=False):
     if not isinstance(payload,dict):raise ValueError("Dados inválidos.")
     cutoff=payload.get("corte")
@@ -645,9 +684,8 @@ def testar(payload,rows=None,capture=False):
             filtered.append({**r,"data":d})
     filtered.sort(key=lambda r:(r["data"],int(r["id"])))
     histories=defaultdict(list)
-    leagues=defaultdict(lambda:{"entradas":0,"greens":0,"reds":0,"unidades":0.0,
-                "cotadas":0,"odds_soma":0.0,"good_run":0,"bad_run":0,
-                "maior_good_run":0,"maior_bad_run":0,"jogos":[]})
+    leagues=defaultdict(_novo_resumo)
+    total=_novo_resumo()
     length=None if window=="temporada" else int(window)
     matched_total=0
     sem_classificacao=0
@@ -693,21 +731,8 @@ def testar(payload,rows=None,capture=False):
                 hit=_settle(settled_market,int(g["gols_casa"]),int(g["gols_fora"]))
                 odd,origin=_odds_for_game(g,settled_market,manual)
                 units=_units(hit,settled_market,odd,commission)
-                rec["entradas"]+=1
-                rec["greens"]+=int(hit)
-                rec["reds"]+=int(not hit)
-                if hit:
-                    rec["good_run"]+=1
-                    rec["bad_run"]=0
-                    rec["maior_good_run"]=max(rec["maior_good_run"],rec["good_run"])
-                else:
-                    rec["bad_run"]+=1
-                    rec["good_run"]=0
-                    rec["maior_bad_run"]=max(rec["maior_bad_run"],rec["bad_run"])
-                if units is not None:
-                    rec["cotadas"]+=1
-                    rec["unidades"]+=units
-                    rec["odds_soma"]+=odd
+                _registrar_entrada(rec,hit,odd,units)
+                _registrar_entrada(total,hit,odd,units)
                 if capture:
                     # Somente atributos conhecidos na data do jogo (o histórico
                     # é montado ANTES de acrescentar partidas do mesmo dia).
@@ -744,21 +769,16 @@ def testar(payload,rows=None,capture=False):
     summary=[]
     for league_name,rec in sorted(leagues.items()):
         rec["campeonato"]=league_name
-        rec["win_rate"]=round(100*rec["greens"]/rec["entradas"],2) if rec["entradas"] else 0
-        rec["odd_media"]=round(rec["odds_soma"]/rec["cotadas"],2) if rec["cotadas"] else None
-        # Calcula o valor médio antes de arredondar unidades, evitando centavos artificiais.
-        rec["lucro_medio_entrada"]=round(rec["unidades"]*100/rec["cotadas"],2) if rec["cotadas"] else None
-        rec["unidades"]=round(rec["unidades"],3) if rec["cotadas"] else None
-        rec["valor_reais"]=round(rec["unidades"]*100,2) if rec["cotadas"] else None
-        del rec["odds_soma"]
-        del rec["good_run"]
-        del rec["bad_run"]
-        summary.append(rec)
+        summary.append(_fechar_resumo(rec))
+    _fechar_resumo(total)
+    # O rodapé usa sequências globais por data/ID, não soma as sequências de
+    # cada liga. "jogos" não é utilizado no agregado; exclui carga extra.
+    del total["jogos"]
     recorte_descrito=("até os últimos "+window+" jogos disponíveis" if window!="temporada"
                      else "todos os jogos disponíveis da temporada")
     response={"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "campeonato_ids":leagues_selected or [],
-            "resultados":summary,"entradas":matched_total,
+            "resultados":summary,"total":total,"entradas":matched_total,
             "sem_classificacao":sem_classificacao,
             "limite_detalhes":400,"odd_hipotetica":manual,"stake_reais":100,
             "aviso":"A data de corte limita os jogos analisados. Indicadores usam apenas "

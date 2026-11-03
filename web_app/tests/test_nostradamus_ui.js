@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-ia-otimizacao-v7'),
+assert.ok(html.includes('nostradamus-total-v8'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -186,3 +186,21 @@ assert.ok(js.includes('$("#ns-form").requestSubmit()'),
   "Aplicação deve recalcular o backtest sem salvar a estratégia automaticamente");
 assert.ok(!js.includes('localStorage.setItem(store'),"Análise não deve salvar a estratégia silenciosamente");
 assert.ok(css.includes('.ns-ai-panel'),"Painel da otimização deve ser estilizado");
+
+/* O total deve estar no rodapé da tabela, sem somar métricas não aditivas. */
+assert.ok(html.includes('<tfoot id="ns-summary-total" hidden>'),"Rodapé Total deve existir na própria tabela");
+assert.ok(html.includes('id="ns-summary-coverage"'),"Mostrar cobertura de odds no agregado");
+assert.ok(src.includes('const grand=response.total;'),"Total deve vir do acumulador exato do backend");
+assert.ok(src.includes('footer.innerHTML=\'<tr class="ns-total-row">\''),"Renderizar a linha Total");
+assert.ok(src.includes('<th scope="row">TOTAL</th>'),"Destacar total como rótulo de linha");
+assert.ok(src.includes('fmt(grand.entradas,0)')&&src.includes('fmt(grand.greens,0)')&&
+  src.includes('fmt(grand.reds,0)'),"Somar quantidade de entradas e greens/reds");
+assert.ok(src.includes('fmt(grand.win_rate,1)'),"Win Rate consolidado, não média simples");
+assert.ok(src.includes('fmt(grand.unidades,2)'),"Unidades consolidadas");
+assert.ok(src.includes('money(grand.valor_reais)'),"Resultado financeiro consolidado");
+assert.ok(src.includes('fmt(grand.odd_media,2)'),"Odd média ponderada pelas entradas cotadas");
+assert.ok(src.includes('money(grand.lucro_medio_entrada)'),"Lucro médio ponderado por entrada cotada");
+assert.ok(src.includes('fmt(grand.maior_good_run,0)')&&src.includes('fmt(grand.maior_bad_run,0)'),
+  "Mostrar sequências cronológicas globais");
+assert.ok(src.includes('fmt(grand.cotadas,0)'),"Explicar entradas cotadas do agregado");
+assert.ok(css.includes('#ns-summary-total .ns-total-row'),"Estilo próprio do rodapé");

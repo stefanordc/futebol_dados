@@ -509,6 +509,37 @@ function show(response){
     '<td class="ns-green">'+fmt(r.maior_good_run,0)+'</td>'+
     '<td class="ns-red">'+fmt(r.maior_bad_run,0)+'</td></tr>').join(""):
     '<tr><td colspan="12">Nenhum jogo atende às condições com o histórico disponível.</td></tr>';
+  const grand=response.total;
+  const footer=$("#ns-summary-total");
+  const coverage=$("#ns-summary-coverage");
+  footer.hidden=!response.resultados.length||!grand;
+  coverage.hidden=footer.hidden;
+  if(!footer.hidden){
+    const monetaryHint="Considera apenas as "+fmt(grand.cotadas,0)+
+      " entradas com cotação entre "+fmt(grand.entradas,0)+" entradas.";
+    footer.innerHTML='<tr class="ns-total-row">'+
+      '<td aria-label="Rodapé de totais"></td><th scope="row">TOTAL</th>'+
+      '<td>'+fmt(grand.entradas,0)+'</td>'+
+      '<td class="ns-green">'+fmt(grand.greens,0)+'</td>'+
+      '<td class="ns-red">'+fmt(grand.reds,0)+'</td>'+
+      '<td>'+fmt(grand.win_rate,1)+'%</td>'+
+      '<td class="'+pnlClass(grand.unidades)+'" title="'+esc(monetaryHint)+'">'+fmt(grand.unidades,2)+'</td>'+
+      '<td class="'+pnlClass(grand.valor_reais)+'" title="'+esc(monetaryHint)+'">'+money(grand.valor_reais)+'</td>'+
+      '<td title="Média ponderada pelas entradas cotadas">'+fmt(grand.odd_media,2)+'</td>'+
+      '<td class="'+pnlClass(grand.lucro_medio_entrada)+'" title="'+esc(monetaryHint)+'">'+
+        money(grand.lucro_medio_entrada)+'</td>'+
+      '<td class="ns-green" title="Maior sequência global, em ordem cronológica">'+
+        fmt(grand.maior_good_run,0)+'</td>'+
+      '<td class="ns-red" title="Maior sequência global, em ordem cronológica">'+
+        fmt(grand.maior_bad_run,0)+'</td></tr>';
+    coverage.textContent="Total financeiro calculado em "+fmt(grand.cotadas,0)+
+      " de "+fmt(grand.entradas,0)+" entradas com odds disponíveis. "+
+      "Win Rate considera todas as entradas. As sequências do total seguem a ordem "+
+      "cronológica de todas as ligas, e não a soma das sequências de cada liga.";
+  }else{
+    footer.innerHTML="";
+    coverage.textContent="";
+  }
   $("#ns-details").innerHTML="";
   say("Análise concluída: "+response.entradas+" entradas históricas em "+response.resultados.length+
     " campeonato(s). "+(response.sem_classificacao?

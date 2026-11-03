@@ -40,6 +40,63 @@ class TestNostradamus(TestCase):
         self.start=self.cutoff-timedelta(days=12)
         self.rows=[game(i,self.start+timedelta(days=i),gf=2,ga=0) for i in range(10)]
 
+    def test_rodape_consolida_todas_ligas_sem_media_de_medias(self):
+        # Cada liga tem 1 green e 1 red. No agregado, há duas vitórias
+        # seguidas e duas derrotas seguidas, pela ordem cronológica/ID.
+        data=[]
+        for i in range(7):
+            for league,odd in ((1,2.1),(2,3.0)):
+                g=game(i*10+league,self.start+timedelta(days=i),
+                       gf=2 if i!=6 else 0,ga=0 if i!=6 else 1,
+                       comp=league)
+                g["campeonato"]="Liga "+str(league)
+                g["api_odd_1_ft"]=odd
+                if league==2 and i==6:
+                    g["api_odd_1_ft"]=None
+                data.append(g)
+        params=config(self.cutoff)
+        params["campeonato_id"]=None
+        output=ns.testar(params,rows=data)
+        total=output["total"]
+        self.assertEqual(len(output["resultados"]),2)
+        self.assertEqual((total["entradas"],total["greens"],total["reds"]),(4,2,2))
+        self.assertEqual(total["win_rate"],50)
+        self.assertEqual(total["cotadas"],3)
+        self.assertEqual(total["unidades"],2.1)
+        self.assertEqual(total["valor_reais"],210)
+        self.assertEqual(total["odd_media"],2.4)
+        self.assertEqual(total["lucro_medio_entrada"],70)
+        self.assertEqual(total["maior_good_run"],2)
+        self.assertEqual(total["maior_bad_run"],2)
+        self.assertEqual(output["entradas"],total["entradas"])
+        self.assertEqual([r["maior_good_run"] for r in output["resultados"]],[1,1])
+        self.assertEqual([r["maior_bad_run"] for r in output["resultados"]],[1,1])
+        self.assertEqual(sum(r["valor_reais"] for r in output["resultados"]),210)
+
+    def test_rodape_nao_inventa_financeiro_sem_odds(self):
+        data=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
+              for i in range(10)]
+        output=ns.testar(config(self.cutoff),rows=data)
+        total=output["total"]
+        self.assertEqual(total["entradas"],5)
+        self.assertEqual(total["cotadas"],0)
+        for field in ("unidades","valor_reais","odd_media","lucro_medio_entrada"):
+            self.assertIsNone(total[field])
+        self.assertEqual(total["win_rate"],100.0)
+        self.assertEqual(total["maior_good_run"],5)
+        self.assertEqual(total["maior_bad_run"],0)
+
+    def test_rodape_sem_partidas_fica_zerado_sem_lucro_falso(self):
+        output=ns.testar(config(self.cutoff),rows=[])
+        total=output["total"]
+        self.assertEqual(total["entradas"],0)
+        self.assertEqual(total["greens"],0)
+        self.assertEqual(total["reds"],0)
+        self.assertEqual(total["maior_good_run"],0)
+        self.assertEqual(total["maior_bad_run"],0)
+        self.assertIsNone(total["valor_reais"])
+        self.assertEqual(output["resultados"],[])
+
     def test_mando_filtra_favorito_e_zebra_independente_de_casa_fora(self):
         partidas=[game(i,self.start+timedelta(days=i),gf=2,ga=0)
                   for i in range(10)]
