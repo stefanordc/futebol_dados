@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v11">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v12">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -55,6 +55,20 @@
     </div>
     <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo ajustado por aportes e saques define a base do próximo mês. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
     <p class="gl-note">Entradas Back: stake representa o valor apostado. Entradas Lay: stake representa a responsabilidade máxima, com comissão estimada de 4,5% sobre lucros. As odds importadas não têm comprovação de captura pré-jogo.</p>
+  </section>
+
+  <section class="gl-panel" id="gl-method-management">
+    <div class="gl-section-title">
+      <div><div class="df-eyebrow">CONTROLE DE MÉTODOS</div><h2>Métodos ativos no Galileu</h2></div>
+    </div>
+    <p class="gl-note">Retire um método a qualquer momento. Ele deixará de marcar jogos imediatamente e não aceitará novas entradas. Entradas ainda pendentes serão canceladas; resultados anteriores permanecerão no histórico. O método continuará cadastrado no Nostradamus.</p>
+    <form id="gl-disable-method-form" class="gl-method-management">
+      <label for="gl-disable-method-select">Selecione o método que deseja retirar
+        <select id="gl-disable-method-select" required></select>
+      </label>
+      <button type="submit" id="gl-disable-method-submit" class="gl-link gl-danger">Retirar método</button>
+    </form>
+    <p id="gl-disabled-methods" class="gl-note" aria-live="polite"></p>
   </section>
 
   <section class="gl-panel" id="gl-round-section">
