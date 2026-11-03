@@ -803,4 +803,7 @@ def testar(payload,rows=None,capture=False):
                     "O passado não garante resultado futuro."}
     if capture:
         response["_dados_otimizacao"]=captured
+        # Uso exclusivo do otimizador: permite simular remoções de regras sem
+        # fazer novas consultas ao Supabase. Não é enviado à interface.
+        response["_jogos_originais"]=filtered
     return response
