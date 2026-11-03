@@ -862,6 +862,126 @@ class TestGalileuGameplay(TestCase):
                 gl.proxima("token")
         self.assertFalse(any("UPDATE galileu_private.sessoes" in q for q in executed))
 
+    def test_retirar_metodo_e_imediato_e_cancela_pendentes(self):
+        from contextlib import contextmanager
+        actions=[]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                self.last=sql
+                actions.append((sql,params))
+            def fetchone(self):
+                if "INSERT INTO galileu_private.metodos_desativados" in self.last:
+                    return {"metodo_id":7}
+                return None
+            def fetchall(self):
+                if "DELETE FROM galileu_private.entradas" in self.last:
+                    return [{"id":100},{"id":101}]
+                return []
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):actions.append(("COMMIT",None))
+        @contextmanager
+        def fake_conn():yield Conn()
+        methods=[{"id":7,"nome":"Over 2,5"}]
+        with patch.object(gl,"_methods",return_value=methods), \
+             patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"get_conn",fake_conn):
+            result=gl.retirar_metodo("token",{"metodo_id":7})
+        self.assertEqual(result["metodo_id"],7)
+        self.assertEqual(result["entradas_canceladas"],2)
+        inserted=[params for sql,params in actions
+                  if "INSERT INTO galileu_private.metodos_desativados" in sql]
+        self.assertEqual(inserted,[("session_uuid",7,"Over 2,5","2026-10")])
+        deleted=[sql for sql,_ in actions if "DELETE FROM galileu_private.entradas" in sql]
+        self.assertEqual(len(deleted),1)
+        self.assertIn("status='pendente'",deleted[0])
+        self.assertIn("tipo='metodo'",deleted[0])
+        self.assertTrue(any("versao=versao+1" in sql for sql,_ in actions))
+        self.assertEqual(actions[-1][0],"COMMIT")
+
+    def test_retirar_metodo_nao_apaga_resultados_e_oculta_marcacoes(self):
+        method={"id":7,"versao":3,"nome":"Over 2,5","objetivo":"over_25",
+                "condicoes":[],"ligas":set(),"jogos":20}
+        disabled={7:{"desde":"2026-10","nome":"Over 2,5"}}
+        games=fixtures()
+        with patch.object(gl,"_history",return_value={}), \
+             patch.object(gl,"_team_stats",return_value=({},5)), \
+             patch.object(gl,"_available_markets",return_value=[]), \
+             patch.object(gl,"_matched") as matched:
+            _,public=gl._games_for_session(
+                session(),games,gl._rounds(date(2026,10,17),games),
+                methods=[method],disabled=disabled)
+        self.assertTrue(public)
+        self.assertTrue(all(not game["metodos"] for game in public))
+        matched.assert_not_called()
+        self.assertTrue(gl._is_disabled(7,date(2026,10,20),disabled))
+        self.assertTrue(gl._is_disabled(7,date(2026,11,20),disabled))
+
+    def test_registrar_entrada_rejeita_metodo_retirado_mesmo_no_mes(self):
+        from contextlib import contextmanager
+        actions=[]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                self.last=sql
+                actions.append(sql)
+            def fetchone(self):
+                if "metodos_desativados" in self.last:
+                    return {"efetivo_desde":"2026-11"}
+                return None
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):raise AssertionError("Não deveria registrar entrada")
+        @contextmanager
+        def fake_conn():yield Conn()
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"Método retirado"):
+                gl.registrar("token",{
+                    "jogo_id":110,"tipo":"metodo","stake":"20.00",
+                    "metodo_id":7,"metodo_versao":3})
+        self.assertFalse(any("INSERT INTO galileu_private.entradas" in q for q in actions))
+
+    def test_lote_nao_insere_metodo_retirado(self):
+        from contextlib import contextmanager
+        actions=[]
+        class Cursor:
+            last=""
+            def execute(self,sql,params):
+                self.last=sql
+                actions.append(sql)
+            def fetchall(self):
+                if "SELECT metodo_id,efetivo_desde" in self.last:
+                    return [{"metodo_id":7,"efetivo_desde":"2026-11"}]
+                return []
+        class Conn:
+            def cursor(self):
+                @contextmanager
+                def ctx():yield Cursor()
+                return ctx()
+            def commit(self):raise AssertionError("Não deveria confirmar o lote")
+        @contextmanager
+        def fake_conn():yield Conn()
+        method={"id":7,"versao":3,"nome":"Over 2,5","objetivo":"over_25",
+                "condicoes":[],"ligas":set(),"jogos":20}
+        with patch.object(gl,"_catalog",return_value=fixtures()), \
+             patch.object(gl,"_lock",return_value=session()), \
+             patch.object(gl,"_methods",return_value=[method]), \
+             patch.object(gl,"get_conn",fake_conn):
+            with self.assertRaisesRegex(ValueError,"métodos foi alterado"):
+                gl.registrar_metodos_em_lote("token",{
+                    "stake":"20.00","versao":1,
+                    "selecoes":[{"jogo_id":110,"metodo_id":7,"metodo_versao":3}]})
+        self.assertFalse(any("INSERT INTO galileu_private.entradas" in q for q in actions))
+
     def test_report_api_sem_sessao_nao_carrega_dados_privados(self):
         with patch.object(gl,"fetch_all",side_effect=AssertionError("Sem consultas")):
             self.assertEqual(gl.relatorios(None),{"iniciado":False})
