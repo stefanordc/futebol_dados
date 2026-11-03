@@ -161,11 +161,11 @@ def _month_end(day):
 
 
 def _rounds(cutoff, catalog):
-    """Janelas de até 10 dias, sem ultrapassar o mês civil.
+    """Uma janela por mês civil, sem revelar placares antes da finalização.
 
-    Em cada Próxima rodada, o corte vira a MAIOR DATA dos jogos exibidos.
-    Se não houver partidas nos próximos dez dias, oferece uma janela vazia
-    e permite avançar até o limite do período (sem revelar placares).
+    Na primeira janela, respeita a data de corte escolhida pelo usuário.
+    Os próximos meses são completos, inclusive meses vazios, para permitir
+    o fechamento mensal sem saltar datas.
     """
     ordered=sorted(
         (r for r in catalog if r["data"]>cutoff),
@@ -179,12 +179,12 @@ def _rounds(cutoff, catalog):
     cursor=cutoff
     while cursor<last_day:
         first=cursor+timedelta(days=1)
-        limit=min(cursor+timedelta(days=10),_month_end(first))
+        limit=_month_end(first)
         games=[]
         while position<len(ordered) and ordered[position]["data"]<=limit:
             games.append(ordered[position])
             position+=1
-        next_cut=max(g["data"] for g in games) if games else limit
+        next_cut=limit
         windows.append({
             "corte":cursor,
             "limite":limit,
@@ -736,7 +736,10 @@ def _closing_boundary(rounds):
 def _default_stake(sess):
     if sess["stake_fixa"] is not None:
         return _brl(sess["stake_fixa"])
-    return _brl(_rounded(Decimal(sess["banca_base_mes"] if sess.get("banca_base_mes") is not None else sess["banca_inicial"])*Decimal(sess["gestao_pct"])/100))
+    base=Decimal(sess["banca_base_mes"] if sess.get("banca_base_mes") is not None else sess["banca_inicial"])
+    # Não há percentual positivo de uma banca zerada/negativa; usar o mínimo
+    # editável apenas para não bloquear o modo de simulação sem saldo.
+    return _brl(max(CENTS,_rounded(base*Decimal(sess["gestao_pct"])/100)))
 
 
 def estado(token):
@@ -848,7 +851,7 @@ def estado(token):
         "pode_avancar":revealed and len(rounds)>1,
         "periodo_vazio":not bool(raw_games),
         "pode_pular_vazio":sess["fase"]=="aberta" and not raw_games and len(rounds)>1,
-        "aviso":"Gameplay histórica: entradas programadas são simuladas no fechamento, em ordem de data. Jogos no mesmo dia compartilham a banca sem antecipar lucros. Odds históricas não comprovam disponibilidade pré-jogo. Lay estimado; nenhuma aposta real.",
+        "aviso":"Gameplay histórica: todos os jogos do mês são exibidos juntos. Todas as entradas confirmadas são liquidadas, mesmo sem saldo, e a banca virtual pode ficar negativa. Odds históricas não comprovam disponibilidade pré-jogo. Lay estimado; nenhuma aposta real.",
     }
 
 
@@ -967,11 +970,8 @@ def registrar(token,payload):
             """,(sess["id"],gid))
             if cur.fetchone():
                 raise ValueError("Este jogo foi finalizado. Não é possível adicionar entradas.")
-            # Programar uma aposta não debita a banca: partidas futuras podem
-            # acontecer em dias diferentes. A liquidação reserva o risco de
-            # cada dia e pode marcar sem_saldo, sem presumir ganhos futuros.
-            if stake>Decimal(sess["banca_atual"]):
-                raise ValueError("A stake individual excede a banca atual.")
+            # Modo de simulação: toda entrada válida será liquidada ao fim
+            # do mês, mesmo quando sua stake supera a banca virtual.
             if kind=="metodo":
                 method_id=payload.get("metodo_id")
                 if type(method_id) is not int:
@@ -1032,7 +1032,7 @@ def registrar(token,payload):
     # A entrada já está persistida. A UI atualiza somente o card e o contador:
     # não precisa executar /estado (catálogo completo + todos os métodos).
     return {
-        "mensagem":"Entrada virtual programada e salva. A execução dependerá do saldo na data do jogo.",
+        "mensagem":"Entrada virtual programada e salva. Será liquidada ao finalizar o mês.",
         "versao":int(sess["versao"])+1,
         "entrada":{
             "id":int(created["id"]),
@@ -1062,8 +1062,8 @@ def registrar_metodos_em_lote(token,payload):
     if type(expected_version) is not int:
         raise ValueError("Atualize a rodada antes de confirmar as entradas.")
     requested=payload.get("selecoes")
-    if not isinstance(requested,list) or not requested or len(requested)>500:
-        raise ValueError("Selecione de 1 a 500 métodos válidos para a rodada.")
+    if not isinstance(requested,list) or not requested or len(requested)>5000:
+        raise ValueError("Selecione de 1 a 5000 entradas válidas para o mês.")
     selections=[]
     seen=set()
     for item in requested:
@@ -1112,15 +1112,14 @@ def registrar_metodos_em_lote(token,payload):
               WHERE sessao_id=%s AND indice_rodada=%s AND tipo='metodo'
             """,(sess["id"],sess["indice_rodada"]))
             previously_used={(int(r["jogo_id"]),int(r["metodo_id"])) for r in cur.fetchall()}
-            # Entradas são PROGRAMADAS, sem reserva da banca para toda a
-            # rodada. A disponibilidade será verificada na data de cada jogo.
-            # Removemos apenas os métodos já inseridos, não os manuais.
+            # Entradas são programadas para o mês todo, sem limite de
+            # saldo. Removemos apenas os métodos já inseridos, não os manuais.
             remaining=[(gid,mid,ver) for gid,mid,ver in selections
                        if (gid,mid) not in previously_used]
             if not remaining:
                 raise ValueError("Todas as entradas desses métodos já foram registradas.")
-            if stake>Decimal(sess["banca_atual"]):
-                raise ValueError("A stake por método excede a banca atual.")
+            # Sem bloqueio por banca: qualquer stake positiva válida pode
+            # ser programada, independentemente do total das entradas.
             histories=_history(catalog)
             prepared=[]
             stat_cache={}
@@ -1173,7 +1172,7 @@ def registrar_metodos_em_lote(token,payload):
             """,(sess["id"],))
         conn.commit()
     return {
-        "mensagem":str(len(saved))+" entradas virtuais programadas e salvas. A execução dependerá do saldo nas datas dos jogos.",
+        "mensagem":str(len(saved))+" entradas virtuais programadas para o mês. Todas serão liquidadas no fechamento.",
         "versao":int(sess["versao"])+1,
         "ignoradas":len(selections)-len(saved),
         "entradas":[{
@@ -1239,46 +1238,28 @@ def _settlement(market,favorite_home,home,away,odd,stake):
 
 
 def _liquidar_entradas_por_data(entries, by_id, banca_inicial):
-    """Agenda programada: reserva stakes para todas as entradas de cada dia.
+    """Liquida todas as entradas, sem limite de saldo ou priorização por stake.
 
-    O banco não possui horário confiável para cada jogo. Por isso, jogos
-    do mesmo DIA são tratados como simultâneos: lucros de uma partida
-    não financiam outra do mesmo dia. A prioridade dentro do dia é o
-    ID da entrada, em ordem de registro. Apenas os dias anteriores
-    podem financiar entradas futuras. Não há débito antecipado na
-    programação. Retorna (id, status, lucro/prejuízo) e banca final.
+    A banca virtual é meramente contábil e pode tornar-se negativa. Jogos
+    do mesmo dia não precisam competir pela banca: todos serão liquidados
+    usando odds, placares e stakes registradas, em ordem determinística.
     """
-    from collections import defaultdict
-    days=defaultdict(list)
-    for e in entries:
-        game=by_id.get(int(e["jogo_id"]))
+    ordered=[]
+    for entry in entries:
+        game=by_id.get(int(entry["jogo_id"]))
         if game is None:
             raise ValueError("Uma entrada não pertence à rodada atual.")
-        days[_date(game["data"])].append(e)
+        ordered.append((_date(game["data"]),int(entry["id"]),entry,game))
     bank=Decimal(banca_inicial)
     updates=[]
-    for day in sorted(days):
-        committed=Decimal("0")
-        todays=[]
-        for entry in sorted(days[day],key=lambda e:int(e["id"])):
-            stake=Decimal(entry["stake"])
-            if stake<=bank-committed:
-                committed+=stake
-                game=by_id[int(entry["jogo_id"])]
-                status,pnl=_settlement(
-                    entry["mercado"],entry["favorito_casa"],
-                    game["gols_casa"],game["gols_fora"],
-                    entry["odd"],stake)
-            else:
-                status,pnl="sem_saldo",Decimal("0.00")
-            todays.append((int(entry["id"]),status,_rounded(pnl)))
-        # Só depois de decidir todas as entradas do dia aplicamos os
-        # resultados. Isso impede usar um green no mesmo dia para cobrir
-        # uma entrada cujo horário de início é desconhecido.
-        bank=_rounded(bank+sum((r[2] for r in todays),Decimal("0")))
-        if bank<0:
-            raise ValueError("Saldo negativo ao liquidar a rodada. Revise as entradas.")
-        updates.extend(todays)
+    for _,entry_id,entry,game in sorted(ordered,key=lambda x:(x[0],x[1])):
+        status,pnl=_settlement(
+            entry["mercado"],entry["favorito_casa"],
+            game["gols_casa"],game["gols_fora"],
+            entry["odd"],Decimal(entry["stake"]))
+        amount=_rounded(pnl)
+        updates.append((entry_id,status,amount))
+        bank=_rounded(bank+amount)
     return updates,bank
 
 
@@ -1316,7 +1297,7 @@ def finalizar(token):
             """,(_rounded(new_bank),sess["id"]))
         conn.commit()
     return {
-        "mensagem":"Rodada finalizada. Entradas executadas e não executadas por falta de saldo foram apuradas.",
+        "mensagem":"Mês finalizado. Todas as entradas programadas foram liquidadas, sem limite de saldo.",
         "executadas":sum(status in ("green","red") for _,status,_ in updates),
         "sem_saldo":sum(status=="sem_saldo" for _,status,_ in updates),
         "banca_final":_brl(new_bank),
@@ -1374,14 +1355,13 @@ def fechar_mes(token,payload):
                 raise ValueError("Este mês já foi fechado e não pode ser movimentado novamente.")
             closing=Decimal(sess["banca_atual"])
             after_deposit=closing+aporte
-            if saque>after_deposit:
-                raise ValueError("Saque maior que o saldo disponível, incluindo o aporte.")
+            if saque>max(Decimal("0"),after_deposit):
+                raise ValueError("Saque maior que o saldo positivo disponível, incluindo o aporte.")
             next_base=_rounded(after_deposit-saque)
             next_rate=rate if rate is not None else Decimal(sess["gestao_pct"])
             next_fixed=(fixed if mode=="fixo" else None) if payload["alterar_stake"] \
                 else (Decimal(sess["stake_fixa"]) if sess["stake_fixa"] is not None else None)
-            if next_fixed is not None and next_fixed>next_base:
-                raise ValueError("Stake fixa maior que o saldo disponível após o fechamento.")
+            # Stake fixa é um parâmetro da simulação, sem limite de banca.
             next_month=(date(int(month[:4]),int(month[5:7]),1)+timedelta(days=32)).replace(day=1).strftime("%Y-%m")
             for mid in to_disable:
                 cur.execute("""
@@ -1475,8 +1455,7 @@ def proxima(token):
             if current is None:
                 raise ValueError("Não há períodos disponíveis.")
             next_cutoff=current["proximo_corte"]
-            # Corte atualizado = última data da lista. Se a lista for vazia,
-            # o corte avança até o limite de dez dias/fim do mês.
+            # Corte atualizado = último dia do mês, mesmo se não houver jogos.
             exists=len(rounds)>1
             cur.execute("""
               UPDATE galileu_private.sessoes
