@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v8"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v9"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -159,3 +159,26 @@ assert.ok(py.includes('def fechar_mes(token,payload):'),
 assert.ok(py.includes('def relatorios(token):'),"Relatórios precisam estar ligados à sessão atual");
 assert.ok(py.includes('fechamentos_mensais'),"Armazenar histórico de fechamentos");
 assert.ok(py.includes('galileu_private.movimentacoes'),"Armazenar aportes e saques auditáveis");
+
+
+/* O modal oferece alternativas claras quando o lote supera a banca. */
+for(const id of ["gl-bulk-affordable","gl-bulk-all","gl-bulk-none",
+                 "gl-bulk-fit-stake","gl-bulk-feedback"]){
+  assert.ok(html.includes('id="'+id+'"'),"Falta controle financeiro: "+id);
+}
+assert.ok(html.includes('id="gl-bulk-stake" type="text" inputmode="decimal"'),
+  "Aceitar valores digitados com vírgula no teclado brasileiro");
+assert.ok(js.includes('bulkSelectedOffers()'),"Enviar apenas métodos escolhidos");
+assert.ok(js.includes('data-bulk-key'),"Cada método pode ser marcado individualmente");
+assert.ok(js.includes('O total selecionado ultrapassa o saldo'),
+  "Informar claramente a razão do bloqueio");
+assert.ok(js.includes('bulkSelected.clear()'),"Reiniciar seleção ao abrir a prévia");
+assert.ok(js.includes('offers.slice(0,limit)'),
+  "Seleção até o saldo precisa respeitar limite de entradas");
+assert.ok(js.includes('Math.floor(bulkAvailableCents()/offers.length)'),
+  "Stake para incluir todos deve ser arredondada para baixo");
+assert.ok(js.includes('bulkSubmitting=true'),"Bloquear envio duplicado enquanto grava");
+assert.ok(js.includes('stake:(preview.cents/100).toFixed(2)'),
+  "Enviar stake decimal normalizada ao backend");
+assert.ok(js.includes('preview.total>preview.available'),
+  "Nunca enviar lote acima do saldo disponível");

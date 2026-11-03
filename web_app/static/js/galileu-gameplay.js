@@ -174,49 +174,157 @@ function renderBulkAvailability(){
       new Set(offers.map(x=>x.jogo_id)).size+" jogo(s), sem repetir métodos.":
     "Todos os métodos validados desta lista já possuem entrada.";
 }
+/* Helpers puros para fazer a prévia em centavos, sem erro de ponto flutuante.
+   Stake pode ser digitada como 20,00 ou 20.00. */
+function bulkParseCents(value){
+  if(typeof value!=="string"&&typeof value!=="number")return null;
+  let raw=String(value).replace(/R\$/gi,"").trim().replace(/\s/g,"");
+  if(/^\d{1,3}(?:\.\d{3})+,\d{1,2}$/.test(raw)){
+    raw=raw.replace(/\./g,"").replace(",",".");
+  }else if(/^\d{1,3}(?:,\d{3})+\.\d{1,2}$/.test(raw)){
+    raw=raw.replace(/,/g,"");
+  }else if(/^\d+(?:[.,]\d{1,2})?$/.test(raw)){
+    raw=raw.replace(",",".");
+  }else{
+    return null;
+  }
+  const n=Number(raw);
+  const cents=Math.round(n*100);
+  return Number.isFinite(n)&&n>0&&Number.isSafeInteger(cents)&&
+    Math.abs(n*100-cents)<0.000001?cents:null;
+}
+function bulkMaxAffordable(availableCents,stakeCents,numberOfOffers){
+  if(!Number.isSafeInteger(availableCents)||stakeCents==null||stakeCents<=0||
+      !Number.isSafeInteger(numberOfOffers)||numberOfOffers<0)return 0;
+  return Math.min(numberOfOffers,Math.floor(Math.max(0,availableCents)/stakeCents));
+}
+function bulkKey(item){
+  return item.jogo_id+":"+item.metodo_id;
+}
+const bulkSelected=new Set();
+let bulkSubmitting=false;
+function bulkSelectedOffers(){
+  return bulkSelections().filter(offer=>bulkSelected.has(bulkKey(offer)));
+}
+function bulkAvailableCents(){
+  return Math.max(0,Math.round(Number(state?.saldo_disponivel||0)*100));
+}
+function bulkStakeCents(){
+  return bulkParseCents($("#gl-bulk-stake").value);
+}
+function bulkRenderChecked(){
+  $("#gl-bulk-list").querySelectorAll("[data-bulk-key]").forEach(cb=>{
+    cb.checked=bulkSelected.has(cb.dataset.bulkKey);
+  });
+  updateBulkPreview();
+}
 function updateBulkPreview(){
-  const count=bulkSelections().length;
-  const stake=Number($("#gl-bulk-stake").value);
-  const total=Math.round(stake*count*100)/100;
-  const available=Number(state?.saldo_disponivel??0);
-  const valid=Number.isFinite(stake)&&stake>0&&
-    Number.isInteger(Math.round(stake*100))&&
-    Math.abs(stake*100-Math.round(stake*100))<0.000001;
-  $("#gl-bulk-count").textContent=String(count);
-  $("#gl-bulk-stake-display").textContent=valid?brl(stake):"—";
-  $("#gl-bulk-total").textContent=valid?brl(total):"—";
-  $("#gl-bulk-balance").textContent="Saldo livre na rodada: "+brl(available)+
-    (valid&&total>available?" · O total excede o saldo disponível.":"");
-  $("#gl-bulk-confirm").disabled=!count||!valid||total>available;
+  const availableOffers=bulkSelections();
+  const count=availableOffers.filter(offer=>bulkSelected.has(bulkKey(offer))).length;
+  const cents=bulkStakeCents();
+  const available=bulkAvailableCents();
+  const total=cents===null?null:count*cents;
+  const valid=total!==null&&Number.isSafeInteger(total);
+  const possible=bulkMaxAffordable(available,cents,availableOffers.length);
+  $("#gl-bulk-count").textContent=count+" / "+availableOffers.length;
+  $("#gl-bulk-stake-display").textContent=cents!==null?brl(cents/100):"—";
+  $("#gl-bulk-total").textContent=valid?brl(total/100):"—";
+  let detail="Saldo livre na rodada: "+brl(available/100)+".";
+  if(!valid){
+    detail+=" Informe uma stake válida (ex.: 20,00).";
+  }else if(total>available){
+    detail+=" O total selecionado ultrapassa o saldo em "+brl((total-available)/100)+
+      ". Com esta stake, cabem "+possible+" entrada(s). "+
+      "Desmarque métodos, use Selecionar até o limite da banca ou ajuste a stake.";
+  }else if(count>0){
+    detail+=" Restarão "+brl((available-total)/100)+" disponíveis após a confirmação.";
+  }
+  $("#gl-bulk-balance").textContent=detail;
+  $("#gl-bulk-balance").classList.toggle("gl-negative",valid&&total>available);
+  $("#gl-bulk-confirm").disabled=bulkSubmitting||!count||!valid||total>available;
+  $("#gl-bulk-affordable").disabled=bulkSubmitting||cents===null||!possible;
+  $("#gl-bulk-fit-stake").disabled=bulkSubmitting||!availableOffers.length||
+    available<availableOffers.length;
+  $("#gl-bulk-all").disabled=bulkSubmitting||!availableOffers.length;
+  $("#gl-bulk-none").disabled=bulkSubmitting||!count;
+  return {count,cents,total,available,valid};
 }
 $("#gl-bulk-open").addEventListener("click",()=>{
   const offers=bulkSelections();
   if(!offers.length)return;
-  $("#gl-bulk-stake").value=Number(state.stake_padrao).toFixed(2);
-  $("#gl-bulk-list").innerHTML='<h4>Métodos que receberão entrada</h4><div class="gl-scroll">'+
-    '<table class="gl-table"><thead><tr><th>Jogo</th><th>Método</th>'+
+  bulkSelected.clear();
+  offers.forEach(offer=>bulkSelected.add(bulkKey(offer)));
+  $("#gl-bulk-stake").value=Number(state.stake_padrao).toFixed(2).replace(".",",");
+  $("#gl-bulk-feedback").textContent="";
+  $("#gl-bulk-list").innerHTML='<h4>Escolha os métodos que receberão entrada</h4>'+
+    '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
+    '<th>Selecionar</th><th>Jogo</th><th>Método</th>'+
     '<th>Mercado</th><th>Odd</th></tr></thead><tbody>'+
-    offers.map(x=>'<tr><td>'+escapeHTML(x.confronto)+'</td>'+
-      '<td>'+escapeHTML(x.nome)+'</td><td>'+escapeHTML(x.mercado)+
-      '</td><td>'+price(x.odd)+'</td></tr>').join("")+
+    offers.map(offer=>'<tr><td><input type="checkbox" data-bulk-key="'+
+      bulkKey(offer)+'" aria-label="Selecionar '+escapeHTML(offer.nome)+
+      ' no confronto '+escapeHTML(offer.confronto)+'" checked></td>'+
+      '<td>'+escapeHTML(offer.confronto)+'</td>'+
+      '<td>'+escapeHTML(offer.nome)+'</td>'+
+      '<td>'+escapeHTML(offer.mercado)+'</td>'+
+      '<td>'+price(offer.odd)+'</td></tr>').join("")+
     '</tbody></table></div>';
   updateBulkPreview();
   $("#gl-bulk-dialog").showModal();
 });
+$("#gl-bulk-list").addEventListener("change",event=>{
+  const checkbox=event.target.closest("[data-bulk-key]");
+  if(!checkbox||bulkSubmitting)return;
+  if(checkbox.checked)bulkSelected.add(checkbox.dataset.bulkKey);
+  else bulkSelected.delete(checkbox.dataset.bulkKey);
+  updateBulkPreview();
+});
 $("#gl-bulk-stake").addEventListener("input",updateBulkPreview);
+$("#gl-bulk-all").addEventListener("click",()=>{
+  bulkSelected.clear();
+  bulkSelections().forEach(x=>bulkSelected.add(bulkKey(x)));
+  bulkRenderChecked();
+});
+$("#gl-bulk-none").addEventListener("click",()=>{
+  bulkSelected.clear();
+  bulkRenderChecked();
+});
+$("#gl-bulk-affordable").addEventListener("click",()=>{
+  const offers=bulkSelections();
+  const limit=bulkMaxAffordable(bulkAvailableCents(),bulkStakeCents(),offers.length);
+  bulkSelected.clear();
+  offers.slice(0,limit).forEach(x=>bulkSelected.add(bulkKey(x)));
+  bulkRenderChecked();
+  $("#gl-bulk-feedback").textContent=limit+" entrada(s) selecionada(s) "+
+    "na ordem da prévia, sem ultrapassar o saldo.";
+});
+$("#gl-bulk-fit-stake").addEventListener("click",()=>{
+  const offers=bulkSelections();
+  if(!offers.length)return;
+  const cents=Math.floor(bulkAvailableCents()/offers.length);
+  if(cents<1)return;
+  bulkSelected.clear();
+  offers.forEach(x=>bulkSelected.add(bulkKey(x)));
+  $("#gl-bulk-stake").value=(cents/100).toFixed(2).replace(".",",");
+  bulkRenderChecked();
+  $("#gl-bulk-feedback").textContent="Stake reduzida para "+
+    brl(cents/100)+" por método para incluir todas as "+offers.length+
+    " entradas. Confirme somente se concordar com o novo valor.";
+});
 $("#gl-bulk-form").addEventListener("submit",async event=>{
   event.preventDefault();
-  const selections=bulkSelections();
+  if(bulkSubmitting)return;
+  const preview=updateBulkPreview();
+  const selections=bulkSelectedOffers();
+  if(!selections.length||!preview.valid||preview.total>preview.available)return;
+  bulkSubmitting=true;
   const btn=$("#gl-bulk-confirm");
-  if(!selections.length||btn.disabled)return;
-  updateBulkPreview();
-  if(btn.disabled)return;
   btn.disabled=true;
   btn.textContent="Salvando entradas…";
+  $("#gl-bulk-feedback").textContent="Gravando entradas no Supabase…";
   msg("");
   try{
     const result=await post("entradas-metodos",{
-      stake:$("#gl-bulk-stake").value,
+      stake:(preview.cents/100).toFixed(2),
       versao:state.versao,
       selecoes:selections.map(x=>({
         jogo_id:x.jogo_id,metodo_id:x.metodo_id,metodo_versao:x.metodo_versao
@@ -241,12 +349,15 @@ $("#gl-bulk-form").addEventListener("submit",async event=>{
     msg(result.mensagem+(result.ignoradas?
       " "+result.ignoradas+" método(s) já registrado(s) ignorado(s).":""));
   }catch(error){
+    $("#gl-bulk-feedback").textContent="Não foi possível confirmar: "+error.message;
     msg(error.message,true);
   }finally{
-    btn.textContent="Confirmar todas as entradas";
+    bulkSubmitting=false;
+    btn.textContent="Confirmar entradas selecionadas";
     updateBulkPreview();
   }
 });
+
 
 function renderRoundResults(){
   const root=$("#gl-round-results");

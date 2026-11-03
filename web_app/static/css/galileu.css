@@ -302,3 +302,19 @@
   .gl-close-preview{grid-template-columns:minmax(0,1fr)}
   #gl-report-summary{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Seleção de métodos em lote com proteção do saldo e feedback imediato. */
+.gl-bulk-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.gl-bulk-tools .gl-secondary{min-height:40px;padding:8px 12px;font-size:12px}
+.gl-bulk-tools .gl-secondary:disabled{opacity:.42;cursor:not-allowed}
+.gl-bulk-list input[type="checkbox"]{width:18px;height:18px;accent-color:var(--df-orange);cursor:pointer}
+.gl-bulk-list td:first-child,.gl-bulk-list th:first-child{text-align:center;min-width:80px}
+.gl-bulk-list tr:has(input[type="checkbox"]:not(:checked)){opacity:.6}
+#gl-bulk-balance{line-height:1.55}
+#gl-bulk-feedback{min-height:1.1em;line-height:1.5}
+#gl-bulk-stake:focus-visible{outline:2px solid var(--df-orange);outline-offset:2px}
+@media(max-width:650px){
+  .gl-bulk-tools{display:grid;grid-template-columns:minmax(0,1fr)}
+  .gl-bulk-tools .gl-secondary{width:100%;white-space:normal}
+}
