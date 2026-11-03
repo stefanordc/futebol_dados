@@ -67,7 +67,7 @@ assert.ok(src.includes('timeZone:"America/Sao_Paulo"'),
   "Exibir timestamp no fuso brasileiro");
 assert.ok(!src.includes('localStorage.setItem(store'),
   "Salvar estratégias exclusivamente no banco");
-assert.ok(html.includes('nostradamus-ambos-odd-v4'),
+assert.ok(html.includes('nostradamus-mando-v5'),
   "Forçar atualização do navegador com versionamento de estáticos");
 const py=fs.readFileSync("queries_estrategias.py","utf8");
 assert.ok(py.includes('ORDER BY criado_em DESC'),
@@ -132,3 +132,24 @@ assert.ok(src.includes('c.tipo==="odd"'),
  "A tela de detalhes deve exibir os filtros de odds executados");
 assert.ok(css.includes('.ns-odd-criterion[hidden]'),
  "Campos ocultos não devem aparecer no grid de critérios");
+
+/* Mando: campo logo após a seleção Favorito/Zebra/Ambos. */
+const sidePosition=src.indexOf('class="ns-side"');
+const homePosition=src.indexOf('class="ns-home-filter"');
+const metricPosition=src.indexOf('class="ns-metric"');
+assert.ok(sidePosition>=0&&homePosition>sidePosition&&metricPosition>homePosition,
+  "Mando de campo deve aparecer imediatamente após Equipe analisada");
+assert.ok(src.includes('opts({indiferente:"Indiferente",mandante:"Mandante",visitante:"Visitante"}'),
+  "As três opções de mando devem estar disponíveis");
+assert.ok(src.includes('mando_preferido:row.querySelector(".ns-home-filter").value'),
+  "O mando selecionado deve ser enviado no payload e persistido nos critérios");
+assert.ok(src.includes('item.mando_preferido:"indiferente"'),
+  "Estratégias antigas sem mando devem usar Indiferente");
+assert.ok(src.includes('mando.disabled=both'),
+  "Para Ambos, o mando não pode restringir as duas equipes");
+assert.ok(src.includes('if(both)mando.value="indiferente"'),
+  "Ambos força Indiferente em vez de criar filtro impossível");
+assert.ok(src.includes('rule.mando_preferido'),
+  "Visualização das regras salvas deve exibir o filtro de mando");
+assert.ok(css.includes('.ns-home-filter-wrap'),
+  "Mando de campo deve ter estilos responsivos próprios");

@@ -49,7 +49,11 @@ function normalizeCondition(item={}){
     (referencia===opponent&&metricaRef===metrica&&Number(valor)===0)){
     modo="adversario";
   }else modo="legado";
-  return {tipo:"indicador",lado,metrica,comparador:item.comparador||"gt",modo,
+  const mandoPreferido=["mandante","visitante","indiferente"].includes(item.mando_preferido)
+    ?item.mando_preferido:"indiferente";
+  return {tipo:"indicador",lado,
+    mando_preferido:lado==="ambos"?"indiferente":mandoPreferido,
+    metrica,comparador:item.comparador||"gt",modo,
     referencia:modo==="legado"?referencia:opponent,metrica_ref:metricaRef,valor};
 }
 function updateConditionRow(row){
@@ -65,6 +69,12 @@ function updateConditionRow(row){
   if(isOdd)return;
   const ref=row.querySelector(".ns-reference");
   const both=row.querySelector(".ns-side").value==="ambos";
+  const mando=row.querySelector(".ns-home-filter");
+  if(both)mando.value="indiferente";
+  mando.disabled=both;
+  mando.title=both
+    ?"Ambos exige as duas equipes e utiliza mando indiferente."
+    :"Filtrar partidas pelo mando do favorito ou da zebra.";
   for(const option of ref.options){
     option.disabled=both&&option.value!=="valor";
   }
@@ -110,6 +120,8 @@ function conditionLine(item={}){
       opts({indicador:"Estatística das equipes",odd:"Odd de um mercado"},data.tipo||"indicador")+'</select></label>'+
     '<label class="ns-stat-criterion">Equipe analisada<select class="ns-side" aria-label="Equipe analisada">'+
       opts({favorito:"Favorito (menor odd)",zebra:"Zebra (maior odd)",ambos:"Ambos (cada equipe)"},data.lado||"favorito")+'</select></label>'+
+    '<label class="ns-stat-criterion ns-home-filter-wrap">Mando de campo<select class="ns-home-filter" aria-label="Mando de campo">'+
+      opts({indiferente:"Indiferente",mandante:"Mandante",visitante:"Visitante"},data.mando_preferido||"indiferente")+'</select></label>'+
     '<label class="ns-stat-criterion">Indicador<select class="ns-metric" aria-label="Indicador">'+
       metricOpts(meta.metricas,data.metrica)+'</select></label>'+
     '<label class="ns-stat-criterion">Comparador<select class="ns-comparison" aria-label="Comparador">'+
@@ -211,6 +223,7 @@ const values=()=>({
     const mode=row.querySelector(".ns-reference").value;
     const base={
       lado:row.querySelector(".ns-side").value,
+      mando_preferido:row.querySelector(".ns-home-filter").value,
       metrica:row.querySelector(".ns-metric").value,
       comparador:row.querySelector(".ns-comparison").value
     };
@@ -264,7 +277,9 @@ function formatRule(rule){
       rule.odd_max!=null?"máx. "+fmt(rule.odd_max,2):""].filter(Boolean);
     return esc("Odd de "+name+" · "+bounds.join(" · "));
   }
-  const lhs=roleLabel(rule.lado)+" · "+
+  const mando=rule.mando_preferido&&rule.mando_preferido!=="indiferente"
+    ?" · "+(rule.mando_preferido==="mandante"?"Mandante":"Visitante"):"";
+  const lhs=roleLabel(rule.lado)+mando+" · "+
     (meta?.metricas?.[rule.metrica]||rule.metrica);
   const rhs=rule.referencia==="valor"?fmt(rule.valor,2):
     rule.referencia==="adversario"?"mesmo indicador do adversário":
@@ -445,7 +460,10 @@ function details(rows){
       '<div><b>Odd · '+esc(c.nome)+'</b>: '+fmt(c.odd,2)+
       ' (mín. '+fmt(c.odd_min,2)+' / máx. '+fmt(c.odd_max,2)+
       ') · '+esc(c.fonte==="lay_estimado"?"Lay estimado":"Odd do banco")+'</div>':
-      '<div><b>'+esc(roleLabel(c.lado,c.mando))+'</b> · '+esc(c.nome)+
+      '<div><b>'+esc(roleLabel(c.lado,c.mando))+'</b>'+
+      (c.mando_preferido&&c.mando_preferido!=="indiferente"?
+        ' · Filtro: '+esc(c.mando_preferido==="mandante"?"Mandante":"Visitante"):"")+
+      ' · '+esc(c.nome)+
       ': <b>'+(c.lado==="ambos"?
       'Mandante '+fmt(c.observado_mandante,2)+' / Visitante '+fmt(c.observado_visitante,2):
       fmt(c.observado,2))+'</b> '+esc(c.comparador)+
