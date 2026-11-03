@@ -12,6 +12,12 @@ for(const header of ["Entradas","Greens","Reds","Win Rate",
                     "Resultado (R$)","Good run máx.","Bad run máx."]){
   assert.ok(src.includes(header),"Falta cabeçalho: "+header);
 }
+assert.ok(html.includes('id="gl-loss-streak-alert"'),
+  "A seção de alerta para três meses deve existir");
+assert.ok(html.includes('id="gl-loss-streak-list"'),
+  "A seção deve exibir os métodos sinalizados");
+assert.ok(src.includes("renderLossStreakAlerts();"),
+  "Alerta deve ser renderizado no fechamento mensal");
 const nodes={
   "#gl-method-performance-table":{innerHTML:""},
   "#gl-method-removal-note":{hidden:false},
@@ -59,5 +65,5 @@ context.renderMonthTable();
 assert.ok(!nodes["#gl-method-performance-table"].innerHTML.includes(
   'data-remove-method="7"'),"Depois do fechamento não se pode retirar retroativamente");
 assert.equal(nodes["#gl-method-removal-note"].hidden,true);
-assert.ok(html.includes('galileu-gameplay-v12'),"Atualizar cache do JS");
+assert.ok(html.includes('galileu-gameplay-v13'),"Atualizar cache do JS");
 console.log("Fechamento mensal: tabela real, zero entradas, bloqueio e seleção aprovados.");
