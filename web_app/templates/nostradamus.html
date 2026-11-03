@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-atalhos-v11">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-goleada-cs-v12">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -49,7 +49,7 @@
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%) — fixa<input id="ns-comissao" type="number" inputmode="decimal" min="4.5" max="4.5" step="0.1" value="4.5" readonly aria-readonly="true" title="Configuração fixa de 4,5% nas simulações"></label>
 </div>
-<p class="x1-help ns-goleada-explain">Lay goleada: o mercado é vencedor quando a equipe escolhida NÃO vence por 3 ou mais gols de diferença. Favorito é o clube com menor odd de vitória; zebra é o clube com maior odd de vitória, seja mandante ou visitante. Não confunda zebra com visitante. Sem cotação desse mercado na API, o financeiro só é estimado se você informar uma odd hipotética.</p>
+<p class="x1-help ns-goleada-explain">Modelo de preço: as 16 odds Correct Score (0×0 a 3×3) estimam gols esperados e probabilidades de goleada por 3 ou mais gols, inclusive placares com 4+ gols. Back e Lay são simulações com spread ilustrativo de um tick. Não são cotações reais. Lay goleada: o mercado é vencedor quando a equipe escolhida NÃO vence por 3 ou mais gols de diferença. Favorito é o clube com menor odd de vitória; zebra é o clube com maior odd de vitória, seja mandante ou visitante. Não confunda zebra com visitante. Sem cotação desse mercado na API, o financeiro só é estimado se você informar uma odd hipotética.</p>
 <div class="ns-info">Cada entrada cotada representa R$ 100 (1 unidade). O Nostradamus classifica Favorito e Zebra pelas odds de vitória dos times no Match Odds do Supabase, com correspondência exata de clubes, data, liga e temporada. Empates nas odds ou ausência de preços não são classificados. Odds importadas historicamente não têm comprovação de disponibilidade pré-jogo; Lay é estimado, não executável. A odd hipotética opcional substitui o preço do banco para simulação. Sem cotação, não atribuimos ganho financeiro. Após escolher Favorito ou Zebra, selecione <strong>Mando de campo</strong>: Mandante, Visitante ou Indiferente. Para Ambos, o mando permanece Indiferente porque as duas equipes são avaliadas. Filtro <strong>Ambos</strong>: cada equipe precisa cumprir o limite individualmente. No campo <strong>Indicador</strong>, as estatísticas e as <strong>odds dos mercados</strong> aparecem juntas, em grupos. Ao escolher um mercado de odds, informe a odd mínima e/ou máxima. Em Lay, o preço segue estimado, não executável.</div>
 <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>favorito ou zebra</strong> e o indicador. O favorito é quem possui a <strong>menor odd de vitória no Match Odds (1 e 2)</strong>, independentemente do mando. A indicação <strong>(Mandante)</strong> ou <strong>(Visitante)</strong> aparecerá ao lado de cada equipe no resultado. Depois selecione <strong>Valor absoluto</strong> (ex.: gols sofridos da zebra &gt; 1,5) ou <strong>Mesmo indicador do adversário</strong> (ex.: xG do favorito &gt; xG da zebra). No segundo caso, não é necessário informar números nem ajustes. Até 10 condições.</p></div></div>
 <div id="ns-conditions" class="ns-conditions"></div>
@@ -82,5 +82,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-atalhos-v11" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-goleada-cs-v12" defer></script>
 </body></html>
