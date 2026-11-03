@@ -359,7 +359,7 @@ $("#gl-bulk-form").addEventListener("submit",async event=>{
     msg(error.message,true);
   }finally{
     bulkSubmitting=false;
-    btn.textContent="Confirmar entradas selecionadas";
+    btn.textContent="Programar entradas selecionadas";
     updateBulkPreview();
   }
 });
