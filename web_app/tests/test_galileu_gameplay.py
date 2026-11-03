@@ -373,7 +373,7 @@ class TestGalileuGameplay(TestCase):
                 result=gl.registrar("token",{
                     "jogo_id":110,"tipo":"manual","mercado":"over_25",
                     "stake":amount})
-                self.assertIn("confirmada",result["mensagem"])
+                self.assertIn("programada",result["mensagem"])
                 self.assertEqual(result["entrada"]["stake"],float(amount))
                 self.assertEqual(result["entrada"]["mercado"],"over_25")
                 self.assertEqual(result["entrada"]["status"],"pendente")
@@ -639,7 +639,7 @@ class TestGalileuGameplay(TestCase):
             def commit(self):committed.append(True)
         @contextmanager
         def conn():yield Conn()
-        payload={"stake":"700.00","versao":1,"selecoes":[
+        payload={"stake":"1100.00","versao":1,"selecoes":[
             {"jogo_id":110,"metodo_id":7,"metodo_versao":3},
             {"jogo_id":120,"metodo_id":7,"metodo_versao":3}]}
         with patch.object(gl,"_catalog",return_value=fixtures()), \
@@ -647,7 +647,7 @@ class TestGalileuGameplay(TestCase):
              patch.object(gl,"_methods",return_value=[]), \
              patch.object(gl,"get_conn",conn), \
              patch.object(extras,"execute_values") as inserted:
-            with self.assertRaisesRegex(ValueError,"Saldo insuficiente"):
+            with self.assertRaisesRegex(ValueError,"stake por método excede a banca atual"):
                 gl.registrar_metodos_em_lote("token",payload)
             payload["versao"]=999
             with self.assertRaisesRegex(ValueError,"modificada em outra aba"):

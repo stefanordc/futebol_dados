@@ -22,9 +22,10 @@ function metricLine(label,value){
 function groupTable(items){
   if(!items?.length)return '<p class="gl-note">Nenhuma entrada nesta categoria.</p>';
   return '<div class="gl-scroll"><table class="gl-table gl-finance-table">'+
-    '<thead><tr><th>Nome</th><th>Entradas</th><th>Greens</th><th>Reds</th>'+
+    '<thead><tr><th>Nome</th><th>Programadas</th><th>Executadas</th><th>Não executadas</th><th>Greens</th><th>Reds</th>'+
     '<th>Win Rate</th><th>L/P</th><th>ROI</th></tr></thead><tbody>'+
     items.map(r=>'<tr><td>'+esc(r.nome)+'</td><td>'+r.entradas+'</td>'+
+      '<td>'+(r.executadas||0)+'</td><td>'+(r.nao_executadas||0)+'</td>'+
       '<td>'+r.greens+'</td><td>'+r.reds+'</td>'+
       '<td>'+perc(r.win_rate)+'</td>'+
       '<td class="'+cls(r.lucro_prejuizo)+'">'+brl(r.lucro_prejuizo)+'</td>'+
@@ -40,18 +41,20 @@ function render(data){
     ["L/P apostas",'<span class="'+cls(data.lucro_prejuizo_total)+'">'+
       brl(data.lucro_prejuizo_total)+'</span>'],
     ["ROI total",perc(data.roi_total)],
+    ["Entradas não executadas",String((data.resumo_mensal||[]).reduce((n,m)=>n+(m.nao_executadas||0),0))],
     ["Aportes acumulados",brl(data.aporte_total)],
     ["Saques acumulados",brl(data.saque_total)],
   ].map(x=>metricLine(...x)).join("");
   const months=data.resumo_mensal||[];
   $("#gl-report-months").innerHTML=months.length?months.map(m=>
-    '<tr><td>'+monthName(m.mes)+'</td><td>'+brl(m.banca_inicio)+'</td>'+
+    '<tr><td>'+monthName(m.mes)+'</td><td>'+(m.executadas||0)+' / '+m.entradas+
+    '</td><td>'+(m.nao_executadas||0)+'</td><td>'+brl(m.banca_inicio)+'</td>'+
     '<td class="'+cls(m.lucro_prejuizo)+'">'+brl(m.lucro_prejuizo)+'</td>'+
     '<td>'+brl(m.banca_fechamento)+'</td>'+
     '<td>'+brl(m.aporte)+'</td><td>'+brl(m.saque)+'</td>'+
     '<td>'+brl(m.banca_fim)+'</td><td>'+perc(m.roi)+'</td>'+
     '<td>'+(m.fechado?"Fechado":"Em andamento")+'</td></tr>'
-  ).join(""):'<tr><td colspan="9">Nenhum período com entradas ou fechamento registrado.</td></tr>';
+  ).join(""):'<tr><td colspan="11">Nenhum período com entradas ou fechamento registrado.</td></tr>';
   const labels={
     aporte:"Aporte",saque:"Saque",reajuste_stake:"Reajuste da stake",
     virada_mes:"Atualização da banca-base"
@@ -77,7 +80,8 @@ function render(data){
     ).join(""):'<tr><td colspan="8">Nenhuma movimentação financeira registrada.</td></tr>';
   $("#gl-report-breakdown").innerHTML=months.length?months.map(m=>
     '<details class="gl-month-detail"><summary><strong>'+
-      monthName(m.mes)+'</strong> · '+m.entradas+' entradas · L/P '+
+      monthName(m.mes)+'</strong> · '+(m.executadas||0)+' / '+m.entradas+
+      ' executadas · '+(m.nao_executadas||0)+' sem saldo · L/P '+
       brl(m.lucro_prejuizo)+' · ROI '+perc(m.roi)+'</summary>'+
       '<div class="gl-finance-subgroups"><details><summary>Por estratégia</summary>'+
       groupTable(m.por_estrategia)+'</details>'+
