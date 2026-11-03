@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v3">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-financeiro-v4">
 </head>
 <body data-page="bet-x1">
 <a class="df-skip" href="#main-content">Pular para o conteúdo</a>
@@ -35,9 +35,11 @@
   </section>
   <section class="gl-panel">
     <h2>Fechamentos mensais</h2>
+    <p class="gl-note">Clique em qualquer cabeçalho das tabelas para ordenar em ordem crescente ou decrescente. No rodapé, entradas e fluxos são somados; os saldos refletem o último fechamento, não a soma de bancas mensais.</p>
     <div class="gl-scroll"><table class="gl-table gl-finance-table">
       <thead><tr><th>Mês</th><th>Executadas / Programadas</th><th>Sem saldo</th><th>Banca-base</th><th>L/P das apostas</th><th>Saldo no fechamento</th><th>Aportes</th><th>Saques</th><th>Base seguinte</th><th>ROI</th><th>Situação</th></tr></thead>
       <tbody id="gl-report-months"></tbody>
+      <tfoot id="gl-report-months-total"></tfoot>
     </table></div>
   </section>
   <section class="gl-panel">
@@ -80,6 +82,6 @@
 <p class="x1-disclaimer">Resultados de gameplay, sem apostas reais. Odds históricas importadas podem não ter estado disponíveis antes do jogo; Lay é estimado. 18+.</p>
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
-<script src="/static/js/shell.js?v=galileu-financeiro-v3" defer></script>
-<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v3" defer></script>
+<script src="/static/js/shell.js?v=galileu-financeiro-v4" defer></script>
+<script src="/static/js/galileu-financeiro.js?v=galileu-financeiro-v4" defer></script>
 </body></html>
