@@ -99,6 +99,96 @@ class TestAoVivo(TestCase):
         with patch.object(live,"fetch_all",side_effect=AssertionError("consulta inesperada")):
             self.assertEqual(live.simular(config(),rows=[])["entradas"],0)
 
+    def test_minimo_maximo_gols_de_cada_equipe_e_multiplas_ligas(self):
+        rows=[
+            partida(1,True,2,0,2,1),
+            partida(2,False,0,2,0,3),
+            partida(3,True,3,1,3,2),
+            {**partida(4,True,2,0,2,1),"campeonato_id":2},
+        ]
+        result=live.simular(config(
+            vencendo="qualquer",diferenca_gols=None,campeonato_ids=[1,2],
+            gols_favorito_min=2,gols_favorito_max=2,
+            gols_zebra_min=0,gols_zebra_max=0,
+            gols_mandante_min=0,gols_mandante_max=2,
+            gols_visitante_min=0,gols_visitante_max=2),rows=rows)
+        self.assertEqual([item["id"] for item in result["detalhes"]],[1,2,4])
+        one=live.simular(config(
+            campeonato_ids=[2],gols_favorito_min=2,gols_zebra_max=0),rows=rows)
+        self.assertEqual([item["id"] for item in one["detalhes"]],[4])
+
+    def test_minimos_maximos_invalidos_e_mais_de_dez_condicoes(self):
+        for values in (
+            {"gols_mandante_min":3,"gols_mandante_max":2},
+            {"gols_favorito_min":3,"gols_favorito_max":1},
+            {"gols_zebra_max":-1},
+            {"gols_visitante_min":2.5},
+            {"condicoes":[{"metrica":"xg","comparador":"gt"}]*11},
+            {"jogos":"3"},
+        ):
+            with self.subTest(values=values),self.assertRaises(ValueError):
+                live.simular(config(**values),rows=[])
+
+    def test_condicoes_pre_jogo_usam_historico_anterior_e_mesmo_editor(self):
+        def past(identifier,day,home=2,away=0):
+            return {
+                "id":identifier,"data":date.fromisoformat(day),
+                "temporada":"2026/2027","campeonato_id":1,
+                "casa_id":1,"fora_id":2,"gols_casa":home,"gols_fora":away,
+                "api_odd_1_ft":1.5,"api_odd_2_ft":4.0,
+                "home_xg":1.8,"away_xg":0.5
+            }
+        history=[past(i,"2026-10-"+str(1+i).zfill(2)) for i in range(5)]
+        history.append(past(99,"2026-10-10",3,1))
+        live_row=partida(99,True,2,0,3,1,day="2026-10-10")
+        rule={"lado":"favorito","mando_preferido":"mandante",
+              "metrica":"gols_feitos","comparador":"ge",
+              "referencia":"valor","valor":2}
+        result=live.simular(config(condicoes=[rule]),rows=[live_row],history_rows=history)
+        self.assertEqual(result["entradas"],1)
+        self.assertEqual(result["detalhes"][0]["condicoes"][0]["observado"],2)
+        # Um jogo no mesmo dia não pode completar o mínimo de 5 jogos prévios.
+        result=live.simular(config(condicoes=[rule]),rows=[live_row],
+            history_rows=history[:4]+[past(98,"2026-10-10",2,0),history[-1]])
+        self.assertEqual(result["entradas"],0)
+        wrong={**rule,"valor":3}
+        result=live.simular(config(condicoes=[wrong]),rows=[live_row],history_rows=history)
+        self.assertEqual(result["entradas"],0)
+
+    def test_ia_separa_treino_cronologico_e_validacao_sem_otimismo_futuro(self):
+        from unittest.mock import patch
+        import queries_nostradamus_ai as ai
+        candidates=[]
+        for i in range(20):
+            stats={"xg":2.0 if i<7 else 0.4}
+            candidates.append({
+                "id":i+1,"data":"2026-10-"+str(i+1).zfill(2),
+                "partida":{"api_odd_1_ft":1.5,"api_odd_2_ft":4.0},
+                "stats_casa":stats,"stats_fora":stats,
+                "favorito_casa":True,
+                "unidades":0.95 if i<7 else -1.0,
+                "passes_initial":True
+            })
+        proposed={
+            "tipo":"indicador","lado":"favorito","mando_preferido":"indiferente",
+            "metrica":"xg","comparador":"ge","referencia":"valor","valor":1.5
+        }
+        with patch.object(live,"simular",return_value={"_dados_otimizacao":candidates}), \
+             patch.object(ai,"_proposals",return_value=[proposed]):
+            outcome=live.analisar(config(condicoes=[]))
+        self.assertEqual(outcome["sugestoes"][0]["acao"],"adicionar")
+        self.assertEqual(outcome["base_treino"]["entradas"],13)
+        self.assertEqual(outcome["base_validacao"]["entradas"],7)
+        self.assertEqual(outcome["sugestoes"][0]["avaliacao"],"Sem confirmação na validação")
+        self.assertEqual(outcome["data_divisao"],"2026-10-13")
+
+    def test_lay_empate_com_odd_hipotetica_apura_financeiro(self):
+        rows=[partida(1,True,2,0,2,1),partida(2,True,2,0,2,2)]
+        result=live.simular(config(mercado="lay_empate",odd_hipotetica=2.0),rows=rows)
+        self.assertEqual((result["total"]["greens"],result["total"]["reds"]),(1,1))
+        self.assertEqual(result["total"]["valor_reais"],-5.0)
+        self.assertEqual(result["total"]["cotadas"],2)
+
     def test_sql_exige_gols_auditaveis_e_odds_pareadas(self):
         self.assertIn("g.gols_casa_conferidos=j.gols_casa",live.SQL)
         self.assertIn("g.gols_fora_conferidos=j.gols_fora",live.SQL)
