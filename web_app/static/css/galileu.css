@@ -405,3 +405,14 @@
 #gl-round-results th[data-result-sort][aria-sort='descending']::after{content:' ↓';opacity:1}
 #gl-round-results th[data-result-sort]:focus-visible{outline:2px solid #fb7c3d;outline-offset:-3px}
 #gl-round-results tfoot{font-weight:800}
+
+/* Confirmação explícita para finalizar meses sem entradas. */
+.gl-empty-month-dialog{max-width:min(540px,calc(100vw - 28px));width:540px}
+.gl-empty-month-dialog .gl-dialog-head{border-bottom-color:var(--df-orange,#fb7631)}
+.gl-empty-month-dialog .gl-dialog-head h3{line-height:1.35}
+.gl-empty-month-dialog .gl-note{line-height:1.65}
+.gl-empty-month-dialog .gl-dialog-footer{margin-top:24px}
+@media(max-width:550px){
+  .gl-empty-month-dialog .gl-dialog-footer{flex-direction:column-reverse}
+  .gl-empty-month-dialog .gl-dialog-footer button{width:100%}
+}
