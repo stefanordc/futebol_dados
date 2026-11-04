@@ -74,11 +74,11 @@ class TestAoVivo(TestCase):
                                vencendo="qualquer",diferenca_gols=None),rows=rows)
         self.assertEqual(out["entradas"],2)
         p={g["id"]:g["odd"] for g in out["detalhes"]}
-        self.assertLess(p[1],p[2], "Lay empate deve ser mais barato com vantagem de 2 gols")
+        self.assertGreater(p[1],p[2], "Lay empate tem odd maior quando o empate é menos provável")
         self.assertEqual(out["total"]["cotadas"],2)
         later=live.simular(config(odd_hipotetica=None,mercado="lay_empate",
                                  minuto=75,vencendo="qualquer",diferenca_gols=None),rows=rows)
-        self.assertLess(later["detalhes"][0]["odd"],p[1])
+        self.assertGreater(later["detalhes"][0]["odd"],p[1])
 
     def test_em_qualquer_placar_aceita_empate_com_gap_zero(self):
         rows=[partida(1,True,0,0,1,1),
