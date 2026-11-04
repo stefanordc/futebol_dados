@@ -335,3 +335,12 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
 .ns-delete-strategy{color:var(--df-danger,#f08070)!important;border-color:currentColor!important}
 .ns-delete-strategy:hover{background:rgba(220,70,50,.10)}
 .ns-delete-strategy:disabled{opacity:.5;cursor:not-allowed}
+
+/* TOTAL consolidado no rodapé do backtest ao vivo */
+#ns-inplay-grand-total tr{background:var(--df-raised,#20252e);font-weight:800}
+#ns-inplay-grand-total td,#ns-inplay-grand-total th{
+  border-top:2px solid var(--df-orange,#fb7631);
+  border-bottom:2px solid var(--df-border,#363c49);
+  padding-top:17px;padding-bottom:17px;
+}
+#ns-inplay-grand-total th{text-transform:uppercase}
