@@ -396,3 +396,12 @@
 .gl-sortable-head[aria-sort="descending"]::after{content:" ↓";opacity:1}
 .gl-months-total{font-weight:800;background:var(--df-raised)}
 .gl-months-total th,.gl-months-total td{border-top:2px solid var(--df-orange);white-space:nowrap}
+
+/* Ordenação dos resultados pós-fechamento, sem mexer no TOTAL do rodapé. */
+#gl-games[hidden],#gl-bulk-toolbar[hidden],#gl-games-closed[hidden]{display:none!important}
+#gl-round-results th[data-result-sort]{cursor:pointer;user-select:none;white-space:nowrap}
+#gl-round-results th[data-result-sort]::after{content:' ↕';opacity:.55;font-weight:400}
+#gl-round-results th[data-result-sort][aria-sort='ascending']::after{content:' ↑';opacity:1}
+#gl-round-results th[data-result-sort][aria-sort='descending']::after{content:' ↓';opacity:1}
+#gl-round-results th[data-result-sort]:focus-visible{outline:2px solid #fb7c3d;outline-offset:-3px}
+#gl-round-results tfoot{font-weight:800}
