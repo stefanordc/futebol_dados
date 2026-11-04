@@ -582,11 +582,14 @@ function render(){
     "Conclua o fechamento mensal para avançar":state.pode_pular_vazio?
     "Avançar período sem jogos":
     state.pode_avancar?"Próximo mês":"Concluir gameplay";
-  $("#gl-round-status").textContent=state.pode_pular_vazio?
+  const liveEntries=Number(state.entradas_ao_vivo_mes||0);
+  const liveInfo=liveEntries?
+    liveEntries+" entrada(s) ao vivo do Nostradamus registrada(s) automaticamente neste mês. ":"";
+  $("#gl-round-status").textContent=liveInfo+(state.pode_pular_vazio?
     "Não há jogos neste mês. Você pode avançar sem fazer entradas.":
     open?"Selecione suas entradas e finalize quando todos os jogos do mês tiverem resultados disponíveis.":
     state.fase==="revelada"?"Mês finalizado. Placares e resultados das entradas revelados.":
-    "Todas as rodadas cadastradas foram percorridas.";
+    "Todas as rodadas cadastradas foram percorridas.");
   $("#gl-games-closed").textContent=state.jogos_finalizados?
     state.jogos_finalizados+" jogo(s) finalizado(s) e removido(s) desta rodada. Entradas preservadas.":"";
   $("#gl-round-help").textContent=state.pode_pular_vazio?
