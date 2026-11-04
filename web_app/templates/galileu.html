@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v16">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v17">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -77,8 +77,8 @@
       <span class="gl-count" id="gl-round-dates"></span>
     </div>
     <p class="gl-note" id="gl-round-cutoff" aria-live="polite">Intervalo atual da rodada</p>
-    <p class="gl-note" id="gl-round-help">Selecione um confronto para ver métodos e estatísticas históricas. O resultado permanece oculto.</p>
-    <p class="gl-note">Cenários salvos em <strong>Nostradamus → Entradas ao vivo</strong> também são usados automaticamente aqui. Quando o placar no minuto, a liga e as condições pré-jogo correspondem ao cenário, uma entrada virtual é registrada com a stake mensal e a odd estimada naquele minuto. Nenhuma confirmação manual é necessária. Métodos retirados do Galileu ficam bloqueados.</p>
+    <p class="gl-note" id="gl-round-help">Todas as entradas dos métodos ativos são programadas automaticamente. Os confrontos e placares aparecem somente após finalizar o mês.</p>
+    <p class="gl-note">Métodos pré-jogo e cenários salvos em <strong>Nostradamus → Entradas ao vivo</strong> são validados automaticamente. Se um jogo atende às regras, a entrada virtual é registrada com a stake mensal e a odd correspondente. Nenhuma seleção manual é necessária. Métodos retirados permanecem bloqueados.</p>
     <div class="gl-bulk-toolbar" id="gl-bulk-toolbar" hidden>
       <div class="gl-bulk-description">
         <strong>Entradas nos métodos validados</strong>
@@ -86,8 +86,8 @@
       </div>
       <button id="gl-bulk-open" type="button" class="gl-primary">Entrar em todos os métodos validados</button>
     </div>
-    <div id="gl-games" class="gl-games"></div>
-    <p id="gl-games-closed" class="gl-note" aria-live="polite"></p>
+    <div id="gl-games" class="gl-games" hidden aria-hidden="true"></div>
+    <p id="gl-games-closed" class="gl-note" hidden aria-live="polite"></p>
     <div class="gl-actions">
       <button id="gl-finish" type="button" class="gl-primary">Finalizar mês</button>
       <span id="gl-round-status" class="gl-note"></span>
@@ -243,5 +243,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=galileu-gameplay-v9" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v16" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v17" defer></script>
 </body></html>
