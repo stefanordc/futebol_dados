@@ -64,7 +64,7 @@ class TestEstimativaAoVivo(TestCase):
         r=row(1,0)
         for market in ("lay_empate","back_empate","lay_visitante","back_mandante",
                        "over_25","under_35","ambos_marcam","ambos_nao",
-                       "lay_goleada_mandante","lay_0x1"):
+                       "lay_goleada_mandante","lay_1x0"):
             with self.subTest(market=market):
                 odd,source,_=model.cotar(r,60,market)
                 self.assertGreater(odd,1.0)
