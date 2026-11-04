@@ -9,7 +9,9 @@ from datetime import date
 from decimal import Decimal
 from collections import defaultdict
 
-from db import fetch_all
+from db import fetch_all,get_conn
+from psycopg2 import errors
+from psycopg2.extras import Json
 import queries_nostradamus as ns
 
 
@@ -491,3 +493,84 @@ def analisar(payload,rows=None,history_rows=None):
                     if top else "Nenhuma regra melhorou lucro total e médio no treino com amostra mínima."),
         "aviso":"Amostras e valores financeiros dependem de odd hipotética, não de cotações de mercado aos 60 minutos. Resultado retrospectivo não comprova rentabilidade."
     }
+
+# Cadastro isolado: não misturar cenários de minuto com estratégias pré-jogo
+# lidas pelo Galileu. A versão impede sobrescrita de outra aba.
+LIVE_COLS="id,nome,configuracao,versao,criado_em,atualizado_em"
+
+
+def _saved_values(payload):
+    if not isinstance(payload,dict):
+        raise ValueError("Informe um cenário válido.")
+    name=payload.get("nome")
+    if not isinstance(name,str) or not 1<=len(name.strip())<=80:
+        raise ValueError("Informe um nome de 1 a 80 caracteres.")
+    cfg=_config(payload)
+    return name.strip(),{**cfg,"corte":cfg["corte"].isoformat(),
+                          "campeonato_ids":cfg["campeonato_ids"] or []}
+
+
+def listar_cenarios():
+    return fetch_all(
+        "SELECT "+LIVE_COLS+" FROM nostradamus_private.estrategias_ao_vivo "
+        "ORDER BY criado_em DESC,id DESC"
+    )
+
+
+def criar_cenario(payload):
+    name,cfg=_saved_values(payload)
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO nostradamus_private.estrategias_ao_vivo
+                        (nome,configuracao)
+                    VALUES (%s,%s)
+                    RETURNING """+LIVE_COLS,(name,Json(cfg)))
+                row=dict(cur.fetchone())
+            conn.commit()
+        return row
+    except errors.UniqueViolation:
+        raise ValueError("Já existe um cenário ao vivo com esse nome.") from None
+
+
+def editar_cenario(identifier,payload):
+    if type(identifier) is not int or identifier<=0:
+        raise ValueError("ID do cenário inválido.")
+    version=payload.get("versao") if isinstance(payload,dict) else None
+    if type(version) is not int or version<=0:
+        raise ValueError("Versão inválida. Recarregue a lista.")
+    name,cfg=_saved_values(payload)
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE nostradamus_private.estrategias_ao_vivo
+                    SET nome=%s,configuracao=%s,versao=versao+1,
+                        atualizado_em=now()
+                    WHERE id=%s AND versao=%s
+                    RETURNING """+LIVE_COLS,(name,Json(cfg),identifier,version))
+                row=cur.fetchone()
+                if row is None:
+                    raise ValueError("Cenário alterado em outra aba ou não encontrado.")
+                saved=dict(row)
+            conn.commit()
+        return saved
+    except errors.UniqueViolation:
+        raise ValueError("Já existe um cenário com esse nome.") from None
+
+
+def excluir_cenario(identifier,version):
+    if type(identifier) is not int or identifier<=0 or type(version) is not int or version<=0:
+        raise ValueError("ID ou versão inválida.")
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM nostradamus_private.estrategias_ao_vivo
+                WHERE id=%s AND versao=%s RETURNING id,nome
+            """,(identifier,version))
+            row=cur.fetchone()
+            if row is None:
+                raise ValueError("Cenário alterado ou já excluído. Atualize a lista.")
+        conn.commit()
+    return {"excluido":True,"id":row["id"],"nome":row["nome"]}
