@@ -189,6 +189,51 @@ class TestAoVivo(TestCase):
         self.assertEqual(result["total"]["valor_reais"],-4.5)
         self.assertEqual(result["total"]["cotadas"],2)
 
+    def test_salvar_cenario_privado_confirma_depois_do_commit(self):
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock
+        conn=MagicMock()
+        cur=conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.return_value={
+            "id":7,"nome":"Lay empate 60","versao":1,
+            "configuracao":config()
+        }
+        @contextmanager
+        def fake():yield conn
+        with patch.object(live,"get_conn",fake):
+            saved=live.criar_cenario({**config(),"nome":"Lay empate 60"})
+        self.assertEqual(saved["id"],7)
+        sql,args=cur.execute.call_args.args
+        self.assertIn("INSERT INTO nostradamus_private.estrategias_ao_vivo",sql)
+        self.assertEqual(args[0],"Lay empate 60")
+        self.assertEqual(args[1].adapted["campeonato_ids"],[])
+        self.assertEqual(args[1].adapted["corte"],"2026-10-30")
+        conn.commit.assert_called_once()
+
+    def test_editar_cenario_exige_versao_e_exclusao_e_separada(self):
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock
+        conn=MagicMock()
+        cur=conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.side_effect=[
+            {"id":7,"nome":"Editado","versao":2},
+            {"id":7,"nome":"Editado"}
+        ]
+        @contextmanager
+        def fake():yield conn
+        with patch.object(live,"get_conn",fake):
+            saved=live.editar_cenario(7,{**config(),"nome":"Editado","versao":1})
+            deleted=live.excluir_cenario(7,2)
+        self.assertEqual(saved["versao"],2)
+        self.assertTrue(deleted["excluido"])
+        self.assertEqual(conn.commit.call_count,2)
+        self.assertIn("DELETE FROM nostradamus_private.estrategias_ao_vivo",
+                      cur.execute.call_args.args[0])
+        with self.assertRaisesRegex(ValueError,"Versão inválida"):
+            live.editar_cenario(7,{**config(),"nome":"Editado"})
+        with self.assertRaises(ValueError):
+            live.excluir_cenario(7,True)
+
     def test_sql_exige_gols_auditaveis_e_odds_pareadas(self):
         self.assertIn("g.gols_casa_conferidos=j.gols_casa",live.SQL)
         self.assertIn("g.gols_fora_conferidos=j.gols_fora",live.SQL)
