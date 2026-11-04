@@ -5,6 +5,8 @@ on:
       - 'web_app/queries_galileu.py'
       - 'web_app/queries_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_ao_vivo.py'
+      - 'web_app/queries_nostradamus_aovivo.py'
       - 'web_app/tests/test_galileu_fechamento_metodos.py'
       - 'web_app/tests/test_galileu_fechamento_metodos_ui.js'
       - 'web_app/sql/galileu_metodos_desativados.sql'
@@ -31,6 +33,8 @@ on:
       - 'web_app/queries_galileu.py'
       - 'web_app/queries_galileu_gameplay.py'
       - 'web_app/tests/test_galileu_gameplay.py'
+      - 'web_app/tests/test_galileu_ao_vivo.py'
+      - 'web_app/queries_nostradamus_aovivo.py'
       - 'web_app/tests/test_galileu_fechamento_metodos.py'
       - 'web_app/tests/test_galileu_fechamento_metodos_ui.js'
       - 'web_app/sql/galileu_metodos_desativados.sql'
@@ -71,6 +75,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_galileu.py' -v
           python -m unittest discover -s tests -p 'test_galileu_gameplay.py' -v
+          python -m unittest discover -s tests -p 'test_galileu_ao_vivo.py' -v
           python -m unittest discover -s tests -p 'test_galileu_fechamento_metodos.py' -v
           python -m unittest discover -s tests -p 'test_galileu_relatorios_agrupados.py' -v
           python -m unittest discover -s tests -p 'test_galileu_programadas.py' -v
