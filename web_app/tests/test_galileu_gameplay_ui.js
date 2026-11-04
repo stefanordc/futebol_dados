@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v16"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v17"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -74,6 +74,41 @@ assert.ok(py.includes('token_hash'),"Identificador do progresso deve ser armazen
 assert.ok(py.includes('COMMISSION=Decimal("0.045")'),"Lay a 4,5%");
 assert.ok(css.includes(".gl-method-stamp"),"Carimbo visual");
 assert.ok(css.includes(".gl-month-groups"),"Relatório mensal por grupos");
+
+/* Ordenação das apostas só depois do fechamento, incluindo valores negativos. */
+const vm=require("node:vm");
+const sortStart=js.indexOf("function sortResultColumn(header){");
+const sortEnd=js.indexOf('$("#gl-round-results").addEventListener("click"',sortStart);
+assert.ok(sortStart>=0&&sortEnd>sortStart,"Ordenação pós-fechamento ausente");
+const scope={};
+vm.runInNewContext(js.slice(sortStart,sortEnd)+";this.sortResultColumn=sortResultColumn;",scope);
+const cell=(text,number)=>({textContent:String(text),
+  dataset:number===undefined?{}:{sortValue:String(number)}});
+const makeRow=(name,value)=>({cells:[cell(name),cell("2 × 1"),
+  cell("Under 3,5"),cell("under_35"),cell("1,65",1.65),
+  cell("R$ 20,00",20),cell("green"),cell(String(value),value)]});
+const row1=makeRow("Partida A",-20),row2=makeRow("Partida B",14.4),
+      row3=makeRow("Partida C",3.25);
+const tbody={rows:[row1,row2,row3],append(...items){this.rows=items;}};
+const table={tBodies:[tbody],tHead:{rows:[{cells:[]}]},
+  querySelectorAll(){return this.tHead.rows[0].cells;}};
+const ths=Array.from({length:8},(_,i)=>({
+  dataset:{resultSort:String(i)},attrs:{},
+  closest:()=>table,
+  getAttribute(k){return this.attrs[k]||"none";},
+  setAttribute(k,v){this.attrs[k]=v;}
+}));
+table.tHead.rows[0].cells=ths;
+scope.sortResultColumn(ths[7]);
+assert.deepEqual(tbody.rows.map(r=>r.cells[0].textContent),
+  ["Partida A","Partida C","Partida B"]);
+scope.sortResultColumn(ths[7]);
+assert.deepEqual(tbody.rows.map(r=>r.cells[0].textContent),
+  ["Partida B","Partida C","Partida A"]);
+assert.equal(ths[7].attrs["aria-sort"],"descending");
+assert.ok(js.includes('TOTAL DO MÊS'),"Somatório não deve mudar ao ordenar");
+assert.ok(js.includes('root.hidden=!revealed;'),"Mostrar tabela apenas após apurar");
+
 console.log("Galileu gameplay: interface, rotas e sigilo de placar verificados.");
 
 assert.ok(js.includes('state.corte_atual'),"Frontend exibe data de corte corrente");
@@ -156,10 +191,19 @@ assert.ok(py.includes('catalog is _history_catalog'),
 assert.ok(py.includes('selected=next((m for m in _methods() if m["id"]==method_id)'),
   "Backend só deve recalcular método solicitado");
 
-/* Jogos com método têm prioridade global, independentemente da liga. */
-assert.ok(js.includes('title:"Jogos com método validado"'),"Grupo dos jogos validados em primeiro");
-assert.ok(js.includes('title:"Demais jogos"'),"Grupo dos demais jogos em segundo");
-assert.ok(js.includes('cohorts.filter(c=>c.games.length)'),"Mostrar apenas os grupos com jogos");
+/* Não listar jogos nem permitir escolha manual na nova interface. */
+assert.ok(html.includes('id="gl-games" class="gl-games" hidden'),
+  "Confrontos não devem aparecer antes da apuração");
+assert.ok(js.includes('$("#gl-games").replaceChildren()'),
+  "Não gerar cards de jogos pré-fechamento");
+assert.ok(js.includes('$("#gl-bulk-toolbar").hidden=true'),
+  "Não pedir confirmação de entradas em lote");
+assert.ok(py.includes('for method in game["metodos"]:'),
+  "Todos os métodos validados devem ser programados");
+assert.ok(py.includes('ON CONFLICT DO NOTHING'),
+  "Não registrar entrada duplicada após atualizar a página");
+assert.ok(py.includes('"entradas_automaticas":auto_count'),
+  "Estado deve informar novas entradas programadas automaticamente");
 assert.ok(js.includes('availableMethods(game).map(method=>'),"Cada método disponível recebe uma seleção");
 assert.ok(js.includes('methodAlreadyEntered(game,m.id)'),"Métodos já utilizados não podem ser repetidos");
 assert.ok(!js.includes('bulkAvailableCents()'),"O lote não verifica saldo disponível");
