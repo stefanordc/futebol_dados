@@ -25,13 +25,43 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v18"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v19"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
   "Método validado deve ser a aba inicial nos detalhes");
 assert.ok(js.includes("Método validado"),"Carimbo visível");
 assert.ok(js.includes('$("#gl-finish").addEventListener'),"Finalizar rodada");
+/* Varinha mágica: somente método elegível; nunca altera o cadastro original. */
+for(const id of ["gl-improve-dialog","gl-improve-title","gl-improve-intro",
+                 "gl-improve-suggestions","gl-improve-status","gl-improve-close",
+                 "gl-improve-back"]){
+  assert.ok(html.includes('id="'+id+'"'),"Assistente de melhorias: "+id);
+}
+assert.ok(js.includes('item.melhoria_elegivel&&methodId!=null'),
+  "Varinha só pode ser visível com 2+ meses de prejuízo");
+assert.ok(js.includes('data-improve-method'),
+  "Cada ícone precisa identificar o método correspondente");
+assert.ok(js.includes('data-improve-save'),
+  "Cada sugestão deve permitir criar método novo");
+assert.ok(js.includes('post("melhorias/"+methodId+"/sugerir")'),
+  "O ícone consulta sugestões reais no servidor");
+assert.ok(js.includes('post("melhorias/"+improvingMethod+"/salvar"'),
+  "O salvamento deve usar endpoint independente");
+assert.ok(html.includes('🪄')||js.includes('🪄'),
+  "Botão deve mostrar ícone de varinha mágica");
+assert.ok(css.includes(".gl-improve-magic"),
+  "Estilização da varinha necessária");
+assert.ok(py.includes("melhorias.sequencias_prejuizo("),
+  "Prejuízo consecutivo calculado sobre apostas do Galileu");
+const improved=fs.readFileSync("queries_galileu_melhorias.py","utf8");
+assert.ok(improved.includes("queries_estrategias.criar(cfg)") &&
+          improved.includes("live.criar_cenario(cfg)"),
+  "Novo método deve ser gravado pelo cadastro correspondente");
+assert.ok(improved.includes("treino cronológico") ||
+          improved.includes("treino cronológico"),
+  "A análise deve evitar escolher sugestões com dados da validação");
+
 assert.ok(js.includes('$("#gl-next").addEventListener'),"Próxima rodada");
 assert.ok(html.indexOf('id="gl-next"')>html.indexOf('id="gl-close-submit"'),
   "Botão Próximo mês deve aparecer depois do fechamento mensal");
