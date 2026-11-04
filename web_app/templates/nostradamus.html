@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v3">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v4">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -119,6 +119,9 @@
       <label>Comissão Lay (%) — fixa
         <input type="number" value="4.5" readonly aria-readonly="true" title="Simulação fixa de 4,5%">
       </label>
+      <label>Nome do cenário (para salvar no Supabase)
+        <input id="ns-inplay-name" type="text" maxlength="80" placeholder="Ex.: Lay empate aos 60 minutos">
+      </label>
     </div>
     <p class="ns-info">A odd <strong>2,00 é somente ilustrativa</strong>, não uma cotação real aos 60 minutos. Altere para simular outro preço. Cada entrada usa R$ 100 de stake (Back) ou responsabilidade (Lay). Apenas o resultado financeiro hipotético e a otimização dependem dessa odd.</p>
     <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições no minuto da entrada</h2></div></div>
@@ -159,8 +162,17 @@
     </div>
     <div id="ns-inplay-conditions" class="ns-conditions"></div>
     <div class="ns-actions"><button id="ns-inplay-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-inplay-count" class="x1-help">0/10 condições</span></div>
-    <div class="ns-actions"><button id="ns-inplay-submit" type="submit" class="ns-button primary">Executar backtest ao vivo</button></div>
+    <div class="ns-actions">
+      <button id="ns-inplay-submit" type="submit" class="ns-button primary">Executar backtest ao vivo</button>
+      <button id="ns-inplay-save" type="button" class="ns-button secondary">Salvar cenário no Supabase</button>
+      <button id="ns-inplay-new" type="button" class="ns-button secondary">Novo cenário</button>
+    </div>
   </form>
+  <section id="ns-inplay-saved" class="ns-inplay-saved">
+    <h3>Cenários ao vivo salvos no Supabase</h3>
+    <p class="x1-help">Salve, recarregue, edite ou exclua cenários ao vivo. Eles ficam separados das estratégias pré-jogo e não entram automaticamente no Galileu.</p>
+    <div id="ns-inplay-saved-list" aria-live="polite"></div>
+  </section>
   <div id="ns-inplay-feedback" class="x1-help" role="status" aria-live="polite"></div>
   <section id="ns-inplay-results" hidden aria-label="Resultados da simulação ao vivo">
     <h2>Resultados por campeonato</h2>
@@ -197,6 +209,6 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v3" defer></script>
-<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v3" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v4" defer></script>
+<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v4" defer></script>
 </body></html>
