@@ -27,7 +27,8 @@ const state={
   fechamento_pendente:true,
   metodos_fechamento:[
     {metodo_id:7,nome:"Lay goleada zebra",entradas:8,greens:6,reds:2,
-     win_rate:75,lucro_prejuizo:120,maior_good_run:4,maior_bad_run:2},
+     win_rate:75,lucro_prejuizo:120,maior_good_run:4,maior_bad_run:2,
+     melhoria_elegivel:true,meses_prejuizo_consecutivos:2},
     {metodo_id:8,nome:"Over 2,5",entradas:0,greens:0,reds:0,
      win_rate:0,lucro_prejuizo:0,maior_good_run:0,maior_bad_run:0},
     {metodo_id:9,nome:"Método antigo",desativado_desde:"2026-10",
@@ -57,6 +58,14 @@ assert.ok(view.includes('Over 2,5'));
 assert.ok(view.includes('Retirar em 2026-11'));
 assert.ok(view.includes('Retirado desde 2026-10'));
 assert.ok(view.includes('data-remove-method="7"'));
+assert.ok(view.includes('data-improve-method="7"'),
+  "Método com dois meses negativos deve mostrar a varinha");
+assert.ok(view.includes("🪄"),"Ícone de varinha mágica precisa ser exibido");
+assert.ok(view.includes("2 meses"),"Período negativo deve ser informado");
+assert.ok(!view.includes('data-improve-method="8"'),
+  "Método com zero entradas não pode mostrar a varinha");
+assert.ok(!view.includes('data-improve-method="9"'),
+  "Método não elegível não pode mostrar a varinha");
 assert.ok(!view.includes('data-remove-method="9"'));
 assert.deepEqual(Array.from(context.methodsToRemove()),[7,8]);
 assert.equal(nodes["#gl-method-removal-note"].hidden,false);
@@ -65,7 +74,7 @@ context.renderMonthTable();
 assert.ok(!nodes["#gl-method-performance-table"].innerHTML.includes(
   'data-remove-method="7"'),"Depois do fechamento não se pode retirar retroativamente");
 assert.equal(nodes["#gl-method-removal-note"].hidden,true);
-assert.ok(html.includes('galileu-gameplay-v18'),"Atualizar cache do JS");
+assert.ok(html.includes('galileu-gameplay-v19'),"Atualizar cache do JS");
 /* Teste do aviso realmente renderizado no fechamento. */
 const alertStart=src.indexOf("function renderLossStreakAlerts(){");
 const alertEnd=src.indexOf("function renderMonth(){",alertStart);
