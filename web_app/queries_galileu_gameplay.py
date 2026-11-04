@@ -313,8 +313,12 @@ def _live_offers(games,methods,catalog,disabled=None):
         )
         if sql==live.SQL:
             raise RuntimeError("Não foi possível restringir os gols à rodada.")
+        # Ordem dos placeholders na SQL:
+        # (1) minuto dos gols do mandante, (2) minuto dos gols do visitante,
+        # (3) IDs da rodada no WHERE da CTE, (4) data de corte,
+        # (5–6) filtro opcional por campeonato.
         by_minute[minute]=fetch_all(
-            sql,(ids,minute,minute,today(),None,None))
+            sql,(minute,minute,ids,today(),None,None))
     result=defaultdict(list)
     for method in active:
         cfg=method["configuracao"]
