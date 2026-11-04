@@ -477,6 +477,80 @@ def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
     return games,public
 
 
+def _sync_live_entries(token,sess,raw_games,public_games):
+    """Registra automaticamente cenários ao vivo validados neste mês.
+
+    O salvamento é atômico e idempotente; atualizar a página ou tentar
+    finalizar o mês não cria entradas duplicadas. Não apura nenhum placar.
+    """
+    if sess["fase"]!="aberta":
+        return 0
+    original={int(g["id"]):g for g in raw_games}
+    candidates=[]
+    for game in public_games:
+        gid=int(game["jogo_id"])
+        raw=original.get(gid)
+        if raw is None:
+            continue
+        for method in game["metodos"]:
+            if method.get("tipo")!="ao_vivo":
+                continue
+            offer=method["mercado"]
+            candidates.append((gid,raw,method,offer))
+    if not candidates:
+        return 0
+    from psycopg2.extras import execute_values
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            locked=_lock(cur,token)
+            if locked["fase"]!="aberta" or int(locked["indice_rodada"])!=int(sess["indice_rodada"]):
+                return 0
+            cur.execute("""
+                SELECT metodo_id,efetivo_desde
+                FROM galileu_private.metodos_desativados
+                WHERE sessao_id=%s
+            """,(sess["id"],))
+            disabled={
+                int(row["metodo_id"]):{"desde":str(row["efetivo_desde"])}
+                for row in cur.fetchall()
+            }
+            cur.execute("""
+                SELECT jogo_id FROM galileu_private.jogos_finalizados
+                WHERE sessao_id=%s AND indice_rodada=%s
+            """,(sess["id"],sess["indice_rodada"]))
+            closed={int(row["jogo_id"]) for row in cur.fetchall()}
+            data=[]
+            for gid,raw,method,offer in candidates:
+                if gid in closed or _is_disabled(method["id"],raw["data"],disabled):
+                    continue
+                data.append((
+                    sess["id"],gid,sess["indice_rodada"],"metodo",
+                    method["id"],method["versao"],method["nome"],
+                    method["objetivo"],offer["odd"],
+                    _rounded(_default_stake(locked)),True,
+                    offer["favorito_casa"],
+                ))
+            if not data:
+                return 0
+            execute_values(cur,"""
+                INSERT INTO galileu_private.entradas
+                    (sessao_id,jogo_id,indice_rodada,tipo,metodo_id,metodo_versao,
+                     metodo_nome,mercado,odd,stake,cotacao_estimada,favorito_casa)
+                VALUES %s
+                ON CONFLICT DO NOTHING
+                RETURNING id
+            """,data,page_size=min(len(data),1000))
+            inserted=cur.fetchall()
+            if inserted:
+                cur.execute("""
+                    UPDATE galileu_private.sessoes
+                    SET versao=versao+1,atualizado_em=now()
+                    WHERE id=%s
+                """,(sess["id"],))
+        conn.commit()
+    return len(inserted)
+
+
 def _token_session(token):
     digest=_hash(token)
     if not digest:
@@ -846,6 +920,10 @@ def estado(token):
     disabled=_disabled_methods(sess["id"])
     raw_games,games=_games_for_session(
         sess,catalog,rounds,methods=method_catalog,disabled=disabled)
+    auto_count=_sync_live_entries(token,sess,raw_games,games)
+    if auto_count:
+        sess=dict(sess)
+        sess["versao"]=int(sess["versao"])+1
     window=_window_at(rounds,0)
     bets=_bet_rows(sess["id"])
     current=[b for b in bets if b["indice_rodada"]==sess["indice_rodada"]]
@@ -924,6 +1002,7 @@ def estado(token):
         "exposicao_programada":_brl(sum(
             (Decimal(b["stake"]) for b in current if b["status"]=="pendente"),
             Decimal("0"))),
+        "entradas_automaticas_ao_vivo":auto_count,
         "mes_encerrado":month if closure_access and boundary else None,
         "metodos_fechamento":_method_monthly_table(
             bets,method_catalog,disabled,month)
@@ -1358,6 +1437,14 @@ def _liquidar_entradas_por_data(entries, by_id, banca_inicial):
 
 def finalizar(token):
     catalog=_catalog()
+    sess=_token_session(token)
+    if sess and sess["fase"]=="aberta":
+        methods=_methods()
+        disabled=_disabled_methods(sess["id"])
+        rounds=_rounds(_date(sess.get("corte_atual") or sess["corte"]),catalog)
+        raw,public=_games_for_session(
+            sess,catalog,rounds,methods=methods,disabled=disabled)
+        _sync_live_entries(token,sess,raw,public)
     with get_conn() as conn:
         with conn.cursor() as cur:
             sess=_lock(cur,token)
