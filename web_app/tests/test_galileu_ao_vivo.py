@@ -118,8 +118,19 @@ class TestGalileuAoVivo(TestCase):
         self.assertEqual(len(queries),1)
         sql,params=queries[0]
         self.assertIn("f.jogo_id=ANY(%s::integer[])",sql)
-        self.assertEqual(params[0],[101,102])
-        self.assertEqual(params[1:3],(60,60))
+        self.assertEqual(params[0:2],(60,60))
+        self.assertEqual(params[2],[101,102])
+        self.assertEqual(params[3],date(2026,11,2))
+        self.assertEqual(params[4:6],(None,None))
+        # Os parâmetros do WHERE são posteriores aos parâmetros
+        # dos dois COUNT FILTER da CTE, independentemente da ordem
+        # textual em que aparecem as cláusulas SQL.
+        first_minute=sql.index("AND (f.minuto+COALESCE(f.minuto_adicional,0))<=%s")
+        second_minute=sql.index("AND (f.minuto+COALESCE(f.minuto_adicional,0))<=%s",first_minute+1)
+        game_filter=sql.index("f.jogo_id=ANY(%s::integer[])")
+        self.assertLess(first_minute,second_minute)
+        self.assertLess(second_minute,game_filter)
+        self.assertEqual(sql.count("%s"),len(params))
 
     def test_nao_registra_se_metodo_foi_retirado(self):
         m={
