@@ -125,7 +125,7 @@ function missingConditionValue(condition){
   return condition.referencia!=="adversario" &&
     (condition.valor==null||!Number.isFinite(condition.valor));
 }
-function conditionLine(item={}){
+function conditionLine(item={},target="#ns-conditions"){
   const data=normalizeCondition(item);
   const id=String(Date.now())+"-"+Math.random().toString(36).slice(2,9);
   const div=document.createElement("div");div.className="ns-condition";div.dataset.row=id;
@@ -155,14 +155,17 @@ function conditionLine(item={}){
       esc(data.odd_min??"")+'"></label>'+
     '<label class="ns-odd-criterion" hidden>Odd máxima (opcional)<input class="ns-odd-max" aria-label="Odd máxima" type="number" step="any" min="1.01" max="1000" placeholder="Ex.: 2,50" value="'+
       esc(data.odd_max??"")+'"></label>';
-  $("#ns-conditions").appendChild(div);
+  const selected=typeof target==="string"?target:"#ns-conditions";
+  $(selected).appendChild(div);
   updateConditionRow(div);
-  drawCount();
+  drawCount(selected);
 }
-function drawCount(){
-  const n=$(".ns-conditions")?.children?.length||$("#ns-conditions").children.length;
-  $("#ns-count").textContent=n+"/10 condições";
-  $("#ns-add").disabled=n>=10;
+function drawCount(target="#ns-conditions"){
+  const root=typeof target==="string"?target:"#ns-conditions";
+  const n=$(root).children.length;
+  const prefix=root==="#ns-conditions"?"#ns":"#ns-inplay";
+  $(prefix+"-count").textContent=n+"/10 condições";
+  $(prefix+"-add").disabled=n>=10;
 }
 // Dropdown de checkboxes: sem seleção = todos os campeonatos.
 const selectedLeagues=()=>[...document.querySelectorAll("#ns-league-items input:checked")]
@@ -220,13 +223,8 @@ $("#ns-league-control").addEventListener("keydown",event=>{
     $("#ns-league-trigger").focus();
   }
 });
-const values=()=>({
-  nome:$("#ns-nome").value.trim(),corte:$("#ns-corte").value,
-  jogos:$("#ns-janela").value,campeonato_ids:selectedLeagues(),
-  objetivo:$("#ns-objetivo").value,
-  odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
-  comissao_pct:4.5,
-  condicoes:[...$("#ns-conditions").children].map(row=>{
+function readConditionRows(target="#ns-conditions"){
+  return [...$(target).children].map(row=>{
     const indicator=row.querySelector(".ns-metric").value;
     if(indicator.startsWith("odd:")){
       const min=row.querySelector(".ns-odd-min").value.trim();
@@ -247,8 +245,26 @@ const values=()=>({
     if(mode==="valor")return {...base,referencia:"valor",valor};
     return {...base,referencia:row.querySelector(".ns-legacy-side").value,
       metrica_ref:row.querySelector(".ns-reference-metric").value,valor};
-  })
+  });
+}
+const values=()=>({
+  nome:$("#ns-nome").value.trim(),corte:$("#ns-corte").value,
+  jogos:$("#ns-janela").value,campeonato_ids:selectedLeagues(),
+  objetivo:$("#ns-objetivo").value,
+  odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
+  comissao_pct:4.5,
+  condicoes:readConditionRows("#ns-conditions")
 });
+window.NostradamusRuleBuilder={
+  setMeta(value){meta=value;},
+  add(target,item){conditionLine(item||{},target);},
+  read:readConditionRows,
+  invalid:missingConditionValue,
+  update:updateConditionRow,
+  refresh:drawCount,
+  clear(target){$(target).replaceChildren();drawCount(target);}
+};
+
 function restore(saved){
   $("#ns-nome").value=saved.nome||"";
   $("#ns-corte").value=saved.corte||$("#ns-corte").value;
