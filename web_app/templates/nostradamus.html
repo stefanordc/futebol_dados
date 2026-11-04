@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v4">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v5">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -113,8 +113,8 @@
         </div>
       </div>
       <label>Mercado da entrada<select id="ns-inplay-mercado" required></select></label>
-      <label>Odd hipotética no minuto (editável)
-        <input id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" value="2.00" required>
+      <label>Odd de entrada (opcional: substituir estimativa automática)
+        <input id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" placeholder="Automática por jogo">
       </label>
       <label>Comissão Lay (%) — fixa
         <input type="number" value="4.5" readonly aria-readonly="true" title="Simulação fixa de 4,5%">
@@ -123,7 +123,7 @@
         <input id="ns-inplay-name" type="text" maxlength="80" placeholder="Ex.: Lay empate aos 60 minutos">
       </label>
     </div>
-    <p class="ns-info">A odd <strong>2,00 é somente ilustrativa</strong>, não uma cotação real aos 60 minutos. Altere para simular outro preço. Cada entrada usa R$ 100 de stake (Back) ou responsabilidade (Lay). Apenas o resultado financeiro hipotético e a otimização dependem dessa odd.</p>
+    <p class="ns-info"><strong>Odd automática por partida:</strong> o Nostradamus calcula uma cotação aproximada pelo modelo de Poisson usando o placar no minuto da entrada, o tempo restante e, quando disponíveis, as odds pré-jogo 1X2 e Over/Under 2,5. <strong>Não é uma odd histórica real.</strong> O campo acima é opcional: use-o apenas se quiser substituir o preço estimado por uma odd fixa. Sem odds anteriores, o cálculo usa um cenário neutro de 2,6 gols esperados em 90 minutos. O resultado financeiro e as sugestões de IA são hipotéticos; não representam liquidez ou execução em uma bolsa. Cada entrada usa R$ 100 de stake (Back) ou responsabilidade (Lay), com comissão Lay de 4,5%.</p>
     <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições no minuto da entrada</h2></div></div>
     <div class="ns-fields ns-inplay-fields">
       <label>Minuto da entrada<input id="ns-inplay-minuto" type="number" min="1" max="90" step="1" value="60" required></label>
@@ -209,6 +209,6 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v4" defer></script>
-<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v4" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v5" defer></script>
+<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v5" defer></script>
 </body></html>
