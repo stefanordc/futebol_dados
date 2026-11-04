@@ -257,6 +257,20 @@ class TestGalileuGameplay(TestCase):
                          Decimal("1.50"),Decimal("20.00")),
                          ("green",Decimal("10.00")))
 
+    def test_under_35_no_galileu_usa_odd_e_liquidacao_do_nostradamus(self):
+        from decimal import Decimal
+        offer=gl._market({"api_under_ft_3_5":1.72,
+                          "api_bookie_under_ft_3_5":"Casa Teste"},"under_35")
+        self.assertIsNotNone(offer)
+        self.assertEqual(offer["nome"],"Under 3,5")
+        self.assertEqual(offer["odd"],1.72)
+        self.assertEqual(gl._settlement("under_35",None,2,1,
+                         Decimal("1.72"),Decimal("20.00")),
+                         ("green",Decimal("14.40")))
+        self.assertEqual(gl._settlement("under_35",None,2,2,
+                         Decimal("1.72"),Decimal("20.00")),
+                         ("red",Decimal("-20.00")))
+
     def test_resumo_mensal_roi_por_stake_e_por_grupos(self):
         d=date(2026,10,20)
         bets=[
