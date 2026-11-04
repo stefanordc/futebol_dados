@@ -20,6 +20,7 @@ from db import fetch_all, get_conn
 import queries_nostradamus as ns
 import queries_estrategias
 import queries_nostradamus_aovivo as live
+import queries_galileu_melhorias as melhorias
 
 COOKIE="galileu_gameplay"
 TZ=ZoneInfo("America/Sao_Paulo")
@@ -988,6 +989,20 @@ def estado(token):
                     if jogo is not None else None
                 ),
             })
+    method_performance=(_method_monthly_table(
+        bets,method_catalog,disabled,month)
+        if closure_access and boundary and month else [])
+    improvement_flags=(melhorias.sequencias_prejuizo(
+        bets,month,method_catalog)
+        if method_performance else {})
+    for item in method_performance:
+        flag=improvement_flags.get(item["metodo_id"])
+        item.update({
+            "melhoria_elegivel":bool(flag),
+            "meses_prejuizo_consecutivos":flag["meses_prejuizo_consecutivos"] if flag else 0,
+            "prejuizo_acumulado":flag["prejuizo_acumulado"] if flag else 0,
+            "meses_prejuizo":flag["meses_prejuizo"] if flag else [],
+        })
     return {
         "iniciado":True,
         "fase":sess["fase"],"versao":int(sess["versao"]),
@@ -1029,9 +1044,7 @@ def estado(token):
             and int(bet["metodo_id"])>=LIVE_METHOD_BASE
         ),
         "mes_encerrado":month if closure_access and boundary else None,
-        "metodos_fechamento":_method_monthly_table(
-            bets,method_catalog,disabled,month)
-            if closure_access and boundary and month else [],
+        "metodos_fechamento":method_performance,
         "alertas_prejuizo_3_meses":_method_loss_streak_alerts(
             bets,method_catalog,month)
             if closure_access and boundary and month else [],
