@@ -19,6 +19,7 @@ from psycopg2 import errors
 from db import fetch_all, get_conn
 import queries_nostradamus as ns
 import queries_estrategias
+import queries_nostradamus_aovivo as live
 
 COOKIE="galileu_gameplay"
 TZ=ZoneInfo("America/Sao_Paulo")
@@ -27,6 +28,7 @@ MAX_BANK=Decimal("1000000000")
 CENTS=Decimal("0.01")
 # O catálogo é custoso (histórico, odds e indicadores físicos), mas seus dados
 # históricos não mudam a cada entrada. Reutilize por quinze minutos.
+LIVE_METHOD_BASE=1_000_000_000_000  # IDs exclusivos para cenários ao vivo
 CACHE_SECONDS=15*60
 _cache_at=0.0
 _cache_day=None
@@ -252,7 +254,94 @@ def _methods():
             "condicoes":conditions,"ligas":set(int(v) for v in league_ids),
             "jogos":max(5,min(window,1000)),
         })
+    # Cenários salvos na aba Ao vivo são métodos independentes, com
+    # identificadores que não colidem com o cadastro pré-jogo.
+    for raw in live.listar_cenarios():
+        try:
+            config=dict(raw["configuracao"])
+            # O corte salvo limita o backtest, não o período de uso no Galileu.
+            config["corte"]=today().isoformat()
+            config=live._config(config)
+        except (TypeError,ValueError,KeyError):
+            continue
+        methods.append({
+            "id":LIVE_METHOD_BASE+int(raw["id"]),
+            "versao":int(raw["versao"]),
+            "nome":"Ao vivo · "+str(raw["nome"]),
+            "objetivo":config["mercado"],
+            "condicoes":config["condicoes"],
+            "ligas":set(config["campeonato_ids"] or []),
+            "jogos":1000 if config["jogos"]=="temporada" else int(config["jogos"]),
+            "tipo":"ao_vivo",
+            "configuracao":config,
+        })
     return methods
+
+
+def _live_offers(games,methods,catalog,disabled=None):
+    """Aplica cenários salvos ao placar REAL no minuto, nunca ao final.
+
+    Os resultados finais não entram nas condições de seleção. Todas as odds
+    são estimadas naquele minuto pelo mesmo modelo do Nostradamus ao vivo.
+    O retorno para a tela contém só o método e sua odd, sem revelar placares.
+    """
+    subset=[m for m in methods if m.get("tipo")=="ao_vivo"]
+    if not subset or not games:
+        return {}
+    disabled=disabled or {}
+    past=[g for g in games if _date(g["data"])<today()
+          and g.get("gols_casa") is not None and g.get("gols_fora") is not None]
+    if not past:
+        return {}
+    ids=[int(g["id"]) for g in past]
+    by_minute={}
+    for minute in {m["configuracao"]["minuto"] for m in subset}:
+        # Restringe a CTE ao mês em curso: não consulta todos os lances
+        # históricos a cada atualização da página.
+        sql=live.SQL.replace(
+            "WHERE f.tipo_evento='Gol' OR f.tipo_evento IS NOT NULL",
+            "WHERE f.jogo_id=ANY(%s::integer[]) AND "
+            "(f.tipo_evento='Gol' OR f.tipo_evento IS NOT NULL)"
+        )
+        if sql==live.SQL:
+            raise RuntimeError("Não foi possível restringir os gols à rodada.")
+        by_minute[minute]=fetch_all(
+            sql,(ids,minute,minute,today(),None,None))
+    result=defaultdict(list)
+    for method in subset:
+        cfg=method["configuracao"]
+        current_rows=[
+            r for r in by_minute[cfg["minuto"]]
+            if not _is_disabled(method["id"],r["data"],disabled)
+        ]
+        if not current_rows:
+            continue
+        # O mesmo backtest do Nostradamus decide placar/minuto, estatísticas
+        # pré-jogo e odd. Nenhum detalhe é truncado para o Galileu.
+        matches=live.simular(
+            cfg,rows=current_rows,history_rows=catalog,
+            detail_limit=len(current_rows)
+        )
+        for matched in matches["detalhes"]:
+            if matched["odd"] is None:
+                continue  # Mercado decidido ou sem preço modelável.
+            result[int(matched["id"])].append({
+                "id":method["id"],"versao":method["versao"],
+                "nome":method["nome"],"objetivo":method["objetivo"],
+                "tipo":"ao_vivo",
+                "mercado":{
+                    "mercado":method["objetivo"],
+                    "nome":ns.MERCADOS[method["objetivo"]],
+                    "odd":matched["odd"],"estimada":True,
+                    "origem":matched["cotacao"],
+                    "favorito_casa":next((
+                        ns._favorite_home(r) for r in current_rows
+                        if int(r["id"])==int(matched["id"])
+                    ),None)
+                },
+                "regras":[],  # Não antecipar os gols do minuto ao usuário.
+            })
+    return result
 
 
 def _market(game,market):
@@ -340,6 +429,7 @@ def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
         methods=_methods()
     if disabled is None:
         disabled=_disabled_methods(sess["id"])
+    live_offers=_live_offers(games,methods,catalog,disabled)
     public=[]
     for g in games:
         # Dados pré-jogo só usam partidas concluídas em dias anteriores.
@@ -352,6 +442,8 @@ def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
         markets=_available_markets(g)
         method_details=[]
         for m in methods:
+            if m.get("tipo")=="ao_vivo":
+                continue
             if _is_disabled(m["id"],g["data"],disabled):
                 continue
             if m["ligas"] and g["campeonato_id"] not in m["ligas"]:
@@ -359,6 +451,7 @@ def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
             h,hn=_team_stats(history,g,g["casa_id"],m["jogos"])
             a,an=_team_stats(history,g,g["fora_id"],m["jogos"])
             method_details.extend(_matched(g,h,a,[m]))
+        method_details.extend(live_offers.get(int(g["id"]),[]))
         safe={
             "jogo_id":int(g["id"]),
             "data":g["data"].isoformat(),
