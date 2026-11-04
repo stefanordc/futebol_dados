@@ -582,7 +582,7 @@ class TestNostradamus(TestCase):
                          "oa.odd_1_ft AS api_odd_1_ft",
                          "oa.lay_odd_x_ft AS api_lay_odd_x_ft"):
             self.assertIn(fragment,ns.RAW)
-        for market in ("back_empate","over_05","over_25","under_25",
+        for market in ("back_empate","over_05","over_25","under_25","under_35",
                        "ambos_marcam","ambos_nao","lay_1x0"):
             self.assertIn(market,ns.API_MARKETS)
 
@@ -778,6 +778,39 @@ class TestNostradamus(TestCase):
         for window in ("5","10","20","temporada"):
             result=ns.testar(config(self.cutoff,window=window),rows=data)
             self.assertEqual(result["entradas"],0)
+
+    def test_under_35_aparece_na_metadata_e_nos_filtros(self):
+        self.assertEqual(ns.MERCADOS["under_35"],"Under 3,5")
+        self.assertEqual(ns.ODD_FILTER_MARKETS["under_35"],"Under 3,5")
+        self.assertEqual(ns.API_MARKETS["under_35"],
+                         ("api_under_ft_3_5","api_bookie_under_ft_3_5"))
+        for field in ("oa.under_ft_3_5 AS api_under_ft_3_5",
+                      "MAX(o.under_ft_3_5) AS under_ft_3_5",
+                      "oa.bookie_under_ft_3_5 AS api_bookie_under_ft_3_5",
+                      "MAX(o.bookie_under_ft_3_5) AS bookie_under_ft_3_5"):
+            self.assertIn(field,ns.RAW)
+
+    def test_under_35_liquidacao_e_precificacao(self):
+        for total in range(8):
+            with self.subTest(total=total):
+                self.assertEqual(ns._settle("under_35",total,0),total<=3)
+        row={"api_under_ft_3_5":1.72,
+             "api_bookie_under_ft_3_5":"Casa Teste"}
+        self.assertEqual(ns._odds_for_game(row,"under_35",None),(1.72,"api_casa"))
+        self.assertEqual(ns._bookmaker_for_game(row,"under_35","api_casa"),"Casa Teste")
+        self.assertEqual(ns._odds_for_game({},"under_35",None),(None,None))
+        self.assertEqual(ns._odds_for_game({},"under_35",1.85),(1.85,"hipotetica"))
+
+    def test_under_35_backtest_usa_placar_final(self):
+        data=[game(i,self.start+timedelta(days=i),
+                   gf=3 if i%2==0 else 4,ga=0) for i in range(10)]
+        for row in data:
+            row["api_under_ft_3_5"]=1.80
+            row["api_bookie_under_ft_3_5"]="Casa Teste"
+        output=ns.testar(config(self.cutoff,goal="under_35"),rows=data)
+        self.assertEqual(output["entradas"],5)
+        self.assertEqual((output["total"]["greens"],output["total"]["reds"]),(2,3))
+        self.assertEqual(output["total"]["cotadas"],5)
 
     def test_mercados_e_limites_lay(self):
         self.assertTrue(ns._settle("over_25",2,1))
