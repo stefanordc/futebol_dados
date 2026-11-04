@@ -14,6 +14,7 @@ const money=value=>value==null?"—":Number(value).toLocaleString("pt-BR",{
 const cash=v=>v==null?"":Number(v)<0?"ns-red":"ns-green";
 const rules=window.NostradamusRuleBuilder;
 let metadata=null,lastSimulationConfig=null,aiSuggestions=[],undo=[],lastResult=null;
+let savedScenarios=[],editingLive=null;
 
 const yesterday=new Date();
 yesterday.setDate(yesterday.getDate()-1);
@@ -342,6 +343,152 @@ $("#ns-inplay-ai-output").addEventListener("click",event=>{
   feedback("Condição modificada no formulário. Teste novamente ou desfaça a mudança.");
   $("#ns-inplay-conditions").scrollIntoView({behavior:"smooth",block:"start"});
 });
+const savedURL="/api/apostas/nostradamus/ao-vivo/estrategias";
+
+async function fetchJSON(url,options={cache:"no-store"}){
+  const response=await fetch(url,options);
+  const result=await response.json();
+  if(!response.ok)throw Error(typeof result.detail==="string"?result.detail:
+    "Falha na comunicação com o Supabase.");
+  return result;
+}
+function renderSavedScenarios(){
+  const panel=$("#ns-inplay-saved-list");
+  if(!savedScenarios.length){
+    panel.innerHTML='<p class="x1-help">Nenhum cenário ao vivo salvo.</p>';
+    return;
+  }
+  panel.innerHTML='<div class="ns-scroll"><table class="ns-table ns-inplay-table">'+
+    '<thead><tr><th>Cenário</th><th>Minuto</th><th>Mercado</th>'+
+    '<th>Condições pré-jogo</th><th>Última alteração</th><th>Ações</th></tr></thead><tbody>'+
+    savedScenarios.map(item=>{
+      const c=item.configuracao||{};
+      const updated=item.atualizado_em?
+        new Date(item.atualizado_em).toLocaleString("pt-BR"): "—";
+      return '<tr><td><strong>'+esc(item.nome)+'</strong></td>'+
+        '<td>'+fmt(c.minuto)+"'</td>"+
+        '<td>'+esc(metadata?.objetivos?.[c.mercado]||c.mercado)+'</td>'+
+        '<td>'+fmt(c.condicoes?.length||0)+' / 10</td>'+
+        '<td>'+esc(updated)+'</td>'+
+        '<td class="ns-saved-row-actions">'+
+        '<button class="ns-button secondary" type="button" data-inplay-load="'+item.id+'">Carregar / editar</button>'+
+        '<button class="ns-button secondary ns-delete-strategy" type="button" data-inplay-delete="'+item.id+'">Excluir</button></td></tr>';
+    }).join("")+'</tbody></table></div>';
+}
+async function refreshSavedScenarios(){
+  const result=await fetchJSON(savedURL);
+  if(!Array.isArray(result))throw Error("O Supabase não retornou uma lista válida.");
+  savedScenarios=result;
+  renderSavedScenarios();
+}
+function restoreScenario(item){
+  const c=item.configuracao||{};
+  const set=(id,val)=>{$(id).value=val??"";};
+  set("#ns-inplay-name",item.nome);
+  set("#ns-inplay-corte",c.corte);
+  set("#ns-inplay-janela",c.jogos||"20");
+  set("#ns-inplay-minuto",c.minuto);
+  set("#ns-inplay-vencendo",c.vencendo||"favorito");
+  set("#ns-inplay-diferenca",c.diferenca_gols);
+  set("#ns-inplay-total",c.gols_total);
+  set("#ns-inplay-mercado",c.mercado);
+  set("#ns-inplay-odd",c.odd_hipotetica);
+  for(const role of ["favorito","zebra","mandante","visitante"]){
+    set("#ns-inplay-"+role,c["gols_"+role]);
+    set("#ns-inplay-"+role+"-min",c["gols_"+role+"_min"]);
+    set("#ns-inplay-"+role+"-max",c["gols_"+role+"_max"]);
+  }
+  const leagues=Array.isArray(c.campeonato_ids)?c.campeonato_ids:[];
+  const chosen=new Set(leagues.map(Number));
+  document.querySelectorAll("#ns-inplay-league-items input").forEach(input=>{
+    input.checked=!chosen.size||chosen.has(Number(input.value));
+  });
+  drawLeagues();
+  rules.clear("#ns-inplay-conditions");
+  (c.condicoes||[]).slice(0,10).forEach(rule=>rules.add("#ns-inplay-conditions",rule));
+  editingLive={id:item.id,versao:item.versao};
+  $("#ns-inplay-save").textContent="Salvar alterações do cenário";
+  feedback('Cenário "'+item.nome+'" carregado. Altere os filtros e salve novamente.');
+  $("#ns-inplay-form").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("#ns-inplay-new").addEventListener("click",()=>{
+  editingLive=null;
+  $("#ns-inplay-name").value="";
+  rules.clear("#ns-inplay-conditions");
+  $("#ns-inplay-save").textContent="Salvar cenário no Supabase";
+  feedback("Novo cenário: escolha as condições e informe um nome para salvar.");
+});
+$("#ns-inplay-save").addEventListener("click",async()=>{
+  const name=$("#ns-inplay-name").value.trim();
+  if(!name){
+    feedback("Informe o nome do cenário para salvar.",true);
+    $("#ns-inplay-name").focus();
+    return;
+  }
+  const config={...params(),nome:name};
+  if(config.condicoes.length>10||config.condicoes.some(rules.invalid)){
+    feedback("Corrija as condições pré-jogo antes de salvar.",true);
+    return;
+  }
+  const btn=$("#ns-inplay-save");
+  btn.disabled=true;
+  btn.textContent="Salvando no Supabase…";
+  try{
+    const id=editingLive?.id;
+    const version=editingLive?.versao;
+    const result=await fetchJSON(id?savedURL+"/"+id:savedURL,{
+      method:id?"PATCH":"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(id?{...config,versao:version}:config)
+    });
+    await refreshSavedScenarios();
+    const saved=savedScenarios.find(row=>Number(row.id)===Number(result.id)
+      && Number(row.versao)===Number(result.versao));
+    if(!saved)throw Error("Gravação não confirmada na nova leitura do banco.");
+    editingLive={id:saved.id,versao:saved.versao};
+    feedback('Cenário "'+saved.nome+'" salvo e confirmado no Supabase.');
+  }catch(error){
+    feedback(error.message,true);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=editingLive?"Salvar alterações do cenário":"Salvar cenário no Supabase";
+  }
+});
+$("#ns-inplay-saved-list").addEventListener("click",async event=>{
+  const load=event.target.closest("[data-inplay-load]");
+  if(load){
+    const item=savedScenarios.find(row=>String(row.id)===load.dataset.inplayLoad);
+    if(item)restoreScenario(item);
+    return;
+  }
+  const remove=event.target.closest("[data-inplay-delete]");
+  if(!remove)return;
+  const item=savedScenarios.find(row=>String(row.id)===remove.dataset.inplayDelete);
+  if(!item)return;
+  if(!window.confirm('Excluir permanentemente o cenário ao vivo "'+
+    item.nome+'"? Os métodos pré-jogo permanecerão intactos.'))return;
+  remove.disabled=true;
+  try{
+    const result=await fetchJSON(savedURL+"/"+item.id,{
+      method:"DELETE",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({versao:item.versao})
+    });
+    if(!result.excluido)throw Error("Exclusão não confirmada.");
+    await refreshSavedScenarios();
+    if(savedScenarios.some(row=>Number(row.id)===Number(item.id))){
+      throw Error("O registro ainda aparece no banco. Recarregue a página.");
+    }
+    if(editingLive&&Number(editingLive.id)===Number(item.id)){
+      editingLive=null;
+      $("#ns-inplay-name").value="";
+      $("#ns-inplay-save").textContent="Salvar cenário no Supabase";
+    }
+    feedback('Cenário "'+item.nome+'" excluído.');
+  }catch(error){
+    remove.disabled=false;
+    feedback(error.message,true);
+  }
+});
+
 async function initialize(){
   try{
     if(!rules)throw Error("O editor de condições do Nostradamus não foi carregado.");
@@ -360,6 +507,7 @@ async function initialize(){
       esc(label)+'</option>').join("");
     $("#ns-inplay-mercado").disabled=false;
     conditionCount();
+    await refreshSavedScenarios();
   }catch(error){feedback(error.message,true);}
 }
 initialize();
