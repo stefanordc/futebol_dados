@@ -115,6 +115,14 @@ $("#ns-inplay-conditions").addEventListener("click",event=>{
   button.closest(".ns-condition").remove();
   conditionCount();
 });
+function quoteLabel(source){
+  return source==="hipotetica_usuario"?"Manual (hipotética)":
+    source==="modelo_poisson_ou_1x2"?"Modelo Poisson · O/U + 1X2":
+    source==="modelo_poisson_1x2"?"Modelo Poisson · 1X2":
+    source==="modelo_poisson_ou_neutro"?"Modelo Poisson · O/U (força neutra)":
+    source==="modelo_poisson_neutro"?"Modelo Poisson · premissas neutras":
+    source==="mercado_sem_cotacao"?"Mercado já decidido / sem preço calculável":"Sem preço";
+}
 function escapeRow(game){
   return '<tr><td>'+esc(game.data)+'</td>'+
     '<td>'+esc(game.mandante+' × '+game.visitante)+
@@ -130,14 +138,15 @@ function escapeRow(game){
     '<td>'+esc(game.placar_final)+'</td>'+
     '<td>'+esc(metadata?.objetivos?.[game.mercado]||game.mercado)+'</td>'+
     '<td class="'+(game.green?"ns-green":"ns-red")+'">'+(game.green?"Green":"Red")+'</td>'+
-    '<td>'+fmt(game.odd,2)+'</td>'+
+    '<td><strong>'+fmt(game.odd,2)+'</strong><div class="ns-history-size">'+
+      esc(quoteLabel(game.cotacao))+'</div></td>'+
     '<td>'+fmt(game.unidades,3)+'</td>'+
     '<td class="'+cash(game.valor_reais)+'">'+money(game.valor_reais)+'</td></tr>';
 }
 function gameTable(games){
   return '<div class="ns-scroll"><table class="ns-table ns-inplay-table">'+
     '<thead><tr><th>Data</th><th>Partida / condições</th><th>Placar no minuto</th>'+
-    '<th>Final</th><th>Mercado</th><th>Green / Red</th><th>Odd hipotética</th>'+
+    '<th>Final</th><th>Mercado</th><th>Green / Red</th><th>Odd estimada / fonte</th>'+
     '<th>Unidades</th><th>Lucro/prejuízo</th></tr></thead><tbody>'+
     games.map(escapeRow).join("")+'</tbody></table></div>';
 }
@@ -164,7 +173,7 @@ function show(result){
     ["Reds",fmt(overall.reds)],
     ["Win rate",fmt(overall.win_rate,2)+"%"],
     ["Resultado hipotético",money(overall.valor_reais)],
-    ["Odd média",fmt(overall.odd_media,2)],
+    [result.odd_automatica?"Odd média estimada":"Odd média manual",fmt(overall.odd_media,2)],
     ["Maior good run",fmt(overall.maior_good_run)],
     ["Maior bad run",fmt(overall.maior_bad_run)]
   ].map(([label,value])=>
@@ -179,6 +188,9 @@ function show(result){
     "Jogos com gols auditados até a data de corte: "+fmt(result.jogos_com_placar_auditavel)+
     " · Jogos selecionados pelas condições: "+fmt(result.entradas)+
     " · Entradas cotadas: "+fmt(overall.cotadas)+"/"+fmt(overall.entradas)+
+    (result.odd_automatica?
+      " · Odds estimadas individualmente pelo modelo, não observadas em bolsa.":
+      " · Odd manual hipotética aplicada a todas as entradas.")+
     ". Clique no + de um campeonato para ver os jogos, as regras e os placares.";
   $("#ns-inplay-warning").textContent=result.aviso||"";
   $("#ns-inplay-ai-output").innerHTML=
