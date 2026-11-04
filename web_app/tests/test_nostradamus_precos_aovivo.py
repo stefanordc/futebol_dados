@@ -18,13 +18,13 @@ class TestEstimativaAoVivo(TestCase):
     def test_lay_empate_em_desvantagem_de_dois_gols(self):
         odd,source,event=model.cotar(row(),60,"lay_empate")
         self.assertGreater(odd,1.01)
-        self.assertLess(odd,1.6)
+        self.assertGreater(odd,5.0)
         self.assertEqual(source,"modelo_poisson_ou_1x2")
         self.assertGreater(event,0)
         self.assertLess(event,1)
         # Equilíbrio no placar aumenta a probabilidade de empate.
         odd_draw,_,event_draw=model.cotar(row(0,0),60,"lay_empate")
-        self.assertGreater(odd_draw,odd)
+        self.assertLess(odd_draw,odd)
         self.assertGreater(event_draw,event)
 
     def test_modelo_nunca_acessa_gols_finais(self):
@@ -37,7 +37,7 @@ class TestEstimativaAoVivo(TestCase):
     def test_mais_tempo_para_reacao_muda_odd(self):
         at50=model.cotar(row(),50,"lay_empate")[0]
         at70=model.cotar(row(),70,"lay_empate")[0]
-        self.assertLess(at70,at50)
+        self.assertGreater(at70,at50)
 
     def test_odds_pre_jogo_calibram_estimativa_e_ausencia_nao_bloqueia(self):
         good=model.cotar(row(),60,"lay_empate")
