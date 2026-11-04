@@ -24,6 +24,7 @@ const htmlBtn=(label,cls)=>'<button type="button" class="'+cls+'">'+escapeHTML(l
 const localDate=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),
  String(d.getDate()).padStart(2,"0")].join("-");
 let state=null,focusedGame=null,entryGame=null,entryMode=null,detailsTab="method";
+let improvingMethod=null,improvementData=null;
 
 async function request(url,options={}){
   const response=await fetch(url,{credentials:"same-origin",cache:"no-store",...options});
@@ -436,7 +437,15 @@ function renderMethodPerformance(){
             '" aria-label="Retirar '+escapeHTML(item.nome)+' a partir de '+nextMonth+'">'+
             '<span>Retirar em '+escapeHTML(nextMonth)+'</span></label>':
           '<span class="gl-note">Permanece ativo</span>';
-        return '<tr><th scope="row">'+escapeHTML(item.nome)+'</th>'+
+        const improve=item.melhoria_elegivel&&methodId!=null?
+          '<button type="button" class="gl-improve-magic" data-improve-method="'+methodId+
+          '" title="Analisar '+num(item.meses_prejuizo_consecutivos,0)+
+          ' meses consecutivos de prejuízo e criar método melhorado" aria-label="Sugerir melhorias para '+
+          escapeHTML(item.nome)+' após '+num(item.meses_prejuizo_consecutivos,0)+
+          ' meses negativos consecutivos">'+
+          '<span aria-hidden="true">🪄</span><span class="gl-improve-count">'+
+          num(item.meses_prejuizo_consecutivos,0)+' meses</span></button>':"";
+        return '<tr><th scope="row"><span>'+escapeHTML(item.nome)+'</span>'+improve+'</th>'+
           '<td>'+num(item.entradas,0)+'</td>'+
           '<td class="gl-positive">'+num(item.greens,0)+'</td>'+
           '<td class="gl-negative">'+num(item.reds,0)+'</td>'+
@@ -449,6 +458,102 @@ function renderMethodPerformance(){
   }
   $("#gl-method-removal-note").hidden=!pending;
 }
+function formatImprovementScore(record){
+  if(!record||!record.entradas||record.total_reais==null)return "Sem dados suficientes";
+  return num(record.entradas,0)+" entrada(s), "+brl(record.total_reais)+
+    " no total, média de "+brl(record.media_reais)+" por entrada";
+}
+function renderImprovementAnalysis(data){
+  const list=$("#gl-improve-suggestions");
+  const months=(data.meses_prejuizo||[]).slice().reverse().map(x=>
+    escapeHTML(x.mes.slice(5)+"/"+x.mes.slice(0,4))+": "+brl(x.lucro_prejuizo)).join(" · ");
+  $("#gl-improve-intro").textContent=
+    data.meses_prejuizo_consecutivos+" meses consecutivos de prejuízo ("
+    +brl(data.prejuizo_acumulado)+"). "+months+
+    ". O método original será preservado. Apenas o método novo passará a participar das próximas simulações.";
+  const candidates=data.sugestoes||[];
+  if(!candidates.length){
+    list.innerHTML='<p class="gl-note">'+escapeHTML(data.mensagem||
+      "Não foram encontradas melhorias com dados suficientes.")+
+      '</p><p class="gl-note">Nenhuma versão nova foi salva. Mantenha o método original e revise as condições no Nostradamus.</p>';
+    return;
+  }
+  list.innerHTML='<p class="gl-note">'+escapeHTML(data.metodo_analise)+" "+
+    escapeHTML(data.mensagem)+'</p>'+
+    '<p class="gl-note">Base de treino: '+escapeHTML(formatImprovementScore(data.base_treino))+
+    ' · Base de validação: '+escapeHTML(formatImprovementScore(data.base_validacao))+'</p>'+
+    candidates.map((candidate,index)=>{
+      const verified=candidate.avaliacao==="Sinal positivo na validação";
+      return '<section class="gl-improve-proposal">'+
+        '<h4>Opção '+(index+1)+': '+escapeHTML(candidate.descricao)+'</h4>'+
+        '<p class="gl-note">Treino: '+escapeHTML(formatImprovementScore(candidate.treino))+'</p>'+
+        '<p class="gl-note">Validação: '+escapeHTML(formatImprovementScore(candidate.validacao))+'</p>'+
+        '<p class="'+(verified?"gl-positive":"gl-improve-warning")+'">'+
+          escapeHTML(candidate.avaliacao||"Validação inconclusiva")+'</p>'+
+        '<label>Nome do novo método'+
+          '<input type="text" maxlength="80" class="gl-improve-name" data-improve-name="'+index+
+          '" value="'+escapeHTML(candidate.nome_sugerido)+'" required></label>'+
+        '<button class="gl-primary" type="button" data-improve-save="'+index+
+          '">Salvar como método novo</button></section>';
+    }).join("")+
+    '<p class="gl-note">'+escapeHTML(data.aviso)+
+    ' Uma melhoria no histórico não garante desempenho futuro. O método anterior e o histórico não serão alterados.</p>';
+}
+async function openImprovement(methodId){
+  const method=(state.metodos_fechamento||[]).find(x=>x.metodo_id===methodId);
+  if(!method||!method.melhoria_elegivel){
+    msg("Este método não possui dois meses negativos consecutivos neste fechamento.",true);
+    return;
+  }
+  improvingMethod=methodId;
+  improvementData=null;
+  $("#gl-improve-title").textContent="Melhorar método: "+method.nome;
+  $("#gl-improve-intro").textContent="Analisando resultados históricos e condições existentes…";
+  $("#gl-improve-suggestions").innerHTML="";
+  $("#gl-improve-status").textContent="Procurando alterações de regras com validação cronológica…";
+  $("#gl-improve-dialog").showModal();
+  try{
+    const result=await post("melhorias/"+methodId+"/sugerir");
+    if(improvingMethod!==methodId||!$("#gl-improve-dialog").open)return;
+    improvementData=result;
+    $("#gl-improve-status").textContent="";
+    renderImprovementAnalysis(result);
+  }catch(error){
+    if(improvingMethod===methodId){
+      $("#gl-improve-status").textContent="Não foi possível analisar: "+error.message;
+    }
+  }
+}
+async function saveImprovement(index,button){
+  if(!improvementData||improvingMethod==null)return;
+  const input=$("#gl-improve-suggestions").querySelector('[data-improve-name="'+index+'"]');
+  const name=input?.value?.trim();
+  if(!name){
+    $("#gl-improve-status").textContent="Informe um nome para a nova estratégia.";
+    input?.focus();
+    return;
+  }
+  button.disabled=true;
+  button.textContent="Analisando e salvando…";
+  $("#gl-improve-status").textContent="Validando novamente a sugestão e criando uma estratégia independente…";
+  try{
+    const saved=await post("melhorias/"+improvingMethod+"/salvar",{
+      indice:index,nome:name,
+      mes_referencia:improvementData.mes_referencia,
+      versao_original:improvementData.versao_original,
+    });
+    if(!saved.criado)throw Error("O servidor não confirmou o salvamento.");
+    $("#gl-improve-status").textContent=
+      'Método novo "'+saved.nome+'" salvo no Nostradamus. O método original permanece intacto.';
+    button.textContent="Método criado";
+    await reload();
+  }catch(error){
+    $("#gl-improve-status").textContent="Falha ao salvar: "+error.message;
+    button.disabled=false;
+    button.textContent="Salvar como método novo";
+  }
+}
+
 function renderLossStreakAlerts(){
   const alerts=state.alertas_prejuizo_3_meses||[];
   const root=$("#gl-loss-streak-alert");
@@ -866,6 +971,30 @@ $("#gl-empty-month-continue").addEventListener("click",async()=>{
     confirmButton.disabled=false;
   }
 });
+$("#gl-method-performance-table").addEventListener("click",event=>{
+  const button=event.target.closest("[data-improve-method]");
+  if(!button)return;
+  const methodId=Number(button.dataset.improveMethod);
+  if(Number.isInteger(methodId))openImprovement(methodId);
+});
+$("#gl-improve-suggestions").addEventListener("click",event=>{
+  const button=event.target.closest("[data-improve-save]");
+  if(!button||button.disabled)return;
+  const index=Number(button.dataset.improveSave);
+  if(Number.isInteger(index))saveImprovement(index,button);
+});
+function closeImprovement(){
+  improvingMethod=null;
+  improvementData=null;
+  $("#gl-improve-dialog").close();
+}
+$("#gl-improve-close").addEventListener("click",closeImprovement);
+$("#gl-improve-back").addEventListener("click",closeImprovement);
+$("#gl-improve-dialog").addEventListener("close",()=>{
+  improvingMethod=null;
+  improvementData=null;
+});
+
 $("#gl-finish").addEventListener("click",async()=>{
   const btn=$("#gl-finish");
   if(btn.disabled)return;
