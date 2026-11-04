@@ -198,6 +198,14 @@ def nostradamus_ao_vivo_testar(payload: dict):
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
+@app.post("/api/apostas/nostradamus/ao-vivo/otimizar")
+def nostradamus_ao_vivo_otimizar(payload: dict):
+    try:
+        return queries_nostradamus_aovivo.analisar(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
 @app.post("/api/apostas/nostradamus/otimizar")
 def nostradamus_otimizar(payload: dict):
     try:
