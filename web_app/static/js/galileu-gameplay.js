@@ -843,11 +843,51 @@ $("#gl-entry-form").addEventListener("submit",async e=>{
   }
 });
 
+async function finishCurrentMonth(){
+  const btn=$("#gl-finish");
+  btn.disabled=true;
+  try{
+    await mutate(()=>post("finalizar"));
+  }finally{
+    btn.disabled=false;
+  }
+}
+$("#gl-empty-month-back").addEventListener("click",()=>{
+  $("#gl-empty-month-dialog").close();
+});
+$("#gl-empty-month-continue").addEventListener("click",async()=>{
+  const confirmButton=$("#gl-empty-month-continue");
+  if(confirmButton.disabled)return;
+  confirmButton.disabled=true;
+  $("#gl-empty-month-dialog").close();
+  try{
+    await finishCurrentMonth();
+  }finally{
+    confirmButton.disabled=false;
+  }
+});
 $("#gl-finish").addEventListener("click",async()=>{
-  if(!window.confirm("Finalizar o mês e revelar todos os placares? Todas as entradas serão liquidadas, mesmo sem saldo disponível. Depois não será possível incluir novas entradas neste mês."))return;
-  const btn=$("#gl-finish");btn.disabled=true;
-  await mutate(()=>post("finalizar"));
-  btn.disabled=false;
+  const btn=$("#gl-finish");
+  if(btn.disabled)return;
+  btn.disabled=true;
+  try{
+    // Atualizar o banco antes do aviso, pois o Galileu pode ter registrado
+    // entradas automaticamente desde o último carregamento.
+    const latest=await request("/api/apostas/galileu/gameplay/estado");
+    state=latest;
+    render();
+    if(!state.iniciado||state.fase!=="aberta")return;
+    if(Number(state.entradas_mes||0)===0){
+      $("#gl-empty-month-dialog").showModal();
+      return;
+    }
+    if(!window.confirm("Finalizar o mês e revelar todos os placares? Todas as entradas serão liquidadas, mesmo sem saldo disponível. Depois não será possível incluir novas entradas neste mês."))return;
+    await finishCurrentMonth();
+  }catch(error){
+    msg(error.message,true);
+  }finally{
+    btn.disabled=false;
+  }
 });
 $("#gl-next").addEventListener("click",async()=>{
   const btn=$("#gl-next");btn.disabled=true;
