@@ -262,6 +262,9 @@ def _methods():
             # O corte salvo limita o backtest, não o período de uso no Galileu.
             config["corte"]=today().isoformat()
             config=live._config(config)
+            # simular() valida o payload de entrada novamente; a data
+            # do formulário deve permanecer como ISO, não objeto date.
+            config["corte"]=config["corte"].isoformat()
         except (TypeError,ValueError,KeyError):
             continue
         methods.append({
@@ -293,9 +296,14 @@ def _live_offers(games,methods,catalog,disabled=None):
           and g.get("gols_casa") is not None and g.get("gols_fora") is not None]
     if not past:
         return {}
+    active=[m for m in subset if any(
+        not _is_disabled(m["id"],g["data"],disabled) for g in past
+    )]
+    if not active:
+        return {}
     ids=[int(g["id"]) for g in past]
     by_minute={}
-    for minute in {m["configuracao"]["minuto"] for m in subset}:
+    for minute in {m["configuracao"]["minuto"] for m in active}:
         # Restringe a CTE ao mês em curso: não consulta todos os lances
         # históricos a cada atualização da página.
         sql=live.SQL.replace(
@@ -308,7 +316,7 @@ def _live_offers(games,methods,catalog,disabled=None):
         by_minute[minute]=fetch_all(
             sql,(ids,minute,minute,today(),None,None))
     result=defaultdict(list)
-    for method in subset:
+    for method in active:
         cfg=method["configuracao"]
         current_rows=[
             r for r in by_minute[cfg["minuto"]]
