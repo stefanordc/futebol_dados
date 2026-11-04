@@ -182,7 +182,7 @@ function show(result){
   const rows=result.resultados||[];
   $("#ns-inplay-leagues").innerHTML=rows.map((x,index)=>totalCells(x,x.campeonato,true,index))
     .join("")||'<tr><td colspan="12">Nenhum jogo corresponde ao cenário informado.</td></tr>';
-  $("#ns-inplay-total").innerHTML=totalCells(overall,"TOTAL",false);
+  $("#ns-inplay-grand-total").innerHTML=totalCells(overall,"TOTAL",false);
   $("#ns-inplay-games").innerHTML="";
   $("#ns-inplay-coverage").textContent=
     "Jogos com gols auditados até a data de corte: "+fmt(result.jogos_com_placar_auditavel)+
