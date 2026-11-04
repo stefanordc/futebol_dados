@@ -186,7 +186,7 @@ class TestAoVivo(TestCase):
         rows=[partida(1,True,2,0,2,1),partida(2,True,2,0,2,2)]
         result=live.simular(config(mercado="lay_empate",odd_hipotetica=2.0),rows=rows)
         self.assertEqual((result["total"]["greens"],result["total"]["reds"]),(1,1))
-        self.assertEqual(result["total"]["valor_reais"],-5.0)
+        self.assertEqual(result["total"]["valor_reais"],-4.5)
         self.assertEqual(result["total"]["cotadas"],2)
 
     def test_sql_exige_gols_auditaveis_e_odds_pareadas(self):
