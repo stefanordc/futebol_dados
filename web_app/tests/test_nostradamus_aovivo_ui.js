@@ -43,8 +43,12 @@ assert.ok(js.includes('if($("#ns-inplay-conditions").children.length>=10)'),
   "Limite de 10 regras");
 assert.ok(html.includes('value="60"'),"Minuto padrão 60");
 assert.ok(html.includes('value="2"'),"Diferença padrão 2");
-assert.ok(html.includes('value="2.00"'),"Odd 2,00 explicitamente hipotética");
-assert.ok(html.includes('somente ilustrativa'),"Não apresentar odds como cotações reais");
+assert.ok(!html.includes('id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" value="2.00"'),
+  "A odd não pode ser obrigatória nem ter preço fixo por padrão");
+assert.ok(html.includes('placeholder="Automática por jogo"'),
+  "Sem informar odd, deve haver estimativa automática por jogo");
+assert.ok(html.includes('não uma cotação real')||html.includes('Não é uma odd histórica real'),
+  "Explicitar limite das odds modeladas");
 assert.ok(js.includes('input type="checkbox" checked'),"Ligas selecionadas por padrão");
 assert.ok(js.includes('campeonato_ids:selectedLeagues()'),"Filtro permite múltiplas ligas");
 assert.ok(js.includes('body:JSON.stringify(config)'),"Requisição validada");
@@ -56,10 +60,16 @@ assert.ok(backend.includes('ns.RAW.format(competition=predicate)'),
   "Condições pré-jogo utilizam mesmo histórico cronológico da aba principal");
 assert.ok(backend.includes('ns._evaluate_condition('),"Reutilizar validação de condição");
 assert.ok(backend.includes('ns._history_item('),"Histórico de partidas anteriores");
+assert.ok(backend.includes('precos.cotar('),
+  "Calcular odd por placar e minuto quando a cotação manual não for informada");
 assert.ok(backend.includes('odd=c["odd_hipotetica"]'),
-  "Não usar odds pré-jogo como preço real do minuto 60");
+  "Quando informada, a odd manual prevalece sobre o modelo");
+assert.ok(js.includes('quoteLabel(game.cotacao)'),
+  "Identificar se a odd foi calculada pelo modelo ou informada pelo usuário");
 assert.ok(js.includes('money(x.valor_reais)')||js.includes('money(x.total_reais)'),
   "Mostrar valores financeiros por liga e IA");
+assert.ok(!html.includes('id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" value="2.00" required'),
+  "Odd manual não pode impedir execução");
 assert.ok(js.includes('ns-inplay-total'),"Rodapé de métricas consolidadas");
 assert.ok(js.includes('game.placar_minuto')&&js.includes('game.placar_final'),
   "Mostrar placares parcial e final");
