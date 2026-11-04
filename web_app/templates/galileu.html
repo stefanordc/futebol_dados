@@ -16,7 +16,7 @@
 <section class="x1-hero">
   <div class="df-eyebrow">LABORATÓRIO · GAMEPLAY HISTÓRICA</div>
   <h1>Galileu</h1>
-  <p>Avance pelas rodadas, valide seus métodos e acompanhe a banca em reais. Os placares ficam ocultos até você finalizar a rodada.</p>
+  <p>Avance mês a mês e acompanhe a banca virtual em reais. As entradas dos métodos ativos são registradas automaticamente e os jogos só aparecem com os resultados após finalizar o mês.</p>
   <nav class="x1-nav" aria-label="Apostas"><a href="/apostas/x1">x1 · Confronto</a><a href="/apostas/nostradamus">Nostradamus · Backtesting</a><a href="/apostas/galileu" aria-current="page">Galileu · Gameplay</a><a href="/apostas/galileu/relatorios">Relatórios · Banca</a></nav>
 </section>
 <div id="gl-message" role="status" aria-live="polite"></div>
@@ -24,7 +24,7 @@
 <section id="gl-setup" class="gl-panel" hidden>
   <div class="df-eyebrow">NOVO JOGO</div>
   <h2>Configure sua banca</h2>
-  <p class="gl-note">Escolha uma data histórica de corte e percorra os jogos seguintes. Nenhum placar será apresentado antes do encerramento da rodada.</p>
+  <p class="gl-note">Escolha uma data de corte para simular os meses seguintes. O Galileu registra todas as entradas válidas dos seus métodos, sem seleção manual e sem mostrar placares antes do fechamento.</p>
   <form id="gl-setup-form" class="gl-setup-grid">
     <label>Banca inicial (R$)
       <input type="number" min="1" step=".01" id="gl-start-bank" value="1000.00" required>
@@ -38,7 +38,7 @@
     <div class="gl-projection" role="status">Stake padrão calculada: <strong id="gl-start-stake">R$ 20,00</strong></div>
     <button class="gl-primary gl-setup-submit" type="submit">Iniciar gameplay</button>
   </form>
-  <p class="gl-note">A stake em reais é editável em cada entrada. Seus dados ficam vinculados a este navegador; não é necessário reiniciar ao voltar à página.</p>
+  <p class="gl-note">A stake segue a gestão configurada para o mês, com possibilidade de reajuste no fechamento mensal. Seus dados ficam vinculados a este navegador e são preservados ao sair.</p>
 </section>
 
 <div id="gl-gameplay" hidden>
@@ -53,7 +53,7 @@
       <div><span>Gestão / stake padrão</span><strong id="gl-bank-stake">—</strong><small id="gl-bank-percent"></small></div>
       <div><span>Entradas registradas</span><strong id="gl-bank-entries">0</strong></div>
     </div>
-    <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo virtual ajustado por aportes e saques define a base do próximo mês. A banca pode ficar negativa; nesse caso, a stake percentual automática assume o mínimo de R$ 0,01, que você pode editar. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
+    <p class="gl-note">A stake percentual é calculada sobre a banca-base do mês e não muda com ganhos ou perdas dentro do mês. No fechamento, o saldo virtual ajustado por aportes e saques define a base do próximo mês. A banca pode ficar negativa; nesse caso, a stake percentual automática assume o mínimo de R$ 0,01, que pode ser reajustado no fechamento mensal. <a class="gl-report-link" href="/apostas/galileu/relatorios">Ver relatórios financeiros</a>.</p>
     <p class="gl-note">Entradas Back: stake representa o valor apostado. Entradas Lay: stake representa a responsabilidade máxima, com comissão estimada de 4,5% sobre lucros. As odds importadas não têm comprovação de captura pré-jogo.</p>
   </section>
 
