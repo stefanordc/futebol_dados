@@ -120,37 +120,10 @@ function gameRows(g){
 }
 
 function renderGames(){
-  const root=$("#gl-games");
-  const games=state.jogos||[];
-  // Classificação GLOBAL: nenhum jogo sem método aparece antes dos validados,
-  // mesmo que seja de outra liga. Dentro dos grupos, preserva a data.
-  const cohorts=[
-    {title:"Jogos com método validado",games:games.filter(g=>g.metodos?.length)},
-    {title:"Demais jogos",games:games.filter(g=>!g.metodos?.length)}
-  ];
-  const sections=cohorts.filter(c=>c.games.length).map(cohort=>{
-    const groups=new Map();
-    [...cohort.games].sort((x,y)=>x.data.localeCompare(y.data)||
-       x.campeonato.localeCompare(y.campeonato)||x.jogo_id-y.jogo_id)
-       .forEach(g=>{
-         const key=g.campeonato+" · "+g.temporada;
-         if(!groups.has(key))groups.set(key,[]);
-         groups.get(key).push(g);
-       });
-    return '<section class="gl-priority-group"><h3 class="gl-priority-heading">'+
-      escapeHTML(cohort.title)+' <span>'+cohort.games.length+' jogos</span></h3>'+
-      [...groups.entries()].map(([league,items])=>
-        '<section class="gl-round-league"><h3>'+escapeHTML(league)+
-        ' <span>'+items.length+' jogos</span></h3>'+
-        '<div class="gl-game-list">'+items.map(gameRows).join("")+'</div></section>'
-      ).join("")+'</section>';
-  });
-  root.innerHTML=sections.length?sections.join(""):'<div class="gl-empty">'+
-    (state.rodada_atual.jogos>0?
-      "Todos os jogos desta etapa foram finalizados. As entradas continuam registradas. Use Finalizar rodada para apurar os resultados.":
-      "Nenhum jogo neste período. Use Avançar período sem jogos para continuar sem revelar placares.")+
-    '</div>';
-  renderBulkAvailability();
+  // O usuário executa automaticamente TODAS as entradas válidas.
+  // Não renderizar confronto, odds ou seleção antes de revelar o mês.
+  $("#gl-games").replaceChildren();
+  $("#gl-bulk-toolbar").hidden=true;
 }
 
 function bulkSelections(){
@@ -324,24 +297,77 @@ function renderRoundResults(){
   if(!revealed){root.innerHTML="";return;}
   const total=entries.reduce((acc,x)=>acc+Number(x.lucro_prejuizo||0),0);
   root.innerHTML='<h3>Resultado do mês · '+entries.length+' entrada(s)</h3>'+
-    '<p class="gl-note">Todas as entradas programadas são executadas sem limite de saldo. '+
-    'O saldo virtual pode ficar negativo. Jogos finalizados individualmente também entram nesta apuração.</p>'+
+    '<p class="gl-note">Todas as entradas dos métodos foram programadas automaticamente, sem limite de saldo. '+
+    'Clique no cabeçalho de qualquer coluna para ordenar do menor para o maior ou vice-versa.</p>'+
     (entries.length?
       '<div class="gl-scroll"><table class="gl-table"><thead><tr>'+
-      '<th>Confronto</th><th>Placar</th><th>Método</th><th>Mercado</th>'+
-      '<th>Odd</th><th>Stake</th><th>Status</th><th>L/P</th></tr></thead><tbody>'+
+      ['Confronto','Placar','Método','Mercado','Odd','Stake','Status','L/P']
+        .map((name,index)=>'<th scope="col" tabindex="0" aria-sort="none" data-result-sort="'+
+          index+'" title="Clique para ordenar crescente ou decrescente">'+name+'</th>').join("")+
+      '</tr></thead><tbody>'+
       entries.map(entry=>'<tr><td>'+escapeHTML(entry.confronto)+'</td>'+
         '<td>'+escapeHTML(entry.placar||"—")+'</td>'+
         '<td>'+escapeHTML(entry.metodo)+'</td>'+
         '<td>'+escapeHTML(entry.mercado)+'</td>'+
-        '<td>'+price(entry.odd)+'</td><td>'+brl(entry.stake)+'</td>'+
+        '<td data-sort-value="'+Number(entry.odd||0)+'">'+price(entry.odd)+
+        '</td><td data-sort-value="'+Number(entry.stake||0)+'">'+brl(entry.stake)+'</td>'+
         '<td>'+escapeHTML(entry.status==="sem_saldo"?"Não executada — legado":
             entry.status==="pendente"?"Programada":entry.status)+'</td>'+
-        '<td class="'+color(entry.lucro_prejuizo)+'">'+brl(entry.lucro_prejuizo)+'</td>'+
-      '</tr>').join("")+'</tbody><tfoot><tr><th colspan="7">TOTAL DA RODADA</th>'+
+        '<td data-sort-value="'+Number(entry.lucro_prejuizo||0)+'" class="'+
+          color(entry.lucro_prejuizo)+'">'+brl(entry.lucro_prejuizo)+'</td>'+
+      '</tr>').join("")+'</tbody><tfoot><tr><th colspan="7">TOTAL DO MÊS</th>'+
       '<th class="'+color(total)+'">'+brl(total)+'</th></tr></tfoot></table></div>':
       '<p class="gl-note">Nenhuma entrada foi registrada nesta rodada.</p>');
 }
+
+function sortResultColumn(header){
+  const table=header.closest("table");
+  const tbody=table?.tBodies?.[0];
+  if(!tbody)return;
+  const col=Number(header.dataset.resultSort);
+  if(!Number.isInteger(col))return;
+  const direction=header.getAttribute("aria-sort")==="ascending"?
+    "descending":"ascending";
+  const factor=direction==="ascending"?1:-1;
+  const collator=new Intl.Collator("pt-BR",{sensitivity:"base",numeric:true});
+  const key=row=>{
+    const cell=row.cells[col];
+    if(!cell)return {numeric:false,value:""};
+    if(cell.dataset.sortValue!==undefined){
+      return {numeric:true,value:Number(cell.dataset.sortValue)};
+    }
+    if(col===1){
+      const goals=cell.textContent.match(/(\d+)\s*[×x-]\s*(\d+)/);
+      if(goals)return {numeric:true,value:Number(goals[1])*1000+Number(goals[2])};
+    }
+    return {numeric:false,value:cell.textContent.trim()};
+  };
+  const sorted=[...tbody.rows].map((row,index)=>({row,index,value:key(row)}));
+  sorted.sort((a,b)=>{
+    let comparison;
+    if(a.value.numeric&&b.value.numeric){
+      comparison=a.value.value-b.value.value;
+    }else{
+      comparison=collator.compare(String(a.value.value),String(b.value.value));
+    }
+    return comparison*factor||a.index-b.index;
+  });
+  tbody.append(...sorted.map(item=>item.row));
+  table.querySelectorAll("thead th[data-result-sort]").forEach(th=>{
+    th.setAttribute("aria-sort",th===header?direction:"none");
+  });
+}
+$("#gl-round-results").addEventListener("click",event=>{
+  const th=event.target.closest("th[data-result-sort]");
+  if(th)sortResultColumn(th);
+});
+$("#gl-round-results").addEventListener("keydown",event=>{
+  if(event.key!=="Enter"&&event.key!==" ")return;
+  const th=event.target.closest("th[data-result-sort]");
+  if(!th)return;
+  event.preventDefault();
+  sortResultColumn(th);
+});
 
 function renderMethodManagement(){
   const methods=state.metodos_catalogo||[];
@@ -573,7 +599,7 @@ function render(){
     dateBR(first)+" até "+dateBR(state.limite_janela):"Sem próximos jogos";
   $("#gl-round-cutoff").textContent="Data de corte atual: "+dateBR(state.corte_atual)+
     " · Jogos do mês até "+dateBR(state.limite_janela)+
-    ". Todas as entradas selecionadas serão executadas na simulação.";
+    ". As entradas de todos os métodos válidos são programadas automaticamente.";
   const open=state.fase==="aberta";
   $("#gl-finish").hidden=!open||!state.rodada_atual.jogos;
   $("#gl-next").hidden=!(state.fase==="revelada"||state.pode_pular_vazio);
@@ -583,18 +609,18 @@ function render(){
     "Avançar período sem jogos":
     state.pode_avancar?"Próximo mês":"Concluir gameplay";
   const liveEntries=Number(state.entradas_ao_vivo_mes||0);
-  const liveInfo=liveEntries?
-    liveEntries+" entrada(s) ao vivo do Nostradamus registrada(s) automaticamente neste mês. ":"";
-  $("#gl-round-status").textContent=liveInfo+(state.pode_pular_vazio?
+  const liveInfo=Number(state.entradas_automaticas||0)?
+    state.entradas_automaticas+" nova(s) entrada(s) programada(s) automaticamente. ":"";
+  const countInfo=liveEntries?liveEntries+" entrada(s) de cenários ao vivo neste mês. ":"";
+  $("#gl-round-status").textContent=liveInfo+countInfo+(state.pode_pular_vazio?
     "Não há jogos neste mês. Você pode avançar sem fazer entradas.":
-    open?"Selecione suas entradas e finalize quando todos os jogos do mês tiverem resultados disponíveis.":
+    open?"Entradas programadas automaticamente. Finalize quando todos os jogos do mês tiverem resultados disponíveis.":
     state.fase==="revelada"?"Mês finalizado. Placares e resultados das entradas revelados.":
     "Todas as rodadas cadastradas foram percorridas.");
-  $("#gl-games-closed").textContent=state.jogos_finalizados?
-    state.jogos_finalizados+" jogo(s) finalizado(s) e removido(s) desta rodada. Entradas preservadas.":"";
+  $("#gl-games-closed").textContent="";
   $("#gl-round-help").textContent=state.pode_pular_vazio?
     "Sem jogos neste mês. Avance para o próximo mês, sem alterar a banca.":
-    open?"Clique no jogo para analisar. Métodos primeiro; placares permanecem ocultos.":
+    open?"Os jogos permanecem ocultos. Todas as entradas dos métodos ativos já estão programadas automaticamente.":
     "Mês encerrado. Consulte os placares e seus resultados virtuais.";
   renderMethodManagement();renderGames();renderRoundResults();renderMonth();
 }
