@@ -539,7 +539,7 @@ def _sync_live_entries(token,sess,raw_games,public_games):
                 VALUES %s
                 ON CONFLICT DO NOTHING
                 RETURNING id
-            """,data,page_size=min(len(data),1000))
+            """,data,page_size=len(data))
             inserted=cur.fetchall()
             if inserted:
                 cur.execute("""
@@ -1003,6 +1003,11 @@ def estado(token):
             (Decimal(b["stake"]) for b in current if b["status"]=="pendente"),
             Decimal("0"))),
         "entradas_automaticas_ao_vivo":auto_count,
+        "entradas_ao_vivo_mes":sum(
+            1 for bet in current
+            if bet["tipo"]=="metodo" and bet.get("metodo_id") is not None
+            and int(bet["metodo_id"])>=LIVE_METHOD_BASE
+        ),
         "mes_encerrado":month if closure_access and boundary else None,
         "metodos_fechamento":_method_monthly_table(
             bets,method_catalog,disabled,month)
