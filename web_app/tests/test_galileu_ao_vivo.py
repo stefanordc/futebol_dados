@@ -91,7 +91,7 @@ class TestGalileuAoVivo(TestCase):
         self.assertEqual(m["versao"],3)
         self.assertEqual(m["tipo"],"ao_vivo")
         self.assertEqual(m["nome"],"Ao vivo · Lay empate aos 60")
-        self.assertEqual(m["configuracao"]["corte"],date(2026,11,2))
+        self.assertEqual(m["configuracao"]["corte"],"2026-11-02")
         self.assertEqual(m["objetivo"],"lay_empate")
 
     def test_regras_no_minuto_correto_geram_oferta_com_odd_modelada(self):
