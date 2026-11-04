@@ -153,7 +153,7 @@ class TestGalileuAoVivo(TestCase):
                 "id":mid,"versao":3,"tipo":"ao_vivo",
                 "nome":"Ao vivo · Lay empate aos 60",
                 "objetivo":"lay_empate",
-                "mercado":{"odd":8.21,"favorito_casa":True}
+                "mercado":{"odd":8.21,"favorito_casa":True,"estimada":True}
             }]
         }]
         cur=Cursor()
@@ -181,6 +181,39 @@ class TestGalileuAoVivo(TestCase):
         self.assertEqual(saved[9],Decimal("20.00"))
         self.assertTrue(saved[10])
         self.assertTrue(saved[11])
+
+    def test_todos_os_metodos_pregame_e_ao_vivo_geram_entradas_sem_clique(self):
+        """Métodos pré-jogo e ao vivo participam da mesma apuração automática."""
+        mid=gl.LIVE_METHOD_BASE+17
+        public=[{"jogo_id":101,"metodos":[
+            {"id":23,"versao":4,"nome":"Under 3,5","objetivo":"under_35",
+             "mercado":{"odd":1.65,"estimada":False,"favorito_casa":True}},
+            {"id":mid,"versao":3,"nome":"Ao vivo · Lay empate",
+             "objetivo":"lay_empate","tipo":"ao_vivo",
+             "mercado":{"odd":8.21,"estimada":True,"favorito_casa":True}},
+        ]}]
+        cur=Cursor(inserted=[{"id":31},{"id":32}])
+        conn=FakeConn(cur)
+        @contextmanager
+        def get_conn():
+            yield conn
+        def insert_values(cursor,query,records,page_size=None):
+            cursor.insert_values=records
+            cursor.sql="bulk-insert"
+            self.assertEqual(page_size,len(records))
+            self.assertIn("ON CONFLICT DO NOTHING",query)
+        with patch.object(gl,"get_conn",get_conn), \\
+             patch.object(gl,"_lock",return_value=session()), \\
+             patch("psycopg2.extras.execute_values",side_effect=insert_values):
+            created=gl._sync_live_entries("token",session(),[match(101)],public)
+        self.assertEqual(created,2)
+        self.assertEqual(conn.commits,1)
+        self.assertEqual(cur.update_count,1)
+        bets=cur.insert_values
+        self.assertEqual({int(b[4]) for b in bets},{23,mid})
+        self.assertTrue(all(b[9]==Decimal("20.00") for b in bets))
+        self.assertFalse(next(b for b in bets if b[4]==23)[10])
+        self.assertTrue(next(b for b in bets if b[4]==mid)[10])
 
     def test_entrada_automatica_nao_duplica_nem_altera_versao(self):
         mid=gl.LIVE_METHOD_BASE+17
@@ -233,4 +266,5 @@ class TestGalileuAoVivo(TestCase):
                 "queries_galileu_gameplay.py").read_text(encoding="utf8")
         self.assertIn("auto_count=_sync_live_entries(token,sess,raw_games,games)",source)
         self.assertIn("_sync_live_entries(token,sess,raw,public)",source)
-        self.assertIn('"entradas_automaticas_ao_vivo":auto_count',source)
+        self.assertIn('"entradas_automaticas":auto_count',source)
+        self.assertIn('"entradas_ao_vivo_mes":sum(',source)
