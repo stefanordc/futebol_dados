@@ -310,6 +310,7 @@ def simular(payload,rows=None,history_rows=None,capture=False):
     details=[]
     eligible=len(live)
     candidate_records=[]
+    modeled_quotes=0
     for row,match in live:
         if match is None:
             continue
@@ -347,6 +348,8 @@ def simular(payload,rows=None,history_rows=None,capture=False):
             })
         if passed is None:
             continue
+        if quote_source and quote_source.startswith("modelo_poisson"):
+            modeled_quotes+=1
         league=by_league[str(row["campeonato"])]
         ns._registrar_entrada(league,won,odd,units)
         ns._registrar_entrada(overall,won,odd,units)
@@ -382,8 +385,7 @@ def simular(payload,rows=None,history_rows=None,capture=False):
         "jogos_com_placar_auditavel":eligible,
         "entradas":overall["entradas"],
         "odd_automatica":c["odd_hipotetica"] is None,
-        "cotadas_modeladas":sum(1 for item in details
-                                if str(item["cotacao"]).startswith("modelo_poisson")),
+        "cotadas_modeladas":modeled_quotes,
         "total":overall,
         "resultados":summaries,
         "detalhes":details,
