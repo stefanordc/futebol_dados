@@ -25,7 +25,7 @@ const ids=[
 for(const id of ids)assert.ok(html.includes('id="'+id+'"'),"Falta "+id);
 
 assert.ok(html.includes("galileu-gameplay.js"),"Novo frontend deve ser carregado");
-assert.ok(html.includes("galileu-gameplay-v17"),"Atualizar cache ao publicar");
+assert.ok(html.includes("galileu-gameplay-v18"),"Atualizar cache ao publicar");
 assert.ok(js.includes('data-details="'+ "'+g.jogo_id+'"),"Cada jogo precisa abrir detalhes");
 assert.ok(js.includes('data-entry=')&&js.includes('g.jogo_id'),"Fazer entrada em cada jogo");
 assert.ok(js.includes('game.metodos.length?"method":"stats"'),
@@ -48,6 +48,32 @@ assert.ok(js.includes('gl-entry-market'),"Entrada manual deve permitir mercado")
 assert.ok(js.includes('gl-entry-method'),"Entrada com método deve solicitar método");
 assert.ok(js.includes('done?"')||js.includes('const done=state.fase!=="aberta"'),
   "Placar condicionado à finalização");
+
+/* Aviso de mês com zero entradas, específico do período atual. */
+for(const id of ["gl-empty-month-dialog","gl-empty-month-title",
+                 "gl-empty-month-description","gl-empty-month-back",
+                 "gl-empty-month-continue"]){
+  assert.ok(html.includes('id="'+id+'"'),"Aviso de mês vazio: "+id);
+}
+assert.ok(html.includes("Atenção: nenhuma entrada neste mês"),
+  "O alerta precisa esclarecer o motivo");
+assert.ok(html.includes(">Voltar</button>"),"Deve existir opção de voltar");
+assert.ok(html.includes(">Seguir e finalizar mês</button>"),
+  "Deve existir opção explícita para seguir");
+assert.ok(py.includes('"entradas_mes":len(current)'),
+  "Somente entradas do mês corrente podem definir o aviso");
+assert.ok(js.includes('Number(state.entradas_mes||0)===0'),
+  "Aviso somente quando não há entradas no mês");
+assert.ok(js.includes('$("#gl-empty-month-dialog").showModal()'),
+  "Deve exibir o aviso antes de finalizar");
+assert.ok(js.includes('await request("/api/apostas/galileu/gameplay/estado")'),
+  "Deve verificar entradas automaticamente registradas antes do aviso");
+assert.ok(js.includes('$("#gl-empty-month-back").addEventListener'),
+  "Voltar sem finalizar o mês");
+assert.ok(js.includes('$("#gl-empty-month-continue").addEventListener'),
+  "Seguir para finalizar com zero entradas");
+assert.ok(css.includes(".gl-empty-month-dialog"),
+  "Modal precisa de estilo visível e responsivo");
 
 /* O alerta trimestral só aparece na tela de fechamento do mês. */
 for(const id of ["gl-loss-streak-alert","gl-loss-streak-list"]){
