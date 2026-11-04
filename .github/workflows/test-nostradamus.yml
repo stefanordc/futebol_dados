@@ -4,6 +4,8 @@ on:
     paths:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/queries_nostradamus_aovivo.py'
+      - 'web_app/queries_nostradamus_precos_aovivo.py'
+      - 'web_app/tests/test_nostradamus_precos_aovivo.py'
       - 'web_app/static/js/nostradamus-aovivo.js'
       - 'web_app/tests/test_nostradamus_aovivo.py'
       - 'web_app/tests/test_nostradamus_aovivo_ui.js'
@@ -25,6 +27,8 @@ on:
     paths:
       - 'web_app/queries_nostradamus.py'
       - 'web_app/queries_nostradamus_aovivo.py'
+      - 'web_app/queries_nostradamus_precos_aovivo.py'
+      - 'web_app/tests/test_nostradamus_precos_aovivo.py'
       - 'web_app/static/js/nostradamus-aovivo.js'
       - 'web_app/tests/test_nostradamus_aovivo.py'
       - 'web_app/tests/test_nostradamus_aovivo_ui.js'
@@ -49,7 +53,7 @@ jobs:
       - name: Instalar dependências do servidor
         run: python -m pip install -r web_app/requirements.txt
       - name: Verificar sintaxe Python
-        run: python -m compileall -q web_app/app.py web_app/queries_nostradamus.py web_app/queries_nostradamus_aovivo.py web_app/queries_nostradamus_ai.py web_app/queries_estrategias.py web_app/goleada_correct_score.py
+        run: python -m compileall -q web_app/app.py web_app/queries_nostradamus.py web_app/queries_nostradamus_aovivo.py web_app/queries_nostradamus_precos_aovivo.py web_app/queries_nostradamus_ai.py web_app/queries_estrategias.py web_app/goleada_correct_score.py
       - name: Verificar sintaxe JavaScript
         run: |
           node --check web_app/static/js/nostradamus.js
@@ -61,6 +65,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_nostradamus.py' -v
           python -m unittest discover -s tests -p 'test_nostradamus_aovivo.py' -v
+          python -m unittest discover -s tests -p 'test_nostradamus_precos_aovivo.py' -v
           python -m unittest discover -s tests -p 'test_nostradamus_goleada.py' -v
           python -m unittest discover -s tests -p 'test_nostradamus_correct_score_goleada.py' -v
           python -m unittest discover -s tests -p 'test_nostradamus_ai.py' -v
