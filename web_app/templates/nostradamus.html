@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=nostradamus-1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=nostradamus-1">
-<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v2">
+<link rel="stylesheet" href="/static/css/nostradamus.css?v=nostradamus-inplay-v3">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -79,21 +79,51 @@
 </div>
 <section id="ns-inplay" class="ns-panel" hidden aria-labelledby="ns-inplay-title">
   <div class="ns-heading">
-    <div class="df-eyebrow">BACKTEST · PLACAR EM TEMPO REAL</div>
-    <h2 id="ns-inplay-title">Simular entrada durante o jogo</h2>
-    <p class="x1-help">Filtre partidas que realmente apresentavam o placar escolhido no minuto informado e escolha o mercado da entrada. Exemplo: favorito vencendo por 2 gols aos 60 minutos, Lay visitante. Você pode especificar o total exato de gols e os gols de cada equipe.</p>
+    <div><div class="df-eyebrow">BACKTEST · CENÁRIOS DURANTE O JOGO</div>
+      <h2 id="ns-inplay-title">Simular entrada durante o jogo</h2>
+      <p class="x1-help">A mesma estrutura das estratégias pré-jogo, combinada com o placar real no minuto escolhido. A filtragem utiliza apenas indicadores anteriores à partida; o resultado é apurado pelo placar final.</p>
+    </div>
   </div>
   <form id="ns-inplay-form">
+    <div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período, campeonatos e mercado</h2></div></div>
     <div class="ns-fields ns-inplay-fields">
-      <label>Data de corte (inclusive)
-        <input id="ns-inplay-corte" type="date" required>
+      <label>Data de corte (inclusive)<input id="ns-inplay-corte" type="date" required></label>
+      <label>Jogos anteriores por clube
+        <select id="ns-inplay-janela" required>
+          <option value="5">Últimos 5 jogos</option>
+          <option value="10">Até 10 jogos (mín. 5)</option>
+          <option value="20" selected>Até 20 jogos (mín. 5)</option>
+          <option value="temporada">Temporada inteira (mín. 5)</option>
+        </select>
       </label>
-      <label>Campeonato
-        <select id="ns-inplay-liga"><option value="">Todos os campeonatos</option></select>
+      <div class="ns-league-field">
+        <span id="ns-inplay-league-label">Campeonatos</span>
+        <div class="ns-league-control" id="ns-inplay-league-control">
+          <button type="button" id="ns-inplay-league-trigger" class="ns-league-trigger" aria-controls="ns-inplay-league-options" aria-haspopup="true" aria-expanded="false" aria-labelledby="ns-inplay-league-label ns-inplay-league-summary">
+            <span id="ns-inplay-league-summary">Todos os campeonatos</span><span aria-hidden="true">▾</span>
+          </button>
+          <div id="ns-inplay-league-options" class="ns-league-options" hidden>
+            <div class="ns-league-actions">
+              <button type="button" id="ns-inplay-league-all" class="ns-league-all">Sem filtro (todos)</button>
+              <button type="button" id="ns-inplay-league-select-all" class="ns-league-select-all">Selecionar todos</button>
+            </div>
+            <div id="ns-inplay-league-items" class="ns-league-items" role="group" aria-label="Selecione um ou mais campeonatos"></div>
+            <div class="ns-league-hint">Todos começam selecionados. Desmarque os campeonatos que não desejar.</div>
+          </div>
+        </div>
+      </div>
+      <label>Mercado da entrada<select id="ns-inplay-mercado" required></select></label>
+      <label>Odd hipotética no minuto (editável)
+        <input id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" value="2.00" required>
       </label>
-      <label>Minuto da entrada
-        <input id="ns-inplay-minuto" type="number" min="1" max="90" step="1" value="60" required>
+      <label>Comissão Lay (%) — fixa
+        <input type="number" value="4.5" readonly aria-readonly="true" title="Simulação fixa de 4,5%">
       </label>
+    </div>
+    <p class="ns-info">A odd <strong>2,00 é somente ilustrativa</strong>, não uma cotação real aos 60 minutos. Altere para simular outro preço. Cada entrada usa R$ 100 de stake (Back) ou responsabilidade (Lay). Apenas o resultado financeiro hipotético e a otimização dependem dessa odd.</p>
+    <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições no minuto da entrada</h2></div></div>
+    <div class="ns-fields ns-inplay-fields">
+      <label>Minuto da entrada<input id="ns-inplay-minuto" type="number" min="1" max="90" step="1" value="60" required></label>
       <label>Quem está vencendo nesse minuto
         <select id="ns-inplay-vencendo">
           <option value="favorito" selected>Favorito (pelas odds 1X2)</option>
@@ -104,48 +134,60 @@
           <option value="qualquer">Qualquer placar</option>
         </select>
       </label>
-      <label>Diferença exata de gols
-        <input id="ns-inplay-diferenca" type="number" min="0" max="30" step="1" value="2" placeholder="Ex.: 2">
-      </label>
-      <label>Total exato de gols no minuto
-        <input id="ns-inplay-total" type="number" min="0" max="30" step="1" placeholder="Qualquer total">
-      </label>
-      <label>Gols exatos do favorito
-        <input id="ns-inplay-favorito" type="number" min="0" max="30" step="1" placeholder="Qualquer">
-      </label>
-      <label>Gols exatos da zebra
-        <input id="ns-inplay-zebra" type="number" min="0" max="30" step="1" placeholder="Qualquer">
-      </label>
-      <label>Gols exatos do mandante
-        <input id="ns-inplay-mandante" type="number" min="0" max="30" step="1" placeholder="Qualquer">
-      </label>
-      <label>Gols exatos do visitante
-        <input id="ns-inplay-visitante" type="number" min="0" max="30" step="1" placeholder="Qualquer">
-      </label>
-      <label>Mercado da entrada
-        <select id="ns-inplay-mercado" required></select>
-      </label>
-      <label>Odd hipotética no minuto (opcional)
-        <input id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" placeholder="Ex.: 1.15">
-      </label>
+      <label>Diferença exata de gols<input id="ns-inplay-diferenca" type="number" min="0" max="30" step="1" value="2" placeholder="Qualquer"></label>
+      <label>Total exato de gols no minuto<input id="ns-inplay-total" type="number" min="0" max="30" step="1" placeholder="Qualquer"></label>
+      <label>Gols exatos do favorito<input id="ns-inplay-favorito" type="number" min="0" max="30" step="1" placeholder="Qualquer"></label>
+      <label>Gols exatos da zebra<input id="ns-inplay-zebra" type="number" min="0" max="30" step="1" placeholder="Qualquer"></label>
+      <label>Gols exatos do mandante<input id="ns-inplay-mandante" type="number" min="0" max="30" step="1" placeholder="Qualquer"></label>
+      <label>Gols exatos do visitante<input id="ns-inplay-visitante" type="number" min="0" max="30" step="1" placeholder="Qualquer"></label>
     </div>
-    <p class="ns-info">Os gols vêm da tabela de finalizações, incluindo gols contra. São excluídas partidas cujos gols registrados não conferem com o placar final. Favorito e zebra dependem das odds 1X2 vinculadas ao jogo. Não há cotação histórica confiável no minuto da entrada: sem odd hipotética, são exibidos apenas greens, reds e win rate, sem retorno financeiro.</p>
-    <div class="ns-actions">
-      <button id="ns-inplay-submit" type="submit" class="ns-button primary">Simular entradas no minuto escolhido</button>
+    <h3>Intervalos de gols no minuto escolhido</h3>
+    <p class="x1-help">Os campos são opcionais. Um limite mínimo e máximo pode ser combinado com os gols exatos; nesse caso, todas as condições precisam ser atendidas.</p>
+    <div class="ns-fields ns-inplay-fields">
+      <label>Mandante · gols mínimos<input id="ns-inplay-mandante-min" type="number" min="0" max="30" step="1" placeholder="Sem mínimo"></label>
+      <label>Mandante · gols máximos<input id="ns-inplay-mandante-max" type="number" min="0" max="30" step="1" placeholder="Sem máximo"></label>
+      <label>Visitante · gols mínimos<input id="ns-inplay-visitante-min" type="number" min="0" max="30" step="1" placeholder="Sem mínimo"></label>
+      <label>Visitante · gols máximos<input id="ns-inplay-visitante-max" type="number" min="0" max="30" step="1" placeholder="Sem máximo"></label>
+      <label>Favorito · gols mínimos<input id="ns-inplay-favorito-min" type="number" min="0" max="30" step="1" placeholder="Sem mínimo"></label>
+      <label>Favorito · gols máximos<input id="ns-inplay-favorito-max" type="number" min="0" max="30" step="1" placeholder="Sem máximo"></label>
+      <label>Zebra · gols mínimos<input id="ns-inplay-zebra-min" type="number" min="0" max="30" step="1" placeholder="Sem mínimo"></label>
+      <label>Zebra · gols máximos<input id="ns-inplay-zebra-max" type="number" min="0" max="30" step="1" placeholder="Sem máximo"></label>
     </div>
+    <div class="ns-heading">
+      <div><div class="df-eyebrow">PASSO 3</div><h2>Condições pré-jogo</h2>
+      <p class="x1-help">Editor idêntico ao da aba Simular estratégia: indicadores estatísticos e físicos, odds, favorito/zebra, comparadores, mando e valor absoluto ou adversário. Você pode usar de 0 a 10 regras; sem regras, todos os jogos que atendem ao placar no minuto são avaliados. Histórico de 5, 10, 20 jogos ou temporada, sempre anterior à partida.</p></div>
+    </div>
+    <div id="ns-inplay-conditions" class="ns-conditions"></div>
+    <div class="ns-actions"><button id="ns-inplay-add" class="ns-button secondary" type="button">+ Adicionar condição</button><span id="ns-inplay-count" class="x1-help">0/10 condições</span></div>
+    <div class="ns-actions"><button id="ns-inplay-submit" type="submit" class="ns-button primary">Executar backtest ao vivo</button></div>
   </form>
   <div id="ns-inplay-feedback" class="x1-help" role="status" aria-live="polite"></div>
   <section id="ns-inplay-results" hidden aria-label="Resultados da simulação ao vivo">
+    <h2>Resultados por campeonato</h2>
     <div id="ns-inplay-kpis" class="ns-inplay-kpis"></div>
-    <h3>Resultado por campeonato</h3>
     <div class="ns-scroll"><table class="ns-table ns-inplay-table">
-      <thead><tr><th>Campeonato</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Resultado (R$)</th><th>Good run</th><th>Bad run</th></tr></thead>
-      <tbody id="ns-inplay-leagues"></tbody>
+      <thead><tr><th>Abrir</th><th>Campeonato</th><th>Entradas</th><th>Greens</th><th>Reds</th><th>Win rate</th><th>Unidades (u)</th><th>Resultado (R$)</th><th>Odd média</th><th>Lucro médio/entrada</th><th>Good run</th><th>Bad run</th></tr></thead>
+      <tbody id="ns-inplay-leagues"></tbody><tfoot id="ns-inplay-total"></tfoot>
     </table></div>
     <h3>Jogos identificados no minuto da entrada</h3>
     <p id="ns-inplay-coverage" class="x1-help"></p>
     <div id="ns-inplay-games" class="ns-scroll"></div>
     <p id="ns-inplay-warning" class="x1-help"></p>
+    <section id="ns-inplay-ai-panel" class="ns-ai-panel" aria-labelledby="ns-inplay-ai-heading">
+      <div class="ns-ai-heading">
+        <div><h3 id="ns-inplay-ai-heading">IA · Melhorar minha estratégia ao vivo</h3>
+          <p>Testa inclusão ou remoção de condições pré-jogo mantendo o cenário e o minuto fixos, com treino cronológico e validação posterior. Não utiliza placares futuros para criar indicadores pré-jogo.</p></div>
+        <button type="button" id="ns-inplay-ai-run" class="ns-button primary">Analisar oportunidades</button>
+      </div>
+      <div class="ns-ai-shortcuts">
+        <button type="button" id="ns-inplay-ai-go-conditions" class="ns-button secondary">Ir aos critérios</button>
+        <button type="button" id="ns-inplay-ai-test-shortcut" class="ns-button secondary">Testar alterações</button>
+        <button type="button" id="ns-inplay-ai-undo" class="ns-button secondary" disabled>Desfazer última</button>
+      </div>
+      <div id="ns-inplay-ai-output" class="ns-ai-output" aria-live="polite">
+        <p>Execute o backtest e clique em Analisar oportunidades. Sugestões não são aplicadas sem sua confirmação.</p>
+      </div>
+    </section>
   </section>
 </section>
 
@@ -155,6 +197,6 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v2" defer></script>
-<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v2" defer></script>
+<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v3" defer></script>
+<script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v3" defer></script>
 </body></html>
