@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/app.css?v=28">
 <link rel="stylesheet" href="/static/css/premium.css?v=galileu-game-v1">
 <link rel="stylesheet" href="/static/css/bets-x1.css?v=galileu-game-v1">
-<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v17">
+<link rel="stylesheet" href="/static/css/galileu.css?v=galileu-gameplay-v18">
 </head>
 <body data-page="bet-x1"><a class="df-skip" href="#main-content">Pular para o conteúdo</a>
 <div class="df-shell" id="df-shell"><div id="df-sidebar-mount"></div><div class="df-stage">
@@ -175,6 +175,22 @@
 
 </div>
 
+<dialog id="gl-empty-month-dialog" class="gl-dialog gl-empty-month-dialog"
+        aria-labelledby="gl-empty-month-title" aria-describedby="gl-empty-month-description">
+  <div class="gl-dialog-head">
+    <h3 id="gl-empty-month-title">Atenção: nenhuma entrada neste mês</h3>
+  </div>
+  <p id="gl-empty-month-description" class="gl-note">
+    Não há nenhuma entrada registrada no mês atual. Se você continuar,
+    o mês será finalizado sem apostas e sem resultado financeiro de entradas.
+    Deseja seguir com o fechamento ou voltar?
+  </p>
+  <div class="gl-dialog-footer">
+    <button id="gl-empty-month-back" type="button" class="gl-secondary">Voltar</button>
+    <button id="gl-empty-month-continue" type="button" class="gl-primary">Seguir e finalizar mês</button>
+  </div>
+</dialog>
+
 <dialog id="gl-details-dialog" class="gl-dialog">
   <div class="gl-dialog-head"><h3 id="gl-details-title">Detalhes do confronto</h3>
     <button type="button" data-close="gl-details-dialog" class="gl-close" aria-label="Fechar detalhes">×</button></div>
@@ -243,5 +259,5 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=galileu-gameplay-v9" defer></script>
-<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v17" defer></script>
+<script src="/static/js/galileu-gameplay.js?v=galileu-gameplay-v18" defer></script>
 </body></html>
