@@ -13,6 +13,7 @@ from db import fetch_all,get_conn
 from psycopg2 import errors
 from psycopg2.extras import Json
 import queries_nostradamus as ns
+import queries_nostradamus_precos_aovivo as precos
 
 
 # Só considera jogos com mapa de finalizações e TODOS os gols conferindo
@@ -58,14 +59,18 @@ SELECT j.id,j.data,j.campeonato_id,c.nome AS campeonato,
        j.gols_casa,j.gols_fora,
        g.gols_casa_minuto,g.gols_fora_minuto,
        oa.odd_1_ft AS api_odd_1_ft,
-       oa.odd_2_ft AS api_odd_2_ft
+       oa.odd_2_ft AS api_odd_2_ft,
+       oa.over_ft_2_5 AS api_over_ft_2_5,
+       oa.under_ft_2_5 AS api_under_ft_2_5
 FROM public.jogos j
 JOIN public.campeonatos c ON c.id=j.campeonato_id
 JOIN public.clubes h ON h.id=j.casa_id
 JOIN public.clubes v ON v.id=j.fora_id
 JOIN gols g ON g.jogo_id=j.id
 LEFT JOIN LATERAL (
-  SELECT MAX(o.odd_1_ft) AS odd_1_ft,MAX(o.odd_2_ft) AS odd_2_ft
+  SELECT MAX(o.odd_1_ft) AS odd_1_ft,MAX(o.odd_2_ft) AS odd_2_ft,
+         MAX(o.over_ft_2_5) AS over_ft_2_5,
+         MAX(o.under_ft_2_5) AS under_ft_2_5
   FROM public.odds o
   WHERE o.mandante_id=j.casa_id AND o.visitante_id=j.fora_id
     AND o.data_jogo::date=j.data
@@ -325,7 +330,13 @@ def simular(payload,rows=None,history_rows=None,capture=False):
             passed=[]
         settled_market=ns._market_for_game(c["mercado"],favorite_home)
         won=ns._settle(settled_market,int(row["gols_casa"]),int(row["gols_fora"]))
-        odd=c["odd_hipotetica"]
+        if c["odd_hipotetica"] is not None:
+            odd=c["odd_hipotetica"]
+            quote_source="hipotetica_usuario"
+            event_prob=None
+        else:
+            odd,quote_source,event_prob=precos.cotar(
+                row,c["minuto"],settled_market)
         units=ns._units(won,settled_market,odd,0.045)
         if capture and ctx and stats_home is not None and stats_away is not None:
             candidate_records.append({
@@ -349,7 +360,8 @@ def simular(payload,rows=None,history_rows=None,capture=False):
             "favorito":(row["mandante"] if favorite_home else row["visitante"])
                 if favorite_home is not None else None,
             "mercado":settled_market,"green":won,
-            "odd":odd,"cotacao":"hipotetica" if odd is not None else None,
+            "odd":odd,"cotacao":quote_source,
+            "probabilidade_evento":event_prob,
             "unidades":round(units,3) if units is not None else None,
             "valor_reais":round(units*100,2) if units is not None else None,
             "condicoes":passed,
@@ -369,6 +381,9 @@ def simular(payload,rows=None,history_rows=None,capture=False):
         "configuracao":{**c,"corte":c["corte"].isoformat()},
         "jogos_com_placar_auditavel":eligible,
         "entradas":overall["entradas"],
+        "odd_automatica":c["odd_hipotetica"] is None,
+        "cotadas_modeladas":sum(1 for item in details
+                                if str(item["cotacao"]).startswith("modelo_poisson")),
         "total":overall,
         "resultados":summaries,
         "detalhes":details,
@@ -379,8 +394,14 @@ def simular(payload,rows=None,history_rows=None,capture=False):
                 "do mesmo clube, campeonato e temporada. "
                 "Favorito/zebra dependem de odds 1X2 vinculadas, sem garantia de que "
                 "a cotação tenha sido capturada antes do jogo. "
-                "Não há odds in-play históricas verificáveis: o resultado financeiro "
-                "e as sugestões da IA utilizam exclusivamente a odd HIPOTÉTICA informada. "
+                "Não há odds in-play históricas verificáveis: sem preço manual, "
+                "o resultado financeiro e a IA usam uma estimativa Poisson por partida "
+                "com placar parcial, tempo restante e, quando disponíveis, odds "
+                "pré-jogo 1X2 e Over/Under 2,5. Sem odds de referência, utiliza-se "
+                "uma hipótese neutra de 2,6 gols/90min; o modelo NÃO observa "
+                "nem reproduz a cotação real do minuto. "
+                "Mercados já decididos podem ficar sem preço. "
+                "Os preços têm spread ilustrativo e podem divergir muito do mercado. "
                 "Stake/responsabilidade = R$ 100, comissão Lay = 4,5%. "
                 "Uma entrada real no minuto escolhido não é comprovada por esta simulação."
     }
@@ -398,9 +419,6 @@ def analisar(payload,rows=None,history_rows=None):
     from math import ceil
     import queries_nostradamus_ai as ai
     config=_config(payload)
-    if config["odd_hipotetica"] is None:
-        return {"sugestoes":[],"mensagem":"Informe uma odd hipotética de entrada para analisar o financeiro.",
-                "metodo":"IA quantitativa com treino cronológico e validação posterior."}
     result=simular(payload,rows=rows,history_rows=history_rows,capture=True)
     candidates=result.pop("_dados_otimizacao")
     base=[r for r in candidates if r["passes_initial"] and r["unidades"] is not None]
@@ -491,7 +509,9 @@ def analisar(payload,rows=None,history_rows=None):
         "metodo":"IA quantitativa: seleção por treino cronológico 65%, validação posterior 35%.",
         "mensagem":("Sugestões selecionadas exclusivamente no treino; avaliação de validação exibida separadamente."
                     if top else "Nenhuma regra melhorou lucro total e médio no treino com amostra mínima."),
-        "aviso":"Amostras e valores financeiros dependem de odd hipotética, não de cotações de mercado aos 60 minutos. Resultado retrospectivo não comprova rentabilidade."
+        "aviso":"Amostras e financeiro usam a odd modelada por partida, ou a odd "
+                "manual quando informada. São estimativas matemáticas, não cotações "
+                "históricas negociáveis. O treino é separado cronologicamente da validação."
     }
 
 # Cadastro isolado: não misturar cenários de minuto com estratégias pré-jogo
