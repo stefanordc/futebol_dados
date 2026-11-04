@@ -64,4 +64,20 @@ assert.ok(js.includes('ns-inplay-total'),"Rodapé de métricas consolidadas");
 assert.ok(js.includes('game.placar_minuto')&&js.includes('game.placar_final'),
   "Mostrar placares parcial e final");
 assert.ok(js.includes('undo.push(current)'),"IA deve permitir desfazer mudanças");
+for(const id of ["ns-inplay-name","ns-inplay-save","ns-inplay-new",
+                 "ns-inplay-saved","ns-inplay-saved-list"]){
+  assert.ok(html.includes('id="'+id+'"'),"Salvar cenários: "+id);
+}
+assert.ok(js.includes('const savedURL="/api/apostas/nostradamus/ao-vivo/estrategias"'),
+  "API de persistência separada da estratégia pré-jogo");
+for(const method of ['method:id?"PATCH":"POST"','method:"DELETE"']){
+  assert.ok(js.includes(method),"Métodos de salvamento devem existir: "+method);
+}
+for(const item of ['listar_cenarios','criar_cenario','editar_cenario','excluir_cenario']){
+  assert.ok(backend.includes('def '+item+'('),"Backend de cenário ao vivo: "+item);
+}
+assert.ok(js.includes('Gravação não confirmada na nova leitura do banco.'),
+  "Confirmar gravação no Supabase antes de informar sucesso");
+assert.ok(js.includes('nostradamus/ao-vivo/estrategias'),
+  "Não misturar cenários ao vivo com métodos pregame");
 console.log("Nostradamus ao vivo: múltiplas ligas, gols, pré-jogo, IA e financeiro.");
