@@ -286,7 +286,7 @@ def _live_rows(config,rows):
     return result
 
 
-def simular(payload,rows=None,history_rows=None,capture=False):
+def simular(payload,rows=None,history_rows=None,capture=False,detail_limit=400):
     c=_config(payload)
     games=rows if rows is not None else fetch_all(SQL,(
         c["minuto"],c["minuto"],c["corte"],
@@ -369,7 +369,7 @@ def simular(payload,rows=None,history_rows=None,capture=False):
             "valor_reais":round(units*100,2) if units is not None else None,
             "condicoes":passed,
         }
-        if len(details)<400:
+        if len(details)<detail_limit:
             details.append(item)
         if len(league["jogos"])<400:
             league["jogos"].append(item)
@@ -389,7 +389,7 @@ def simular(payload,rows=None,history_rows=None,capture=False):
         "total":overall,
         "resultados":summaries,
         "detalhes":details,
-        "limite_detalhes":400,
+        "limite_detalhes":detail_limit,
         "aviso":"O placar no minuto indicado vem da tabela finalizacoes. Jogos com "
                 "gols que não conferem com o placar oficial são excluídos. "
                 "Condições pré-jogo usam apenas partidas anteriores, com ao menos 5 jogos "
