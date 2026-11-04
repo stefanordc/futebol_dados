@@ -202,8 +202,8 @@ class TestGalileuAoVivo(TestCase):
             cursor.sql="bulk-insert"
             self.assertEqual(page_size,len(records))
             self.assertIn("ON CONFLICT DO NOTHING",query)
-        with patch.object(gl,"get_conn",get_conn), \\
-             patch.object(gl,"_lock",return_value=session()), \\
+        with patch.object(gl,"get_conn",get_conn), \
+             patch.object(gl,"_lock",return_value=session()), \
              patch("psycopg2.extras.execute_values",side_effect=insert_values):
             created=gl._sync_live_entries("token",session(),[match(101)],public)
         self.assertEqual(created,2)
