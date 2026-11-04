@@ -1164,10 +1164,15 @@ def registrar(token,payload):
                     raise ValueError("Método não validado para este confronto.")
                 if payload.get("metodo_versao")!=selected["versao"]:
                     raise ValueError("O método foi alterado. Atualize a rodada.")
-                hist=_history(catalog)
-                h,_=_team_stats(hist,game,game["casa_id"],selected["jogos"])
-                a,_=_team_stats(hist,game,game["fora_id"],selected["jogos"])
-                method=next(iter(_matched(game,h,a,[selected])),None)
+                if selected.get("tipo")=="ao_vivo":
+                    method=next(iter(_live_offers(
+                        [game],[selected],catalog
+                    ).get(gid,[])),None)
+                else:
+                    hist=_history(catalog)
+                    h,_=_team_stats(hist,game,game["casa_id"],selected["jogos"])
+                    a,_=_team_stats(hist,game,game["fora_id"],selected["jogos"])
+                    method=next(iter(_matched(game,h,a,[selected])),None)
                 if method is None:
                     raise ValueError("Método não validado para este confronto.")
                 offer=method["mercado"]
@@ -1304,13 +1309,16 @@ def registrar_metodos_em_lote(token,payload):
                     method["ligas"] and game["campeonato_id"] not in method["ligas"]
                 ) or _is_disabled(mid,game["data"],disabled_lote):
                     raise ValueError("Um dos métodos foi alterado. Atualize a rodada.")
-                cache_key=(gid,method["jogos"])
-                if cache_key not in stat_cache:
-                    home,_=_team_stats(histories,game,game["casa_id"],method["jogos"])
-                    away,_=_team_stats(histories,game,game["fora_id"],method["jogos"])
-                    stat_cache[cache_key]=(home,away)
-                home,away=stat_cache[cache_key]
-                validated=_matched(game,home,away,[method])
+                if method.get("tipo")=="ao_vivo":
+                    validated=_live_offers([game],[method],catalog).get(gid,[])
+                else:
+                    cache_key=(gid,method["jogos"])
+                    if cache_key not in stat_cache:
+                        home,_=_team_stats(histories,game,game["casa_id"],method["jogos"])
+                        away,_=_team_stats(histories,game,game["fora_id"],method["jogos"])
+                        stat_cache[cache_key]=(home,away)
+                    home,away=stat_cache[cache_key]
+                    validated=_matched(game,home,away,[method])
                 if not validated:
                     raise ValueError("Um dos métodos não atende mais às regras. Atualize a rodada.")
                 matched=validated[0]
