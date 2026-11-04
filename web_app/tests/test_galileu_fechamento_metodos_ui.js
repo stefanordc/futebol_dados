@@ -65,7 +65,7 @@ context.renderMonthTable();
 assert.ok(!nodes["#gl-method-performance-table"].innerHTML.includes(
   'data-remove-method="7"'),"Depois do fechamento não se pode retirar retroativamente");
 assert.equal(nodes["#gl-method-removal-note"].hidden,true);
-assert.ok(html.includes('galileu-gameplay-v15'),"Atualizar cache do JS");
+assert.ok(html.includes('galileu-gameplay-v16'),"Atualizar cache do JS");
 /* Teste do aviso realmente renderizado no fechamento. */
 const alertStart=src.indexOf("function renderLossStreakAlerts(){");
 const alertEnd=src.indexOf("function renderMonth(){",alertStart);
