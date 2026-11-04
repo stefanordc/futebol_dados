@@ -25,6 +25,7 @@ import queries_nostradamus_ai
 import queries_estrategias
 import queries_galileu
 import queries_galileu_gameplay
+import queries_galileu_melhorias
 import queries_tecnico_avancadas
 import queries_vinculos
 import queries_integracoes
@@ -331,6 +332,25 @@ def galileu_gameplay_finalizar(request: Request):
     try:
         return queries_galileu_gameplay.finalizar(
             request.cookies.get(queries_galileu_gameplay.COOKIE))
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/melhorias/{metodo_id}/sugerir")
+def galileu_gameplay_melhorias_sugerir(metodo_id: int,request: Request):
+    try:
+        return queries_galileu_melhorias.sugerir(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),metodo_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.post("/api/apostas/galileu/gameplay/melhorias/{metodo_id}/salvar")
+def galileu_gameplay_melhorias_salvar(metodo_id: int,payload: dict,request: Request):
+    try:
+        return queries_galileu_melhorias.salvar(
+            request.cookies.get(queries_galileu_gameplay.COOKIE),
+            metodo_id,payload)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
