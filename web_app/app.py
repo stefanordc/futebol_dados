@@ -198,6 +198,35 @@ def nostradamus_ao_vivo_testar(payload: dict):
         raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
+@app.get("/api/apostas/nostradamus/ao-vivo/estrategias")
+def nostradamus_ao_vivo_estrategias_listar():
+    return queries_nostradamus_aovivo.listar_cenarios()
+
+
+@app.post("/api/apostas/nostradamus/ao-vivo/estrategias")
+def nostradamus_ao_vivo_estrategias_criar(payload: dict):
+    try:
+        return queries_nostradamus_aovivo.criar_cenario(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+@app.patch("/api/apostas/nostradamus/ao-vivo/estrategias/{cenario_id}")
+def nostradamus_ao_vivo_estrategias_editar(cenario_id: int,payload: dict):
+    try:
+        return queries_nostradamus_aovivo.editar_cenario(cenario_id,payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
+@app.delete("/api/apostas/nostradamus/ao-vivo/estrategias/{cenario_id}")
+def nostradamus_ao_vivo_estrategias_excluir(cenario_id: int,payload: dict):
+    try:
+        return queries_nostradamus_aovivo.excluir_cenario(cenario_id,payload.get("versao"))
+    except ValueError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
 @app.post("/api/apostas/nostradamus/ao-vivo/otimizar")
 def nostradamus_ao_vivo_otimizar(payload: dict):
     try:
