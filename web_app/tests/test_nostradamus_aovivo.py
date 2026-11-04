@@ -53,14 +53,32 @@ class TestAoVivo(TestCase):
         self.assertEqual(result["detalhes"][0]["id"],1)
         self.assertEqual(result["detalhes"][0]["placar_final"],"3x1")
 
-    def test_sem_odd_mostra_win_rate_sem_inventar_lucro(self):
+    def test_sem_odd_manual_modela_cotacao_e_calcula_financeiro(self):
         rows=[partida(1,True,2,0,2,1)]
         result=live.simular(config(odd_hipotetica=None),rows=rows)
         self.assertEqual(result["total"]["greens"],1)
-        self.assertIsNone(result["total"]["valor_reais"])
-        self.assertIsNone(result["detalhes"][0]["odd"])
-        self.assertIsNone(result["detalhes"][0]["valor_reais"])
+        self.assertIsNotNone(result["total"]["valor_reais"])
+        self.assertGreater(result["detalhes"][0]["odd"],1.0)
+        self.assertIsNotNone(result["detalhes"][0]["valor_reais"])
+        self.assertTrue(result["detalhes"][0]["cotacao"].startswith("modelo_poisson"))
+        self.assertTrue(result["odd_automatica"])
+        self.assertEqual(result["cotadas_modeladas"],1)
         self.assertIn("Não há odds in-play históricas",result["aviso"])
+
+    def test_modelo_lay_empate_diferencia_placares_e_minutos(self):
+        rows=[
+            partida(1,True,2,0,2,1),
+            partida(2,True,1,0,2,1),
+        ]
+        out=live.simular(config(odd_hipotetica=None,mercado="lay_empate",
+                               vencendo="qualquer",diferenca_gols=None),rows=rows)
+        self.assertEqual(out["entradas"],2)
+        p={g["id"]:g["odd"] for g in out["detalhes"]}
+        self.assertLess(p[1],p[2], "Lay empate deve ser mais barato com vantagem de 2 gols")
+        self.assertEqual(out["total"]["cotadas"],2)
+        later=live.simular(config(odd_hipotetica=None,mercado="lay_empate",
+                                 minuto=75,vencendo="qualquer",diferenca_gols=None),rows=rows)
+        self.assertLess(later["detalhes"][0]["odd"],p[1])
 
     def test_em_qualquer_placar_aceita_empate_com_gap_zero(self):
         rows=[partida(1,True,0,0,1,1),
