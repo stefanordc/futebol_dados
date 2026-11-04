@@ -416,3 +416,33 @@
   .gl-empty-month-dialog .gl-dialog-footer{flex-direction:column-reverse}
   .gl-empty-month-dialog .gl-dialog-footer button{width:100%}
 }
+/* Assistente de melhoria quando o método perdeu por 2+ meses seguidos. */
+.gl-improve-magic{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:6px 9px;margin:5px 0 0 8px;
+  border:1px solid var(--df-orange,#fb7c3d);border-radius:10px;
+  background:transparent;color:var(--df-text);
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  white-space:nowrap;vertical-align:middle;
+}
+.gl-improve-magic [aria-hidden]{font-size:18px}
+.gl-improve-magic:hover,.gl-improve-magic:focus-visible{
+  background:rgba(251,124,61,.12);outline-color:var(--df-orange,#fb7c3d);
+}
+.gl-improve-count{font-size:11px;color:var(--df-secondary)}
+.gl-improve-dialog{width:min(760px,calc(100vw - 28px));max-width:760px}
+.gl-improve-dialog .gl-dialog-head h3{line-height:1.3}
+.gl-improve-suggestions{display:grid;gap:14px;margin-top:16px}
+.gl-improve-proposal{
+  padding:15px;border-radius:12px;border:1px solid var(--df-border);
+  background:var(--df-raised);
+}
+.gl-improve-proposal h4{font-size:16px;margin:0 0 9px}
+.gl-improve-proposal label{display:flex;flex-direction:column;gap:7px;
+  margin:12px 0;font-weight:700}
+.gl-improve-proposal input{box-sizing:border-box;width:100%;padding:11px 13px;
+  border-radius:10px;border:1px solid var(--df-border);
+  background:var(--df-surface);color:var(--df-text);font:inherit}
+.gl-improve-proposal .gl-primary{min-height:43px}
+.gl-improve-warning{color:var(--df-orange,#fb7c3d)}
+#gl-improve-status{margin:10px 0;line-height:1.5}
