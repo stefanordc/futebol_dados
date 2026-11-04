@@ -1011,6 +1011,7 @@ def estado(token):
         "jogos_finalizados":len(closed),
         "resumo_rodada":resumo_rodada,
         "entradas":len(bets),
+        "entradas_mes":len(current),
         # Não descontamos stakes apenas programadas do saldo atual.
         "saldo_disponivel":_brl(sess["banca_atual"]),
         "exposicao_programada":_brl(sum(
