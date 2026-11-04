@@ -490,10 +490,11 @@ def _games_for_session(sess,catalog,rounds,methods=None,disabled=None):
 
 
 def _sync_live_entries(token,sess,raw_games,public_games):
-    """Registra automaticamente cenários ao vivo validados neste mês.
+    """Programa automaticamente TODOS os métodos validados no mês.
 
-    O salvamento é atômico e idempotente; atualizar a página ou tentar
-    finalizar o mês não cria entradas duplicadas. Não apura nenhum placar.
+    Inclui métodos pré-jogo e cenários ao vivo; respeita exclusões e jogos
+    finalizados. Uma combinação (sessão, jogo, método) só é criada uma vez.
+    O salvamento é atômico e nunca revela resultados antes da liquidação.
     """
     if sess["fase"]!="aberta":
         return 0
@@ -505,8 +506,8 @@ def _sync_live_entries(token,sess,raw_games,public_games):
         if raw is None:
             continue
         for method in game["metodos"]:
-            if method.get("tipo")!="ao_vivo":
-                continue
+            # Os métodos pré-jogo e os cenários ao vivo são programados
+            # sem seleção manual. Cada método conserva seu próprio mercado.
             offer=method["mercado"]
             candidates.append((gid,raw,method,offer))
     if not candidates:
@@ -539,7 +540,8 @@ def _sync_live_entries(token,sess,raw_games,public_games):
                     sess["id"],gid,sess["indice_rodada"],"metodo",
                     method["id"],method["versao"],method["nome"],
                     method["objetivo"],offer["odd"],
-                    _rounded(_default_stake(locked)),True,
+                    _rounded(_default_stake(locked)),
+                    bool(offer.get("estimada",False)),
                     offer["favorito_casa"],
                 ))
             if not data:
@@ -1014,7 +1016,12 @@ def estado(token):
         "exposicao_programada":_brl(sum(
             (Decimal(b["stake"]) for b in current if b["status"]=="pendente"),
             Decimal("0"))),
-        "entradas_automaticas_ao_vivo":auto_count,
+        "entradas_automaticas":auto_count,
+        "entradas_automaticas_ao_vivo":sum(
+            1 for bet in current
+            if bet["tipo"]=="metodo" and bet.get("metodo_id") is not None
+            and int(bet["metodo_id"])>=LIVE_METHOD_BASE
+        ),
         "entradas_ao_vivo_mes":sum(
             1 for bet in current
             if bet["tipo"]=="metodo" and bet.get("metodo_id") is not None
@@ -1040,7 +1047,7 @@ def estado(token):
         "pode_avancar":revealed and len(rounds)>1,
         "periodo_vazio":not bool(raw_games),
         "pode_pular_vazio":sess["fase"]=="aberta" and not raw_games and len(rounds)>1,
-        "aviso":"Gameplay histórica: todos os jogos do mês são exibidos juntos. Todas as entradas confirmadas são liquidadas, mesmo sem saldo, e a banca virtual pode ficar negativa. Odds históricas não comprovam disponibilidade pré-jogo. Lay estimado; nenhuma aposta real.",
+        "aviso":"Gameplay histórica: as entradas dos métodos pré-jogo e ao vivo são programadas automaticamente. Os jogos e placares só aparecem no resultado após finalizar o mês. Todas as entradas são liquidadas sem limite de saldo; a banca virtual pode ficar negativa. Odds históricas e preços Lay modelados não comprovam disponibilidade para execução real.",
     }
 
 
