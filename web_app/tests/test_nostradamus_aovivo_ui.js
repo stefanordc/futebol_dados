@@ -70,7 +70,18 @@ assert.ok(js.includes('money(x.valor_reais)')||js.includes('money(x.total_reais)
   "Mostrar valores financeiros por liga e IA");
 assert.ok(!html.includes('id="ns-inplay-odd" type="number" min="1.01" max="1000" step="0.01" value="2.00" required'),
   "Odd manual não pode impedir execução");
-assert.ok(js.includes('ns-inplay-total'),"Rodapé de métricas consolidadas");
+assert.ok(html.includes('<tfoot id="ns-inplay-grand-total"></tfoot>'),
+  "O rodapé de totais deve existir como tfoot na tabela");
+assert.ok(js.includes('$("#ns-inplay-grand-total").innerHTML=totalCells(overall,"TOTAL",false);'),
+  "O consolidado deve ser inserido no tfoot correto");
+assert.equal((html.match(/id="ns-inplay-total"/g)||[]).length,1,
+  "O identificador do campo Total exato de gols deve ser único");
+assert.equal((html.match(/id="ns-inplay-grand-total"/g)||[]).length,1,
+  "O identificador do rodapé consolidado deve ser único");
+assert.ok(html.includes('id="ns-inplay-total" type="number"'),
+  "O filtro Total exato de gols não pode ser alterado");
+assert.ok(js.includes('gols_total:numberOrNull("#ns-inplay-total")'),
+  "O filtro Total exato de gols precisa continuar no payload");
 assert.ok(js.includes('game.placar_minuto')&&js.includes('game.placar_final'),
   "Mostrar placares parcial e final");
 assert.ok(js.includes('undo.push(current)'),"IA deve permitir desfazer mudanças");
