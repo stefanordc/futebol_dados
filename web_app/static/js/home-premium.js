@@ -107,6 +107,81 @@ function updateFilterButtons() {
   $$('[data-filter]',$('#df-filters')).forEach(btn=>{const active=btn.dataset.filter===state.filter;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));});
 }
 function detailScore(j) {return `${j.gols_casa??'—'} <span>:</span> ${j.gols_fora??'—'}`;}
+// Dados disponíveis do jogo no próprio painel lateral.
+function fullMatchDetails(data){
+  const home=data.estatisticas?.completo?.Casa||{},away=data.estatisticas?.completo?.Fora||{};
+  const labels={
+    posse_bola:"Posse de bola",chutes_total:"Finalizações",chutes_certos:"Chutes no gol",
+    chutes_fora:"Chutes para fora",chutes_bloqueados:"Bloqueados",chutes_trave:"Na trave",
+    escanteios:"Escanteios",faltas_cometidas:"Faltas cometidas",
+    passes_certos:"Passes certos",passes_total:"Passes tentados",passes_errados:"Passes errados",
+    xg:"Gols esperados (xG)",xgot:"xG no alvo",cartao_amarelo:"Cartões amarelos",
+    cartao_vermelho:"Cartões vermelhos",impedimentos:"Impedimentos",
+    defesas_goleiro:"Defesas do goleiro",duelos_ganhos:"Duelos ganhos",
+    cruzamentos_certos:"Cruzamentos certos",desarmes:"Desarmes",interceptacoes:"Interceptações",
+    chutes_dentro_area:"Chutes dentro da área",chutes_fora_area:"Chutes fora da área"
+  };
+  const excluded=new Set(["id","jogo_id","clube_id","mando","periodo","clube","criado_em","atualizado_em","jogo_id_fotmob","id_sofascore","temporada","data"]);
+  const numeric=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v));
+  const fmt=v=>numeric(v)?Number(v).toLocaleString("pt-BR",{maximumFractionDigits:2}):"—";
+  const keys=[...new Set([...Object.keys(home),...Object.keys(away)])].filter(k=>
+    !excluded.has(k)&&(numeric(home[k])||numeric(away[k])));
+  const rows=keys.map(k=>{
+    const label=labels[k]||k.replaceAll("_"," ").replace(/^./,c=>c.toUpperCase());
+    return `<div class="df-detail-stat"><span>${safe(fmt(home[k]))}</span><span>${safe(label)}</span><span>${safe(fmt(away[k]))}</span></div>`;
+  }).join("");
+  const facts=[
+    ["Temporada",data.temporada],["Rodada",data.rodada],["País",data.pais],
+    ["Estádio",data.estadio],["Público",data.publico],["Capacidade",data.capacidade],
+    ["Árbitro",data.arbitro],["Técnico mandante",data.tecnico_casa],
+    ["Técnico visitante",data.tecnico_fora]
+  ].filter(([,v])=>v!==null&&v!==undefined&&v!=="")
+    .map(([name,v])=>`<div class="df-match-fact"><span>${safe(name)}</span><strong>${safe(v)}</strong></div>`).join("");
+  const goals=Array.isArray(data.gols)?data.gols:[];
+  const goalItems=goals.map(g=>{
+    const time=g.minuto!=null?String(g.minuto)+(g.minuto_adicional?"+"+g.minuto_adicional:"")+"'":"—";
+    const score=g.placar_casa!=null&&g.placar_fora!=null?
+      ` · ${safe(g.placar_casa)} × ${safe(g.placar_fora)}`:"";
+    return `<li><strong>${safe(time)}</strong> ${safe(g.jogador||"Gol")} (${safe(g.clube||g.mando||"")})${g.foi_gol_contra?" · gol contra":""}${score}</li>`;
+  }).join("");
+  const shots=Array.isArray(data.finalizacoes)?data.finalizacoes:[];
+  const shotItems=shots.map(f=>{
+    const minute=f.minuto!=null?String(f.minuto)+(f.minuto_adicional?"+"+f.minuto_adicional:"")+"'":"—";
+    return `<li><strong>${safe(minute)}</strong> ${safe(f.jogador||"Jogador")} · ${safe(f.clube||"")}
+      <div class="df-muted">${safe(f.tipo_evento||"Finalização")}${f.xg!=null?" · xG "+safe(fmt(f.xg)):""}</div></li>`;
+  }).join("");
+  const sample=shots.find(f=>String(f.tipo_evento||"").toLowerCase().includes("gol"))||shots[0];
+  const goal=sample&&window.DFShotMap?.goalSvg?
+    `<div class="df-match-goal-preview"><h4>Destino da bola — gol de frente</h4>${window.DFShotMap.goalSvg(sample)}
+       <p>${safe(sample.jogador||"Jogador")} · ${safe(sample.minuto||"—")}'</p></div>`:"";
+  const sides=data.escalacao||{};
+  const players=(side)=>{
+    const entry=sides[side]||{};
+    return [...(Array.isArray(entry.titulares)?entry.titulares:[]),
+            ...(Array.isArray(entry.reservas)?entry.reservas:[])]
+      .map(p=>`<li>${safe(p.nome||p.jogador||p.nome_jogador||"Jogador")}</li>`).join("");
+  };
+  const homePlayers=players("casa"),awayPlayers=players("fora");
+  const lineup=homePlayers||awayPlayers?
+    `<div class="df-match-lineups"><div><h4>${safe(data.casa||"Mandante")}</h4><ol>${homePlayers}</ol></div>
+      <div><h4>${safe(data.fora||"Visitante")}</h4><ol>${awayPlayers}</ol></div></div>`:
+    `<p class="df-muted">Escalações não disponíveis para esta partida.</p>`;
+  return `
+    <details class="df-match-details-block" open><summary>Estatísticas completas (${keys.length})</summary>
+      <div class="df-match-details-body">${rows||'<p class="df-muted">Sem estatísticas detalhadas.</p>'}</div></details>
+    <details class="df-match-details-block" open><summary>Gols e eventos (${goals.length})</summary>
+      <div class="df-match-details-body">${goalItems?`<ol class="df-match-events">${goalItems}</ol>`:
+       '<p class="df-muted">Sem eventos de gol registrados.</p>'}</div></details>
+    <details class="df-match-details-block"><summary>Finalizações (${shots.length})</summary>
+      <div class="df-match-details-body">${goal}
+       ${shotItems?`<ol class="df-match-events">${shotItems}</ol>`:
+       '<p class="df-muted">Sem finalizações registradas.</p>'}</div></details>
+    <details class="df-match-details-block"><summary>Escalações</summary>
+      <div class="df-match-details-body">${lineup}</div></details>
+    <details class="df-match-details-block" open><summary>Informações da partida</summary>
+      <div class="df-match-details-body">${facts||'<p class="df-muted">Sem dados adicionais.</p>'}</div></details>`;
+}
+
 async function selectMatch(id) {
   state.selectedGame=id;renderFeed();
   const panel=$('#df-detail-panel');
@@ -128,11 +203,12 @@ async function selectMatch(id) {
     const oddItems=[['1',market.odd_casa],['X',market.odd_empate],['2',market.odd_fora]].filter(([,v])=>v!=null&&Number.isFinite(Number(v))&&Number(v)>0);
     const oddHtml=oddItems.length?`<div class="df-detail-odds"><h3>Odds registradas</h3><div class="df-odds-list">${oddItems.map(([label,value])=>`<button type="button" class="df-odd-chip" aria-pressed="false"><small>${label}</small><strong>${Number(value).toFixed(2)}</strong></button>`).join('')}</div><p>Valores históricos armazenados, não cotações ao vivo.</p></div>`:'';
     const renderStat=([key,label,suffix])=>`<div class="df-detail-stat"><span>${safe(casa[key]??'—')}${casa[key]==null?'':suffix}</span><span>${label}</span><span>${safe(fora[key]??'—')}${fora[key]==null?'':suffix}</span></div>`;
-    panel.innerHTML=`<div class="df-detail-head"><div><span class="df-overline">DETALHES DA PARTIDA</span><h2>${safe(data.campeonato||match.campeonato)}</h2><p>${safe(data.rodada||'Resultado registrado')} · ${dtFmt(matchDate)}</p></div><button type="button" class="df-icon-button" id="df-close-detail" title="Fechar detalhes" aria-label="Fechar detalhes">${icon('x',18)}</button></div>
+    panel.innerHTML=`<div class="df-detail-head"><div><a class="df-overline df-details-heading-link" href="/jogo/${id}" title="Abrir análise completa da partida">DETALHES DA PARTIDA ${icon('arrow',14)}</a><h2>${safe(data.campeonato||match.campeonato)}</h2><p>${safe(data.rodada||'Resultado registrado')} · ${dtFmt(matchDate)}</p></div><button type="button" class="df-icon-button" id="df-close-detail" title="Fechar detalhes" aria-label="Fechar detalhes">${icon('x',18)}</button></div>
       <div class="df-detail-score"><div class="df-detail-team">${safeLogo(data.casa_logo||match.casa_logo,data.casa||match.casa)}<strong>${safe(data.casa||match.casa)}</strong></div><div class="df-score-number">${detailScore(data)}</div><div class="df-detail-team">${safeLogo(data.fora_logo||match.fora_logo,data.fora||match.fora)}<strong>${safe(data.fora||match.fora)}</strong></div></div><div class="df-detail-ft"><span class="df-ft">FT</span> Partida encerrada</div>
       <div class="df-detail-divider"></div>
       <div class="df-detail-section"><h3>Resumo da partida</h3>${stats.length?stats.map(renderStat).join(''):'<p class="df-muted">Estatísticas detalhadas não disponíveis para esta partida.</p>'}</div>
       ${oddHtml}
+      ${fullMatchDetails(data)}
       ${data.estadio?`<div class="df-detail-venue">Estádio <strong>${safe(data.estadio)}</strong></div>`:''}
       <a class="df-detail-link" href="/jogo/${id}">Análise completa da partida ${icon('arrow',18)}</a>`;
     $('#df-close-detail').addEventListener('click',()=>{state.selectedGame=null;renderFeed();renderEmptyDetail();});
