@@ -1,0 +1,57 @@
+name: Jogadores — finalizações, defesas e pênaltis
+
+on:
+  pull_request:
+    paths:
+      - 'web_app/queries_player_shots.py'
+      - 'web_app/queries_entidade.py'
+      - 'web_app/static/js/player-shots.js'
+      - 'web_app/static/js/entity.js'
+      - 'web_app/static/js/shot-visuals.js'
+      - 'web_app/templates/entity.html'
+      - 'web_app/static/css/profiles.css'
+      - 'web_app/tests/test_player_shots.py'
+      - 'web_app/tests/test_player_shots_ui.js'
+      - '.github/workflows/test-player-shots.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web_app/queries_player_shots.py'
+      - 'web_app/queries_entidade.py'
+      - 'web_app/static/js/player-shots.js'
+      - 'web_app/static/js/entity.js'
+      - 'web_app/static/js/shot-visuals.js'
+      - 'web_app/templates/entity.html'
+      - 'web_app/static/css/profiles.css'
+      - 'web_app/tests/test_player_shots.py'
+      - 'web_app/tests/test_player_shots_ui.js'
+      - '.github/workflows/test-player-shots.yml'
+  workflow_dispatch:
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências do servidor
+        run: python -m pip install -r web_app/requirements.txt
+      - name: Validar sintaxe do backend
+        run: python -m compileall -q web_app/app.py web_app/queries_entidade.py web_app/queries_player_shots.py
+      - name: Testar cálculos de jogadores e goleiros
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_player_shots.py' -v
+      - name: Validar JavaScript
+        working-directory: web_app
+        run: |
+          node --check static/js/player-shots.js
+          node --check static/js/entity.js
+          node --check static/js/shot-visuals.js
+      - name: Testar abas, mapas e pênaltis
+        working-directory: web_app
+        run: node tests/test_player_shots_ui.js
