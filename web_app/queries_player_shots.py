@@ -45,6 +45,11 @@ def _is_saved(row):
 def _on_target(row):
     # O FotMob pode marcar falso em um gol raro; o gol e a defesa
     # continuam sendo finalizações ao alvo.
+    event = str(row.get("tipo_evento") or "").casefold().strip()
+    # Alguns dados antigos trazem foi_no_alvo=True até para chutes
+    # bloqueados. Nesses casos o desfecho auditável tem prioridade.
+    if event in ("bloqueada", "para fora", "trave"):
+        return False
     return _is_goal(row) or _is_saved(row) or row.get("foi_no_alvo") is True
 
 
