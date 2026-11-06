@@ -15,6 +15,7 @@ import queries_entidade
 import queries_liga
 import queries_stats
 import queries_finalizacoes_sofridas
+import queries_player_shots
 import queries_performance
 import queries_x1
 import queries_x1_analise
@@ -861,6 +862,14 @@ def api_clube_fundamentos(
     return queries_performance.fundamentos_clube(
         clube_id, temporada, campeonato_id=campeonato_id, mando=mando
     )
+
+
+@app.get("/api/jogador/{jogador_id}/finalizacoes")
+def api_jogador_finalizacoes(jogador_id: int, temporada: str | None = None):
+    resultado = queries_player_shots.consultar(jogador_id, temporada=temporada)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Jogador não encontrado")
+    return resultado
 
 
 @app.get("/api/jogador/{jogador_id}")
