@@ -1,5 +1,5 @@
-// Dados do jogador: mapas partilhados com os detalhes de partida.
 import "./shot-visuals.js?v=player-visuals-v1-20261106";
+// Dados do jogador: mapas partilhados com os detalhes de partida.
 
 const escapeHTML=x=>String(x??"").replace(/[&<>"']/g,c=>({
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
