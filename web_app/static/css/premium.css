@@ -290,3 +290,31 @@ select option { background:var(--df-surface);color:var(--df-text); }
 #df-sidebar .df-nav-list{grid-template-columns:minmax(0,1fr);overflow-x:hidden!important;min-width:0;max-width:100%;scrollbar-width:thin}
 #df-sidebar .df-nav-item{min-width:0;width:100%;max-width:100%;box-sizing:border-box}
 #df-sidebar .df-sidebar-bottom{overflow-x:hidden;min-width:0}
+/* Jogos: o painel à direita deixa de ser um resumo limitado. */
+.df-detail{overflow:auto;scrollbar-width:thin;max-height:calc(100vh - 100px)}
+.df-details-heading-link{color:var(--df-orange);text-decoration:none;gap:6px}
+.df-details-heading-link:hover{text-decoration:underline}
+.df-match-details-block{border-top:1px solid var(--df-border-soft);font-size:12px}
+.df-match-details-block>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;
+  padding:15px 17px;cursor:pointer;font-weight:800;color:var(--df-text)}
+.df-match-details-block>summary::-webkit-details-marker{display:none}
+.df-match-details-block>summary:after{content:'+';font-size:16px;color:var(--df-orange)}
+.df-match-details-block[open]>summary:after{content:'−'}
+.df-match-details-block[open]>summary{background:var(--df-raised);color:var(--df-orange)}
+.df-match-details-body{padding:13px 16px;max-width:100%;overflow-wrap:anywhere}
+.df-match-details-body .df-detail-stat{grid-template-columns:minmax(34px,auto) minmax(0,1fr) minmax(34px,auto);
+   gap:9px;text-align:center;margin:0;padding:8px 0;border-bottom:1px solid var(--df-border-soft)}
+.df-match-details-body .df-detail-stat:last-child{border-bottom:0}
+.df-match-fact{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}
+.df-match-fact span{color:var(--df-muted);flex:0 0 40%}
+.df-match-fact strong{text-align:right;overflow-wrap:anywhere}
+.df-match-events{padding-left:20px;margin:0;display:grid;gap:10px}
+.df-match-events li{padding-bottom:8px;border-bottom:1px solid var(--df-border-soft)}
+.df-match-goal-preview{border:1px solid var(--df-border);border-radius:11px;padding:8px;margin-bottom:16px}
+.df-match-goal-preview h4{margin:2px 0 9px;font-size:12px}
+.df-match-goal-preview p{color:var(--df-muted);font-size:11px;margin:5px}
+.df-match-goal-preview .shot-goal-art{display:block;width:100%;height:auto;border-radius:8px}
+.df-match-lineups{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.df-match-lineups h4{font-size:12px;margin:0 0 7px}
+.df-match-lineups ol{padding-left:20px;margin:0;display:grid;gap:5px}
+@media(max-width:1510px){.df-detail{max-height:none;overflow:visible}}
