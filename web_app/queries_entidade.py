@@ -343,6 +343,25 @@ def detalhe_jogador(jogador_id: int, temporada: str | None = None) -> dict | Non
             """,
             (jogador_id, temporada),
         )
+    # Só exibir a aba "Pênaltis" quando houver uma cobrança atribuída
+    # ao jogador (ou uma cobrança enfrentada por goleiro) nessa temporada.
+    goalie = "goleiro" in str(item.get("posicao") or "").casefold()
+    fk_column = "f.goleiro_id" if goalie else "f.jogador_id"
+    penalty_filters = [
+        fk_column + " = %s",
+        "f.situacao_jogada = 'Pênalti'",
+        "jo.gols_casa IS NOT NULL",
+    ]
+    penalty_args = [jogador_id]
+    if temporada:
+        penalty_filters.append("jo.temporada = %s")
+        penalty_args.append(temporada)
+    penalty_exists = fetch_one(
+        "SELECT EXISTS (SELECT 1 FROM finalizacoes f "
+        "JOIN jogos jo ON jo.id = f.jogo_id WHERE " +
+        " AND ".join(penalty_filters) + " LIMIT 1) AS disponivel",
+        tuple(penalty_args),
+    )
     stats = (
         estatisticas_jogador(jogador_id, temporada) if temporada else {"jogos": 0, "minutos": 0, "grupos": {}, "metricas": {}}
     )
@@ -353,6 +372,8 @@ def detalhe_jogador(jogador_id: int, temporada: str | None = None) -> dict | Non
         "temporadas": temporadas,
         "linhas": [_serialize(r) for r in linhas],
         "estatisticas": stats,
+        "goleiro": goalie,
+        "penaltis_disponiveis": bool(penalty_exists and penalty_exists["disponivel"]),
     }
 
 
