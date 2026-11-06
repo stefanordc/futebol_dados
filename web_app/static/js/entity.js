@@ -1,6 +1,7 @@
 import { openEditModal, pencilBtn } from "./edit.js";
 import { setFavicon, setSiteFavicon } from "./favicon.js";
 import { initNav } from "./nav.js";
+import { mountPlayerShots } from "./player-shots.js?v=player-profile-v1-20261106";
 
 const $ = (sel, el = document) => el.querySelector(sel);
 
@@ -301,13 +302,22 @@ async function render(){
  const e=state.data.entidade||{};
  const title=tipo==='jogador'?'Jogador':tipo==='tecnico'?'Técnico':'Árbitro';
  document.title=e.nome||title;
- const tabs=tipo==='arbitro'?[['geral','Geral'],['estatisticas','Estatísticas'],['jogos','Jogos']]:[['geral','Geral'],['estatisticas','Estatísticas']];
+ const playerKeeper=tipo==='jogador'&&(state.data.goleiro||String(e.posicao||"").toLowerCase().includes("goleiro"));
+ const tabs=tipo==='arbitro'?
+   [['geral','Geral'],['estatisticas','Estatísticas'],['jogos','Jogos']]:
+   tipo==='jogador'?
+     [['geral','Geral'],['estatisticas','Estatísticas'],
+      [playerKeeper?'defesas':'finalizacoes',playerKeeper?'Defesas':'Finalizações'],
+      ...(state.data.penaltis_disponiveis?[['penaltis','Pênaltis']]:[])]:
+     [['geral','Geral'],['estatisticas','Estatísticas']];
  if(!tabs.some(([k])=>k===state.aba))state.aba='geral';
  const header=`<div class="entity-header"><div class="entity-photo-wrap">${img(e.foto,'entity-photo')}${pencilBtn('on-photo')}</div><div><div class="entity-name-row"><h1 class="page-title entity-title">${e.nome||title}</h1>${pencilBtn('on-name')}</div><p class="muted">${e.posicao||''}${e.nacionalidade?` · ${e.nacionalidade}`:''}${e.pais?` · ${e.pais}`:''}</p></div><label class="entity-temp season-select">Temporada<select id="ent-temp">${(state.data.temporadas||[]).map(t=>`<option value="${t}" ${t===state.temporada?'selected':''}>${t}</option>`).join('')}${!(state.data.temporadas||[]).length?'<option value="">Todas as disponíveis</option>':''}</select></label></div>`;
  const bar=`<div class="tabs" id="df-entity-tabs">${tabs.map(([key,label])=>`<button type="button" class="tab ${state.aba===key?'active':''}" data-entity-tab="${key}">${label}</button>`).join('')}</div>`;
  let content='';
  if(tipo==='jogador'){
   content=state.aba==='geral'?`<section class="section"><h2 class="section-title">Desempenho na temporada</h2>${tabelaJogador()}</section><div id="df-profile-radar-slot"></div>`:`<section class="section"><h2 class="section-title">Estatísticas por categoria</h2>${statsJogador()}</section>`;
+  if(['finalizacoes','defesas','penaltis'].includes(state.aba))
+    content='<div id="player-shots-root" class="player-shots-root" aria-live="polite"></div>';
  }else if(tipo==='tecnico'){
   content=filterProfileHtml()+(state.aba==='geral'?`<section class="section"><h2 class="section-title">Temporada por campeonato e clube</h2>${tabelaTecnico()}</section><div id="df-profile-radar-slot"></div>`:`<section class="section"><h2 class="section-title">Indicadores de desempenho</h2>${coachStatsHtml()}</section>`);
  }else{
@@ -319,6 +329,10 @@ async function render(){
  $('#df-entity-tabs')?.addEventListener('click',ev=>{const btn=ev.target.closest('[data-entity-tab]');if(!btn)return;state.aba=btn.dataset.entityTab;render();});
  $('#df-profile-camp')?.addEventListener('change',ev=>{state.campeonatoFiltro=ev.target.value||'';render();});
  $('#df-profile-club')?.addEventListener('change',ev=>{state.clubeFiltro=ev.target.value||'';render();});
+ if(tipo==='jogador'&&['finalizacoes','defesas','penaltis'].includes(state.aba)){
+   mountPlayerShots($('#player-shots-root'),id,state.temporada,
+     state.aba==='penaltis'?'penaltis':'principal');
+ }
  if(tipo==='jogador'&&state.aba==='estatisticas'){
   $('#jog-grupos')?.addEventListener('click',ev=>{const btn=ev.target.closest('[data-grupo]');if(!btn)return;state.grupo=btn.dataset.grupo;syncUrl();render();});
   document.querySelectorAll('[data-modo]').forEach(btn=>btn.addEventListener('click',()=>{state.modo=btn.dataset.modo;syncUrl();render();}));
