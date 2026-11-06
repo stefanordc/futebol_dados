@@ -105,17 +105,9 @@ function shotClass(tipo, mando) {
   return `${base}${mando === "Fora" ? " fora" : ""}`;
 }
 
-/** Converte coords FotMob (metros 105×68) para campo vertical: casa ataca cima. */
+// As duas vistas usam a mesma conversão e orientação lateral.
 function shotPos(f) {
-  const x = Number(f.coordenada_x);
-  const y = Number(f.coordenada_y);
-  if (Number.isNaN(x) || Number.isNaN(y)) return null;
-  const left = (100 * y) / 68;
-  const topFromGoal = (100 * (105 - x)) / 105;
-  if (f.mando === "Casa") {
-    return { left, top: topFromGoal };
-  }
-  return { left: 100 - left, top: 100 - topFromGoal };
+  return window.DFShotMap?.shotPos(f) ?? null;
 }
 
 function minutoLabel(g) {
@@ -250,21 +242,21 @@ function sectionDetalhes(casa, fora, jogo) {
 }
 
 function sectionShotmap(finais, jogo) {
-  const dots = finais
-    .map((f, i) => {
-      const pos = shotPos(f);
-      if (!pos) return "";
-      const color = f.mando === "Casa" ? "var(--casa)" : "#fff";
-      const filtro = shotFiltroClass(f.tipo_evento);
-      return `<button type="button" class="shot-dot ${shotClass(f.tipo_evento, f.mando)}"
-        data-i="${i}" data-filtro="${filtro}" style="left:${pos.left}%;top:${pos.top}%;color:${color}"
-        title="${f.jogador || ""} · ${f.tipo_evento || ""}"></button>`;
-    })
-    .join("");
-
+  const dots = finais.map((f,i)=>{
+    const pos=shotPos(f);
+    if(!pos)return "";
+    const color=f.mando==="Casa"?"var(--casa)":"var(--fora)";
+    const filter=shotFiltroClass(f.tipo_evento);
+    return `<button type="button" class="shot-dot ${shotClass(f.tipo_evento,f.mando)}"
+      data-i="${i}" data-filtro="${filter}"
+      style="left:${pos.left.toFixed(3)}%;top:${pos.top.toFixed(3)}%;color:${color}"
+      title="${f.jogador||"Finalização"} · ${f.tipo_evento||""}"
+      aria-label="${f.minuto||"?"}' ${f.jogador||"Jogador"} · ${f.tipo_evento||"Finalização"}"></button>`;
+  }).join("");
   return `
     <section class="section" data-sec="finalizacoes">
       <h2>Mapa de chutes</h2>
+      <p class="shot-help">Campo em escala real (105 × 68 m). Selecione uma finalização para visualizar a posição de origem e onde a bola passou pela frente do gol.</p>
       <div class="modo-toggle shot-filtros" id="shot-filtros">
         <button type="button" class="chip-btn on" data-shot-filtro="todos">Todas</button>
         <button type="button" class="chip-btn" data-shot-filtro="gol">Gols</button>
@@ -275,19 +267,14 @@ function sectionShotmap(finais, jogo) {
         <div class="shot-detail" id="shot-detail">
           <div class="empty" style="padding:1rem 0">Clique em uma finalização no campo.</div>
         </div>
-        <div>
+        <div class="shot-map-column">
           <div class="pitch-wrap" id="pitch">
-            <div class="pitch-lines">
-              <div class="halfway"></div>
-              <div class="circle"></div>
-              <div class="box top"></div>
-              <div class="box bottom"></div>
-            </div>
+            ${window.DFShotMap?.pitchSvg()||""}
             ${dots}
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:.5rem;color:var(--muted);font-size:.8rem">
-            <span>${linkClube(jogo.casa_id, jogo.casa)} (cima)</span>
-            <span>${linkClube(jogo.fora_id, jogo.fora)} (baixo)</span>
+          <div class="shot-pitch-labels">
+            <span>${linkClube(jogo.casa_id,jogo.casa)} (cima)</span>
+            <span>${linkClube(jogo.fora_id,jogo.fora)} (baixo)</span>
           </div>
         </div>
       </div>
@@ -302,8 +289,11 @@ function renderShotDetail(f) {
       : f.minuto != null
         ? `${f.minuto}'`
         : "—";
-  const gx = f.local_x_gol != null ? Math.min(95, Math.max(5, Number(f.local_x_gol))) : null;
-  const gz = f.altura_z_gol != null ? Math.min(90, Math.max(8, 100 - Number(f.altura_z_gol) * 12)) : null;
+  const goalView=window.DFShotMap?.goalSvg(f)||"";
+  const destination=window.DFShotMap?.goalPosition(f);
+  const locationHint=destination?.visible
+    ? (destination.inside?"Destino dentro da meta":"Destino fora da moldura da meta")
+    : "Coordenada de chegada indisponível ou fora da escala representada";
   $("#shot-detail").innerHTML = `
     <div class="player">
       ${f.jogador_foto ? `<img src="${f.jogador_foto}" alt="" />` : `<div style="width:44px;height:44px;border-radius:50%;background:#333"></div>`}
@@ -317,7 +307,7 @@ function renderShotDetail(f) {
       <div><span>Situação</span><strong>${f.situacao_jogada || "—"}</strong></div>
       <div><span>Resultado</span><strong>${f.tipo_evento || "—"}</strong></div>
     </div>
-    <div class="goal-mini">${gx != null && gz != null ? `<span class="goal-dot" style="left:${gx}%;bottom:${gz}%"></span>` : ""}</div>
+    <div class="shot-goal-panel"><h3>Destino da bola — gol de frente</h3>${goalView}<p class="shot-help">${locationHint}</p></div>
     <div class="shot-kv">
       <div><span>xG</span><strong>${n(f.xg, 2)}</strong></div>
       <div><span>xGOT</span><strong>${n(f.xgot, 2)}</strong></div>
