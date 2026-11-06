@@ -121,8 +121,20 @@ function penalties(p,gk){
       Isso não revela o gesto técnico do chute ou a direção do salto do goleiro.</p>
   </section>`;
 }
-function renderContent(data,filters,chosen){
+function renderContent(data,filters,chosen,mode){
   const gk=data.tipo==="goleiro",r=data.resumo||{};
+  if(mode==="penaltis"){
+    if(!data.penaltis)return '<section class="section"><p>Não há cobranças registradas nesta temporada.</p></section>';
+    return penalties(data.penaltis,gk)+
+      maps(gk?"Mapa dos pênaltis contra o goleiro":"Mapa das cobranças de pênalti",
+        data.penaltis.mapa||[],gk,"penaltis",filters.penaltis,chosen.penaltis,
+        "Selecione uma cobrança para ver seus detalhes e o destino da bola no gol.")+
+      (gk?`<section class="section player-shot-dive-note">
+        <h2 class="section-title">Lado do mergulho do goleiro</h2>
+        <p>O banco registra onde a bola foi, mas não registra para qual lado o goleiro saltou.
+          Por isso, não é possível apresentar um mapa fiel dos movimentos do goleiro.</p>
+      </section>`:"");
+  }
   const headline=gk?[
     ["Defesas",integer(r.defesas),"finalizações defendidas"],
     ["Chutes no alvo",integer(r.no_alvo),"goleiro identificado"],
@@ -148,24 +160,13 @@ function renderContent(data,filters,chosen){
     data.mapa||[],gk,"principal",filters.principal,chosen.principal,
     gk?"Chutes com goleiro identificado, resultados e posições da bola.":
        "Mapa de chutes e gol frontal compartilhado com as páginas de partida.");
-  if(data.penaltis){
-    out+=penalties(data.penaltis,gk);
-    out+=maps(gk?"Mapa dos pênaltis contra o goleiro":"Mapa das cobranças de pênalti",
-      data.penaltis.mapa||[],gk,"penaltis",filters.penaltis,chosen.penaltis,
-      "Selecione uma cobrança para ver detalhes e o destino da bola no gol.");
-    if(gk)out+=`<section class="section player-shot-dive-note">
-      <h2 class="section-title">Lado do mergulho do goleiro</h2>
-      <p>O banco registra onde a bola foi, mas não registra para qual lado o goleiro saltou.
-        Portanto, não é possível apresentar um mapa fiel dos movimentos do goleiro.</p>
-    </section>`;
-  }
   if(!r.tentativas)out+=`<p class="player-shot-help">Nenhuma finalização identificada na temporada selecionada.</p>`;
   return out;
 }
-export async function mountPlayerShots(root,playerId,season){
+export async function mountPlayerShots(root,playerId,season,mode="principal"){
   if(!root)return;
   const key=String(playerId)+"|"+String(season||"");
-  root.dataset.shotsKey=key;
+  root.dataset.shotsKey=key+"|"+mode;
   root.innerHTML='<section class="section"><p class="player-shot-help">Carregando dados das finalizações…</p></section>';
   try{
     if(!cache.has(key)){
@@ -178,10 +179,10 @@ export async function mountPlayerShots(root,playerId,season){
       }).catch(error=>{cache.delete(key);throw error;}));
     }
     const data=await cache.get(key);
-    if(!root.isConnected||root.dataset.shotsKey!==key)return;
+    if(!root.isConnected||root.dataset.shotsKey!==key+"|"+mode)return;
     const filters={principal:"todos",penaltis:"todos"};
     const chosen={principal:null,penaltis:null};
-    const show=()=>{root.innerHTML=renderContent(data,filters,chosen);};
+    const show=()=>{root.innerHTML=renderContent(data,filters,chosen,mode);};
     root.addEventListener("click",event=>{
       const filter=event.target.closest("[data-shot-filter]");
       if(filter){
@@ -201,7 +202,7 @@ export async function mountPlayerShots(root,playerId,season){
     });
     show();
   }catch(error){
-    if(root.isConnected&&root.dataset.shotsKey===key)
+    if(root.isConnected&&root.dataset.shotsKey===key+"|"+mode)
       root.innerHTML='<section class="section"><p class="error">'+escapeHTML(error.message)+'</p></section>';
   }
 }
