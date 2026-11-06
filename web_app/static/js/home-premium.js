@@ -1,3 +1,5 @@
+import "./shot-visuals.js?v=shotmap-v3-20261106";
+
 /* Página Jogos — usa EXCLUSIVAMENTE /api/ligas, /api/jogos e /api/jogo/{id} existentes. */
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
@@ -151,7 +153,7 @@ function fullMatchDetails(data){
       <div class="df-muted">${safe(f.tipo_evento||"Finalização")}${f.xg!=null?" · xG "+safe(fmt(f.xg)):""}</div></li>`;
   }).join("");
   const sample=shots.find(f=>String(f.tipo_evento||"").toLowerCase().includes("gol"))||shots[0];
-  const goal=sample&&window.DFShotMap?.goalSvg?
+  const goal=sample?
     `<div class="df-match-goal-preview"><h4>Destino da bola — gol de frente</h4>${window.DFShotMap.goalSvg(sample)}
        <p>${safe(sample.jogador||"Jogador")} · ${safe(sample.minuto||"—")}'</p></div>`:"";
   const sides=data.escalacao||{};
