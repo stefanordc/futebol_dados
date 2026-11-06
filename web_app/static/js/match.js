@@ -1,3 +1,5 @@
+import "./shot-visuals.js?v=shotmap-v3-20261106";
+
 const $ = (sel, el = document) => el.querySelector(sel);
 
 function jogoIdFromUrl() {
@@ -107,7 +109,7 @@ function shotClass(tipo, mando) {
 
 // As duas vistas usam a mesma conversão e orientação lateral.
 function shotPos(f) {
-  return window.DFShotMap?.shotPos(f) ?? null;
+  return window.DFShotMap.shotPos(f);
 }
 
 function minutoLabel(g) {
@@ -269,7 +271,7 @@ function sectionShotmap(finais, jogo) {
         </div>
         <div class="shot-map-column">
           <div class="pitch-wrap" id="pitch">
-            ${window.DFShotMap?.pitchSvg()||""}
+            ${window.DFShotMap.pitchSvg()}
             ${dots}
           </div>
           <div class="shot-pitch-labels">
@@ -289,8 +291,8 @@ function renderShotDetail(f) {
       : f.minuto != null
         ? `${f.minuto}'`
         : "—";
-  const goalView=window.DFShotMap?.goalSvg(f)||"";
-  const destination=window.DFShotMap?.goalPosition(f);
+  const goalView=window.DFShotMap.goalSvg(f);
+  const destination=window.DFShotMap.goalPosition(f);
   const locationHint=destination?.visible
     ? (destination.inside?"Destino dentro da meta":"Destino fora da moldura da meta")
     : "Coordenada de chegada indisponível ou fora da escala representada";
@@ -705,10 +707,9 @@ function render(jogo) {
     const idx = firstGol >= 0 ? firstGol : 0;
     if (finais[idx]) {
       const btn = pitch.querySelector(`.shot-dot[data-i="${idx}"]`);
-      if (btn) {
-        btn.classList.add("active");
-        renderShotDetail(finais[idx]);
-      }
+      if (btn) btn.classList.add("active");
+      // Sempre mostrar o primeiro detalhe, mesmo sem coordenadas de origem.
+      renderShotDetail(finais[idx]);
     }
   }
 
