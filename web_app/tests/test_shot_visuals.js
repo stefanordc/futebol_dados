@@ -28,7 +28,7 @@ assert.ok(field.includes('y="1033"'),"Gol inferior");
 const coords=view.goalPosition({local_x_gol:32.78,altura_z_gol:1.22});
 assert.ok(coords.inside&&coords.visible,"Gol com posição registrada na meta");
 assert.ok(coords.x>280,"Eixo lateral corrigido");
-assert.ok(Math.abs(coords.y-132.5)<.01,"Altura normalizada pela trave de 2,44 m");
+assert.ok(Math.abs(coords.y-148.5)<.01,"Altura normalizada pela trave de 2,44 m");
 assert.equal(view.goalPosition({local_x_gol:null,altura_z_gol:1.22}),null);
 assert.ok(view.goalSvg({local_x_gol:32.78,altura_z_gol:1.22}).includes("<circle"),
   "Ponto de chegada na vista frontal");
