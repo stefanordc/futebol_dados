@@ -166,6 +166,14 @@ function fullMatchDetails(data){
     `<div class="df-match-lineups"><div><h4>${safe(data.casa||"Mandante")}</h4><ol>${homePlayers}</ol></div>
       <div><h4>${safe(data.fora||"Visitante")}</h4><ol>${awayPlayers}</ol></div></div>`:
     `<p class="df-muted">Escalações não disponíveis para esta partida.</p>`;
+  const physical=data.dados_fisicos||{};
+  const physicalRows=[
+    ["Distância percorrida (km)","distancia_percorrida"],
+    ["Sprints","sprints"]
+  ].filter(([,key])=>physical.casa?.[key]!=null||physical.fora?.[key]!=null)
+   .map(([label,key])=>'<div class="df-detail-stat"><span>'+
+     safe(fmt(physical.casa?.[key]))+'</span><span>'+safe(label)+'</span><span>'+
+     safe(fmt(physical.fora?.[key]))+'</span></div>').join("");
   return `
     <details class="df-match-details-block" open><summary>Estatísticas completas (${keys.length})</summary>
       <div class="df-match-details-body">${rows||'<p class="df-muted">Sem estatísticas detalhadas.</p>'}</div></details>
@@ -176,6 +184,8 @@ function fullMatchDetails(data){
       <div class="df-match-details-body">${goal}
        ${shotItems?`<ol class="df-match-events">${shotItems}</ol>`:
        '<p class="df-muted">Sem finalizações registradas.</p>'}</div></details>
+    <details class="df-match-details-block"><summary>Dados físicos</summary>
+      <div class="df-match-details-body">${physicalRows||'<p class="df-muted">Dados físicos não encontrados para esta partida.</p>'}</div></details>
     <details class="df-match-details-block"><summary>Escalações</summary>
       <div class="df-match-details-body">${lineup}</div></details>
     <details class="df-match-details-block" open><summary>Informações da partida</summary>
