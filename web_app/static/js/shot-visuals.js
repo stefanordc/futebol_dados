@@ -24,7 +24,7 @@
     if(!finite(x)||!finite(z)||x<0||x>WIDTH||z<0||z>8)return null;
     // Traves: 30,34 m a 37,66 m. Não são coordenadas percentuais.
     const px=280+(WIDTH/2-x)*(416/GOAL_WIDTH);
-    const py=218-z*(171/GOAL_HEIGHT);
+    const py=218-z*(139/GOAL_HEIGHT);
     const inside=x>=leftPost&&x<=rightPost&&z<=GOAL_HEIGHT;
     return {x:px,y:py,inside,visible:px>=8&&px<=552&&py>=8&&py<=264};
   }
@@ -63,10 +63,10 @@
     const p=goalPosition(f);
     const vertical=Array.from({length:11},(_,i)=>{
       const x=72+i*41.6;
-      return `<line x1="${x.toFixed(2)}" y1="47" x2="${x.toFixed(2)}" y2="218"/>`;
+      return `<line x1="${x.toFixed(2)}" y1="79" x2="${x.toFixed(2)}" y2="218"/>`;
     }).join("");
     const horizontal=Array.from({length:6},(_,i)=>{
-      const y=47+i*34.2;
+      const y=79+i*27.8;
       return `<line x1="72" y1="${y.toFixed(2)}" x2="488" y2="${y.toFixed(2)}"/>`;
     }).join("");
     const ball=p&&p.visible?
@@ -81,10 +81,10 @@
       xmlns="http://www.w3.org/2000/svg">
        <rect width="560" height="275" rx="12" fill="#106232"/>
        <path d="M0 237 Q280 226 560 237 V275 H0Z" fill="#0d542e"/>
-       <path d="M72 47 L52 33 H508 L488 47 V218 L508 230 H52 L72 218Z"
+       <path d="M72 47 L52 65 H508 L488 79 V218 L508 230 H52 L72 218Z"
          fill="rgba(2,25,14,.16)" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>
        <g stroke="rgba(255,255,255,.36)" stroke-width="1">${vertical}${horizontal}</g>
-       <rect x="72" y="47" width="416" height="171" rx="1.5"
+       <rect x="72" y="79" width="416" height="139" rx="1.5"
          fill="none" stroke="#fff" stroke-width="7"/>
        <path d="M72 218 H488" fill="none" stroke="#fff" stroke-width="3"/>
        ${ball}
