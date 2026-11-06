@@ -158,11 +158,13 @@ def summarize(rows, goalkeeper=False):
         attempts = len(subset)
         if attempts == 0 and key == "outros":
             continue
-        count = sum(r["no_alvo"] for r in subset)
+        on_goal = sum(r["no_alvo"] for r in subset)
+        count = sum(r["defesa"] if goalkeeper else r["no_alvo"] for r in subset)
+        denominator = on_goal if goalkeeper else attempts
         types.append({
             "chave": key, "label": label,
-            "tentativas": attempts, "acertos": count,
-            "acerto_pct": _pct(count, attempts),
+            "tentativas": attempts, "no_alvo": on_goal,
+            "acertos": count, "acerto_pct": _pct(count, denominator),
             "gols": sum(r["gol"] for r in subset),
         })
 
