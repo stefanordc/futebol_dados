@@ -655,6 +655,47 @@ def ligas_disponiveis():
     """)
 
 
+def clubes_disponiveis():
+    """Clubes que disputaram jogos concluídos, agrupados por campeonato.
+
+    A lista é carregada uma vez no metadata; o navegador filtra por
+    campeonatos selecionados sem fazer consultas a cada clique.
+    """
+    return fetch_all("""
+        WITH participacoes AS (
+            SELECT j.casa_id AS clube_id,j.campeonato_id
+            FROM jogos j WHERE j.data < CURRENT_DATE
+                AND j.gols_casa IS NOT NULL AND j.gols_fora IS NOT NULL
+            UNION
+            SELECT j.fora_id AS clube_id,j.campeonato_id
+            FROM jogos j WHERE j.data < CURRENT_DATE
+                AND j.gols_casa IS NOT NULL AND j.gols_fora IS NOT NULL
+        )
+        SELECT c.id,c.clube AS nome,
+               ARRAY_AGG(DISTINCT p.campeonato_id ORDER BY p.campeonato_id)
+                    AS campeonato_ids
+        FROM participacoes p JOIN clubes c ON c.id=p.clube_id
+        GROUP BY c.id,c.clube
+        ORDER BY c.clube,c.id
+    """)
+
+
+def clubes_selecionados(payload):
+    """IDs válidos, ou None quando nenhum filtro de clubes foi definido."""
+    if not isinstance(payload,dict):
+        raise ValueError("Dados inválidos.")
+    ids=payload.get("clube_ids",[])
+    if ids is None:
+        ids=[]
+    if not isinstance(ids,list) or len(ids)>1000:
+        raise ValueError("Selecione no máximo 1000 clubes.")
+    if any(type(club) is not int or club < 1 for club in ids):
+        raise ValueError("Clube inválido.")
+    if len(ids)!=len(set(ids)):
+        raise ValueError("Há clubes repetidos.")
+    return sorted(ids) if ids else None
+
+
 def ligas_selecionadas(payload):
     """Retorna lista de IDs, ou None quando o filtro significa todas as ligas.
 
@@ -732,6 +773,8 @@ def testar(payload,rows=None,capture=False):
     if market not in MERCADOS:raise ValueError("Selecione um objetivo válido.")
     leagues_selected=ligas_selecionadas(payload)
     allowed=set(leagues_selected) if leagues_selected is not None else None
+    clubs_selected=clubes_selecionados(payload)
+    allowed_clubs=set(clubs_selected) if clubs_selected is not None else None
     conditions=_valid_conditions(payload.get("condicoes"))
     manual=payload.get("odd_hipotetica")
     if manual in (None,""):manual=None
@@ -769,6 +812,12 @@ def testar(payload,rows=None,capture=False):
         games=list(games_iter)
         # Crucial: evaluate ALL same-day games BEFORE adding any to history.
         for g in games:
+            # Filtro de participantes vale só para as entradas: todas as
+            # partidas continuam alimentando o histórico pré-jogo abaixo.
+            if allowed_clubs is not None and not (
+                g["casa_id"] in allowed_clubs or g["fora_id"] in allowed_clubs
+            ):
+                continue
             fav_home=_favorite_home(g)
             if requires_classification and fav_home is None:
                 sem_classificacao+=1
@@ -856,6 +905,7 @@ def testar(payload,rows=None,capture=False):
                      else "todos os jogos disponíveis da temporada")
     response={"objetivo":market,"jogos":window,"corte":cutoff.isoformat(),
             "campeonato_ids":leagues_selected or [],
+            "clube_ids":clubs_selected or [],
             "resultados":summary,"total":total,"entradas":matched_total,
             "sem_classificacao":sem_classificacao,
             "limite_detalhes":400,"odd_hipotetica":manual,"stake_reais":100,
