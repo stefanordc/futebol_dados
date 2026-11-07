@@ -2084,3 +2084,32 @@ body[data-page="match"] .shot-pitch-labels a{font-weight:700}
   body[data-page="match"] .shot-layout{grid-template-columns:minmax(0,1fr)}
   body[data-page="match"] .shot-detail{position:static}
 }
+
+/* Sofascore integrado ao campo da escalação. */
+body[data-page="match"] .lineup-source-nav{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 18px;
+}
+body[data-page="match"] .lineup-source-nav .tab{min-height:40px}
+body[data-page="match"] .lineup-local[hidden],
+body[data-page="match"] .sofa-lineups[hidden]{display:none!important}
+body[data-page="match"] .lineup-source-hint{
+  font-size:13px;color:var(--muted,#9ca3af);line-height:1.55;margin:8px 0 16px
+}
+body[data-page="match"] .sofa-lineups-frame-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  background:var(--bg-card,#191f2a);
+  border:1px solid var(--line,#374151);border-radius:15px;
+  padding:clamp(10px,2vw,22px);max-width:930px;margin:0 auto
+}
+body[data-page="match"] .sofa-lineups-iframe{
+  display:block;border:0;min-height:786px;height:786px;
+  max-width:800px;width:100%;border-radius:8px;background:#fff
+}
+body[data-page="match"] .sofa-lineups-note{
+  margin:0;line-height:1.55;font-size:12px;color:var(--muted,#9ca3af);
+  text-align:center
+}
+@media(max-width:640px){
+  body[data-page="match"] .sofa-lineups-frame-wrap{padding:8px}
+  body[data-page="match"] .sofa-lineups-iframe{min-height:840px;height:840px}
+}
