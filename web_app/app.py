@@ -28,6 +28,7 @@ import queries_galileu
 import queries_galileu_gameplay
 import queries_galileu_melhorias
 import queries_tecnico_avancadas
+import queries_coach_radar
 import queries_vinculos
 import queries_integracoes
 from ipaddress import ip_address
@@ -878,6 +879,21 @@ def api_jogador(jogador_id: int, temporada: str | None = None):
     if not dados:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
     return dados
+
+
+@app.get("/api/tecnico/{tecnico_id}/radar")
+def api_tecnico_radar(
+    tecnico_id: int,
+    temporada: str = Query(..., min_length=1),
+    campeonato_id: int | None = Query(None, gt=0),
+    clube_id: int | None = Query(None, gt=0),
+):
+    try:
+        return queries_coach_radar.radar_tecnico(
+            tecnico_id, temporada, campeonato_id=campeonato_id, clube_id=clube_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/tecnico/{tecnico_id}/estatisticas-avancadas")
