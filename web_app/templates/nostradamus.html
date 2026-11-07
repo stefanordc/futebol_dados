@@ -25,7 +25,7 @@
 <div id="ns-workbench">
 <div id="ns-editing" class="ns-editing" hidden><span id="ns-editing-name"></span><button type="button" id="ns-new">Nova estratégia</button></div>
 <form id="ns-form" class="ns-panel">
-<div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período e objetivo</h2></div></div>
+<div class="ns-heading"><div><div class="df-eyebrow">PASSO 1</div><h2>Período, campeonatos, clubes e objetivo</h2></div></div>
 <div class="ns-fields">
 <label>Data de corte (inclusive)<input type="date" id="ns-corte" required></label>
 <label>Jogos anteriores por clube<select id="ns-janela" required><option value="5">Últimos 5 jogos</option><option value="10">Até 10 jogos (mín. 5)</option><option value="20" selected>Até 20 jogos (mín. 5)</option><option value="temporada">Temporada inteira (mín. 5)</option></select></label>
@@ -45,12 +45,32 @@
     </div>
   </div>
 </div>
+<div class="ns-league-field ns-club-field">
+  <span id="ns-club-label">Clubes</span>
+  <div class="ns-league-control" id="ns-club-control">
+    <button type="button" id="ns-club-trigger" class="ns-league-trigger" aria-controls="ns-club-options" aria-haspopup="true" aria-expanded="false" aria-labelledby="ns-club-label ns-club-summary">
+      <span id="ns-club-summary">Todos os clubes</span><span aria-hidden="true">▾</span>
+    </button>
+    <div id="ns-club-options" class="ns-league-options" hidden>
+      <div class="ns-league-actions">
+        <button id="ns-club-all" class="ns-league-all" type="button" title="Remover o filtro e considerar todos os clubes dos campeonatos selecionados">Sem filtro (todos)</button>
+        <button id="ns-club-select-all" class="ns-league-select-all" type="button">Selecionar todos</button>
+      </div>
+      <label class="ns-club-search-label" for="ns-club-search">Buscar clube
+        <input type="search" id="ns-club-search" class="ns-club-search" autocomplete="off" placeholder="Digite o nome do clube">
+      </label>
+      <div id="ns-club-items" class="ns-league-items" role="group" aria-label="Selecione os clubes para o backtesting"></div>
+      <div id="ns-club-hint" class="ns-league-hint">Por padrão, todos os clubes participam. Selecione clubes específicos para restringir os jogos.</div>
+    </div>
+  </div>
+</div>
 <label>Objetivo da estratégia<select id="ns-objetivo" required></select></label>
 <label>Nome da estratégia (obrigatório apenas para salvar)<input id="ns-nome" maxlength="80" placeholder="Opcional para simular · Ex.: Favorito com xG superior"></label>
 <label>Odd hipotética (opcional)<input id="ns-odd" type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" placeholder="Sem odd simulada"></label>
 <label>Comissão de lay (%) — fixa<input id="ns-comissao" type="number" inputmode="decimal" min="4.5" max="4.5" step="0.1" value="4.5" readonly aria-readonly="true" title="Configuração fixa de 4,5% nas simulações"></label>
 </div>
 <p class="x1-help ns-goleada-explain">Modelo de preço: as 16 odds Correct Score (0×0 a 3×3) estimam gols esperados e probabilidades de goleada por 3 ou mais gols, inclusive placares com 4+ gols. Back e Lay são simulações com spread ilustrativo de um tick. Não são cotações reais. Lay goleada: o mercado é vencedor quando a equipe escolhida NÃO vence por 3 ou mais gols de diferença. Favorito é o clube com menor odd de vitória; zebra é o clube com maior odd de vitória, seja mandante ou visitante. Não confunda zebra com visitante. Sem cotação desse mercado na API, o financeiro só é estimado se você informar uma odd hipotética.</p>
+<p class="x1-help">Filtro de clubes: se nenhum clube estiver marcado, todos os participantes dos campeonatos escolhidos poderão entrar no backtesting. Se houver clubes selecionados, apenas partidas com pelo menos um deles como mandante ou visitante serão simuladas. Os jogos anteriores dos demais clubes continuam disponíveis para calcular os indicadores pré-jogo.</p>
 <div class="ns-info">Cada entrada cotada representa R$ 100 (1 unidade). O Nostradamus classifica Favorito e Zebra pelas odds de vitória dos times no Match Odds do Supabase, com correspondência exata de clubes, data, liga e temporada. Empates nas odds ou ausência de preços não são classificados. Odds importadas historicamente não têm comprovação de disponibilidade pré-jogo; Lay é estimado, não executável. A odd hipotética opcional substitui o preço do banco para simulação. Sem cotação, não atribuimos ganho financeiro. Após escolher Favorito ou Zebra, selecione <strong>Mando de campo</strong>: Mandante, Visitante ou Indiferente. Para Ambos, o mando permanece Indiferente porque as duas equipes são avaliadas. Filtro <strong>Ambos</strong>: cada equipe precisa cumprir o limite individualmente. No campo <strong>Indicador</strong>, as estatísticas e as <strong>odds dos mercados</strong> aparecem juntas, em grupos. Ao escolher um mercado de odds, informe a odd mínima e/ou máxima. Em Lay, o preço segue estimado, não executável.</div>
 <div class="ns-heading"><div><div class="df-eyebrow">PASSO 2</div><h2>Condições da estratégia</h2><p class="x1-help">Escolha <strong>favorito ou zebra</strong> e o indicador. O favorito é quem possui a <strong>menor odd de vitória no Match Odds (1 e 2)</strong>, independentemente do mando. A indicação <strong>(Mandante)</strong> ou <strong>(Visitante)</strong> aparecerá ao lado de cada equipe no resultado. Depois selecione <strong>Valor absoluto</strong> (ex.: gols sofridos da zebra &gt; 1,5) ou <strong>Mesmo indicador do adversário</strong> (ex.: xG do favorito &gt; xG da zebra). No segundo caso, não é necessário informar números nem ajustes. Até 10 condições.</p></div></div>
 <div id="ns-conditions" class="ns-conditions"></div>
@@ -209,6 +229,6 @@
 </main></div></div>
 <div id="df-toast" role="status" aria-live="polite"></div>
 <script src="/static/js/shell.js?v=nostradamus-1" defer></script>
-<script src="/static/js/nostradamus.js?v=nostradamus-inplay-v6" defer></script>
+<script src="/static/js/nostradamus.js?v=club-filter-v1-20261107" defer></script>
 <script src="/static/js/nostradamus-aovivo.js?v=nostradamus-inplay-v6" defer></script>
 </body></html>
