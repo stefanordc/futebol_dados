@@ -12,6 +12,7 @@ def fixture():
         "casa_id": 4, "fora_id": 17,
         "casa": "Rayo Vallecano", "fora": "Celta Vigo",
         "sofa_casa_id": "2818", "sofa_fora_id": "2821",
+        "campeonato": "LaLiga", "campeonato_sofascore": None,
     }
 
 
@@ -29,64 +30,132 @@ class LineupResolutionTests(unittest.TestCase):
     def setUp(self):
         sofa._DAILY_CACHE.clear()
 
-    def test_direto_sem_bater_na_api_externa(self):
-        f=fixture()
-        f["id_sofascore"]=14083322
-        with patch.object(sofa,"_get_match",return_value=f), \
-             patch.object(sofa,"_same_match_id") as mirrored, \
+
+    def test_direto_sem_consultar_dados_fisicos(self):
+        match=fixture()
+        match["id_sofascore"]=16421100
+        with patch.object(sofa,"_get_match",return_value=match), \
+             patch.object(sofa,"_physical_match") as physical, \
+             patch.object(sofa,"_same_match_id") as duplicate:
+            result=sofa.resolve_match_id(202)
+        self.assertEqual(result["id"],16421100)
+        self.assertEqual(result["fonte"],"vinculo")
+        physical.assert_not_called()
+        duplicate.assert_not_called()
+
+    def test_league_laliga_identifica_espanhol_id_oito(self):
+        match=fixture()
+        row={"id_campeonato":8,"campeonato":"Espanhol"}
+        self.assertTrue(sofa._same_physical_league(row,match))
+        self.assertFalse(sofa._same_physical_league(
+            {"id_campeonato":23,"campeonato":"Italiano"},match
+        ))
+
+    def test_mandante_encontra_id_por_data_campeonato_e_clube(self):
+        with patch.object(sofa,"fetch_all",return_value=[
+            {"id_jogo":16421100,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Rayo Vallecano","id_clube":2818,"mando":"Casa"},
+            {"id_jogo":16421100,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Celta Vigo","id_clube":2821,"mando":"Fora"},
+        ]) as query:
+            match_id,source=sofa._physical_match(fixture())
+        self.assertEqual(match_id,16421100)
+        self.assertEqual(source,"dados_fisicos_mandante")
+        sql,args=query.call_args.args
+        self.assertIn("FROM dados_fisicos",sql)
+        self.assertIn("data = %s",sql)
+        self.assertEqual(args,(date(2026,10,31),))
+
+    def test_visitante_e_consultado_se_mandante_nao_constar(self):
+        with patch.object(sofa,"fetch_all",return_value=[
+            {"id_jogo":16421100,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Celta Vigo","id_clube":2821,"mando":"Fora"}
+        ]):
+            match_id,source=sofa._physical_match(fixture())
+        self.assertEqual(match_id,16421100)
+        self.assertEqual(source,"dados_fisicos_visitante")
+
+    def test_nao_aceita_mandante_com_visitante_incorreto(self):
+        with patch.object(sofa,"fetch_all",return_value=[
+            {"id_jogo":16421100,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Rayo Vallecano","id_clube":2818,"mando":"Casa"},
+            {"id_jogo":16421100,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Outro Clube","id_clube":999,"mando":"Fora"},
+        ]):
+            identifier,source=sofa._physical_match(fixture())
+        self.assertIsNone(identifier)
+        self.assertEqual(source,"dados_fisicos_nao_encontrado")
+
+    def test_nao_usa_id_de_outra_liga_ou_clube(self):
+        with patch.object(sofa,"fetch_all",return_value=[
+            {"id_jogo":123,"id_campeonato":23,"campeonato":"Italiano",
+             "clube":"Rayo Vallecano","id_clube":2818,"mando":"Casa"},
+            {"id_jogo":321,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Outro","id_clube":999,"mando":"Casa"},
+        ]):
+            identifier,source=sofa._physical_match(fixture())
+        self.assertIsNone(identifier)
+        self.assertEqual(source,"dados_fisicos_nao_encontrado")
+
+    def test_ids_ambiguos_nao_sao_escolhidos_ao_acaso(self):
+        with patch.object(sofa,"fetch_all",return_value=[
+            {"id_jogo":222,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Rayo Vallecano","id_clube":2818,"mando":"Casa"},
+            {"id_jogo":333,"id_campeonato":8,"campeonato":"Espanhol",
+             "clube":"Rayo Vallecano","id_clube":2818,"mando":"Casa"},
+        ]):
+            identifier,source=sofa._physical_match(fixture())
+        self.assertIsNone(identifier)
+        self.assertEqual(source,"dados_fisicos_ambiguo")
+
+    def test_resolver_prioriza_dados_fisicos_antes_de_outra_tabela(self):
+        with patch.object(sofa,"_get_match",return_value=fixture()), \
+             patch.object(sofa,"_physical_match",
+                          return_value=(16421100,"dados_fisicos_mandante")), \
+             patch.object(sofa,"_same_match_id") as previous, \
              patch.object(sofa,"_external_match") as external:
             result=sofa.resolve_match_id(202)
-        self.assertEqual(result["id"],14083322)
-        self.assertEqual(result["fonte"],"vinculo")
-        mirrored.assert_not_called()
+        self.assertEqual(result["id"],16421100)
+        self.assertEqual(result["fonte"],"dados_fisicos_mandante")
+        previous.assert_not_called()
         external.assert_not_called()
 
-    def test_busca_correspondente_na_mesma_data_sem_violar_unique(self):
+    def test_jogo_correspondente_se_nao_houver_dados_fisicos(self):
         with patch.object(sofa,"_get_match",return_value=fixture()), \
-             patch.object(sofa,"_same_match_id",return_value=14083322), \
-             patch.object(sofa,"_external_match") as external:
+             patch.object(sofa,"_physical_match",
+                          return_value=(None,"dados_fisicos_nao_encontrado")), \
+             patch.object(sofa,"_same_match_id",return_value=14083322):
             result=sofa.resolve_match_id(202)
         self.assertEqual(result["id"],14083322)
         self.assertEqual(result["fonte"],"jogo_correspondente")
-        external.assert_not_called()
 
-    def test_sofa_match_por_ids_dos_clubes_e_data(self):
+    def test_sem_dados_fisicos_nem_clubes_mostra_alerta(self):
         with patch.object(sofa,"_get_match",return_value=fixture()), \
+             patch.object(sofa,"_physical_match",
+                          return_value=(None,"dados_fisicos_nao_encontrado")), \
              patch.object(sofa,"_same_match_id",return_value=None), \
-             patch.object(sofa,"_events",side_effect=[
-                 [event(15000000),event(13000000,home_id=999)],
-             ]):
-            result=sofa.resolve_match_id(202)
-        self.assertEqual(result["id"],15000000)
-        self.assertEqual(result["fonte"],"sofascore_api")
-
-    def test_nao_adivinha_id_de_outro_jogo(self):
-        with patch.object(sofa,"_events",side_effect=[
-            [event(13000000,home_id=999)],[],[]
-        ]):
-            ident,status=sofa._external_match(fixture())
-        self.assertIsNone(ident)
-        self.assertEqual(status,"not_found")
-
-    def test_resposta_indisponivel_encerra_e_mostra_opcao_manual(self):
-        with patch.object(sofa,"_get_match",return_value=fixture()), \
-             patch.object(sofa,"_same_match_id",return_value=None), \
-             patch.object(sofa,"_events",return_value=None) as events:
+             patch.object(sofa,"_external_match") as external:
             result=sofa.resolve_match_id(202)
         self.assertIsNone(result["id"])
-        self.assertEqual(result["fonte"],"upstream_unavailable")
-        events.assert_called_once()
+        self.assertEqual(result["fonte"],"dados_fisicos_nao_encontrado")
+        self.assertIn("ALERTA",result["mensagem"])
+        self.assertIn("mandante",result["mensagem"])
+        self.assertIn("visitante",result["mensagem"])
+        external.assert_not_called()
 
-    def test_id_ambiguo_nao_e_usado(self):
-        with patch.object(sofa,"_events",return_value=[
-            event(111),event(222)
-        ]):
-            ident,status=sofa._external_match(fixture())
-        self.assertIsNone(ident)
-        self.assertEqual(status,"ambiguous")
-
-    def test_sem_correspondencia_sem_api_retorna_vazio(self):
+    def test_ambiguidade_gera_alerta(self):
         with patch.object(sofa,"_get_match",return_value=fixture()), \
+             patch.object(sofa,"_physical_match",
+                          return_value=(None,"dados_fisicos_ambiguo")), \
+             patch.object(sofa,"_same_match_id",return_value=None):
+            result=sofa.resolve_match_id(202)
+        self.assertIn("múltiplos",result["mensagem"])
+        self.assertIsNone(result["id"])
+
+    def test_sem_api_retorna_alerta_igual(self):
+        with patch.object(sofa,"_get_match",return_value=fixture()), \
+             patch.object(sofa,"_physical_match",
+                          return_value=(None,"dados_fisicos_nao_encontrado")), \
              patch.object(sofa,"_same_match_id",return_value=None), \
              patch.object(sofa,"_external_match") as external:
             result=sofa.resolve_match_id(202,online=False)
