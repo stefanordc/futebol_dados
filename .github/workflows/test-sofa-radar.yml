@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'web_app/queries_coach_radar.py'
+      - 'web_app/queries_sofascore_lineups.py'
       - 'web_app/static/js/match.js'
       - 'web_app/static/js/profile-radar.js'
       - 'web_app/app.py'
@@ -12,11 +13,14 @@ on:
       - 'web_app/static/css/app.css'
       - 'web_app/tests/test_coach_radar.py'
       - 'web_app/tests/test_sofa_lineups_coach_radar.js'
+      - 'web_app/tests/test_sofascore_lineups.py'
+      - 'web_app/tests/test_shot_visuals.js'
       - '.github/workflows/test-sofa-radar.yml'
   push:
     branches: [main]
     paths:
       - 'web_app/queries_coach_radar.py'
+      - 'web_app/queries_sofascore_lineups.py'
       - 'web_app/static/js/match.js'
       - 'web_app/static/js/profile-radar.js'
       - 'web_app/app.py'
@@ -25,6 +29,8 @@ on:
       - 'web_app/static/css/app.css'
       - 'web_app/tests/test_coach_radar.py'
       - 'web_app/tests/test_sofa_lineups_coach_radar.js'
+      - 'web_app/tests/test_sofascore_lineups.py'
+      - 'web_app/tests/test_shot_visuals.js'
       - '.github/workflows/test-sofa-radar.yml'
   workflow_dispatch:
 
@@ -42,10 +48,13 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r web_app/requirements.txt
       - name: Verificar sintaxe do backend
-        run: python -m compileall -q web_app/app.py web_app/queries_coach_radar.py web_app/queries.py
+        run: python -m compileall -q web_app/app.py web_app/queries_coach_radar.py web_app/queries.py web_app/queries_sofascore_lineups.py
       - name: Testar agregação do radar
         working-directory: web_app
         run: python -m unittest discover -s tests -p 'test_coach_radar.py' -v
+      - name: Testar busca e vínculo do Sofascore
+        working-directory: web_app
+        run: python -m unittest discover -s tests -p 'test_sofascore_lineups.py' -v
       - name: Validar os módulos JavaScript
         working-directory: web_app
         run: |
@@ -54,3 +63,6 @@ jobs:
       - name: Testar widget e radar
         working-directory: web_app
         run: node tests/test_sofa_lineups_coach_radar.js
+      - name: Testar mapas de finalização após cache
+        working-directory: web_app
+        run: node tests/test_shot_visuals.js
