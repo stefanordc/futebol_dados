@@ -1,4 +1,4 @@
-import "./shot-visuals.js?v=player-visuals-v1-20261106";
+import "./shot-visuals.js?v=player-visuals-v2-20261106";
 // Dados do jogador: mapas partilhados com os detalhes de partida.
 
 const escapeHTML=x=>String(x??"").replace(/[&<>"']/g,c=>({
@@ -50,7 +50,7 @@ function selectedCard(shot,gk){
     <a href="/jogo/${Number(shot.jogo_id)}">Ver partida</a></div>`;
 }
 function dot(shot,view,goal){
-  const position=goal?window.DFShotMap.goalPosition(shot):window.DFShotMap.shotPos(shot);
+  const position=goal?window.DFShotMap.goalPosition(shot):window.DFShotMap.shotPosAttacking(shot);
   if(!position||(goal&&!position.visible))return "";
   const left=goal?100*position.x/560:position.left;
   const top=goal?100*position.y/275:position.top;
@@ -72,7 +72,7 @@ function maps(title,all,gk,view,filter,id,description){
     <div class="player-shot-map-grid">
       <div class="player-shot-field-panel">
         <h3>Origem da finalização</h3>
-        <div class="player-shot-field">${window.DFShotMap.pitchSvg()}${pitchDots}</div>
+        <div class="player-shot-field">${window.DFShotMap.halfPitchSvg()}${pitchDots}</div>
         <p class="player-shot-help">${integer(rows.length)} finalizações no filtro.</p>
       </div>
       <div class="player-shot-goal-column">
@@ -149,8 +149,8 @@ function renderContent(data,filters,chosen,mode){
   let out=`<section class="section player-shot-overview">
     <h2 class="section-title">${gk?"Desempenho das defesas":"Desempenho das finalizações"}</h2>
     <div class="player-shot-summary">${headline.map(x=>kpi(...x)).join("")}</div>
-    <p class="player-shot-help">${escapeHTML(data.cobertura)} Os totais consideram todas as finalizações
-      disponíveis na temporada; os mapas exibem até as 900 mais recentes.</p>
+    <p class="player-shot-help">${escapeHTML(data.cobertura)} Os totais são calculados pela fonte indicada; os mapas exibem até as 900 finalizações mais recentes.
+      Os pontos da origem aparecem normalizados na metade ofensiva do campo.</p>
     <h3 class="player-shot-subheading">${gk?"Defesas por tipo de chute recebido":"Acerto por tipo de finalização"}</h3>
     <div class="player-shot-cards">${(data.tipos||[]).map(x=>card(
       x.label,x.acerto_pct,x.acertos,gk?x.no_alvo:x.tentativas,
@@ -158,7 +158,7 @@ function renderContent(data,filters,chosen,mode){
   </section>`;
   out+=maps(gk?"Mapa das finalizações adversárias":"Mapa das finalizações",
     data.mapa||[],gk,"principal",filters.principal,chosen.principal,
-    gk?"Chutes com goleiro identificado, resultados e posições da bola.":
+    gk?"Finalizações adversárias durante as partidas do goleiro, com o lado ofensivo normalizado.":
        "Mapa de chutes e gol frontal compartilhado com as páginas de partida.");
   if(!r.tentativas)out+=`<p class="player-shot-help">Nenhuma finalização identificada na temporada selecionada.</p>`;
   return out;
