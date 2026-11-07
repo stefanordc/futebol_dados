@@ -116,9 +116,68 @@ class TestPlayersShots(unittest.TestCase):
         self.assertEqual(answer["temporada"],"2026")
         sql,values=q.call_args.args
         self.assertIn("f.goleiro_id = %s",sql)
+        self.assertIn("jogadores_fontes",sql)
+        self.assertIn("ki.minutos >= 90",sql)
         self.assertIn("jo.temporada = %s",sql)
-        self.assertEqual(values,(11,"2026"))
+        self.assertEqual(values,(11,11,11,"2026"))
         self.assertEqual(answer["mapa_total"],1)
+
+
+    def test_goleiro_com_id_fotmob_alternativo_recebe_totais_oficiais(self):
+        player={"id":286,"nome":"Álvaro Vallés","posicao":"Goleiro"}
+        official={
+            "jogos":11,"defesas":47,"gols_sofridos":15,
+            "penaltis_defendidos":1,
+        }
+        with patch.object(shots,"fetch_one",side_effect=[player,official]), \
+             patch.object(shots,"fetch_all",return_value=[
+                 lance(1,event="Defendida",goalie=331),
+                 lance(2,event="Gol",goalie=331),
+                 lance(3,event="Para fora",goalie=None),
+             ]) as query:
+            result=shots.consultar(286,"2026/2027")
+        self.assertEqual(result["resumo"]["defesas"],47)
+        self.assertEqual(result["resumo"]["gols"],15)
+        self.assertEqual(result["resumo"]["no_alvo"],62)
+        self.assertEqual(result["resumo"]["acerto_pct"],75.8)
+        self.assertEqual(result["jogos"],11)
+        self.assertEqual(result["penaltis_defendidos_individual"],1)
+        self.assertEqual(result["fonte_totais"],"individual")
+        self.assertEqual(result["mapa_total"],3)
+        sql,params=query.call_args.args
+        self.assertIn("JOIN individual ki",sql)
+        self.assertIn("related.id_externo",sql)
+        self.assertIn("'[.]0
+        with patch.object(shots,"fetch_one",return_value={
+            "id":11,"nome":"Exemplo","posicao":"Centroavante"
+        }),patch.object(shots,"fetch_all",return_value=[]) as q:
+            result=shots.consultar(11,"2026")
+        self.assertEqual(result["tipo"],"linha")
+        self.assertIn("f.jogador_id = %s",q.call_args.args[0])
+        self.assertNotIn("f.goleiro_id = %s",q.call_args.args[0])
+
+if __name__=="__main__":
+    unittest.main()
+",sql)
+        self.assertEqual(params,(286,286,286,"2026/2027"))
+
+    def test_goleiro_sem_dados_individuais_usa_apenas_os_lances_auditados(self):
+        player={"id":14,"nome":"Sem dados","posicao":"Goleiro"}
+        with patch.object(shots,"fetch_one",side_effect=[player,{
+            "jogos":0,"defesas":None,"gols_sofridos":None,
+            "penaltis_defendidos":None
+        }]),patch.object(shots,"fetch_all",return_value=[lance(1,event="Defendida")]):
+            result=shots.consultar(14,"2026")
+        self.assertEqual(result["resumo"]["defesas"],1)
+        self.assertNotIn("fonte_totais",result)
+
+    def test_penaltis_do_goleiro_encontrados_no_id_alternativo(self):
+        with patch.object(shots,"fetch_one",return_value={"disponivel":True}) as query:
+            self.assertTrue(shots.tem_penaltis_goleiro(286,"2026/2027"))
+        sql,params=query.call_args.args
+        self.assertIn("ki.jogador_id=%s",sql)
+        self.assertIn("related.jogador_id",sql)
+        self.assertEqual(params,(286,286,286,"2026/2027"))
 
     def test_consulta_jogador_de_linha_nao_vaza_lances_de_outro_jogador(self):
         with patch.object(shots,"fetch_one",return_value={
