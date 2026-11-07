@@ -43,11 +43,13 @@ assert.ok(match.includes('fetch(`/api/jogo/${jogo.id}/sofascore-escalacao`)'),
   "Consultar correspondência de partida pelo backend");
 assert.ok(match.includes('method:"POST"'),
   "Permitir salvar ID fornecido pelo usuário");
+assert.ok(match.includes("lineup-sofa-status-warning"),"Exibir aviso visual quando não encontra ID");
+assert.ok(css.includes(".lineup-sofa-status-warning"),"Alerta deve ser visualmente destacado");
 assert.ok(match.includes('activateSofaLineups(data.id)'),
   "Ativar widget sem recarregar a página");
 assert.ok(css.includes(".sofa-lineups-iframe"));
 assert.ok(css.includes(".lineup-local[hidden]"));
-assert.ok(matchHtml.includes("match.js?v=sofa-lookup-v1-20261106"));
+assert.ok(matchHtml.includes("match.js?v=sofa-dados-fisicos-v1-20261106"));
 assert.ok(entityHtml.includes("profile-radar.js?v=sofa-radar-v1-20261106"));
 
 const cs=radar.indexOf("async function coachRadar(");
