@@ -824,14 +824,22 @@ function render(jogo) {
           activateSofaLineups(data.id);
         }else{
           const status=lineupSection?.querySelector("#lineup-sofa-status");
-          if(status)status.textContent=(data.mensagem||"Partida sem ID no Sofascore.")+
-            " O campo do site permanece disponível abaixo.";
+          if(status){
+            status.textContent=(data.mensagem||"ALERTA: ID do Sofascore não localizado.")+
+              " O campo do site permanece disponível abaixo.";
+            status.classList.add("lineup-sofa-status-warning");
+            status.setAttribute("role","alert");
+          }
         }
       })
       .catch(error=>{
         const status=lineupSection?.querySelector("#lineup-sofa-status");
-        if(status)status.textContent=error.message+
-          " É possível vincular o ID manualmente abaixo.";
+        if(status){
+          status.textContent="ALERTA: "+error.message+
+            " É possível vincular o ID manualmente abaixo.";
+          status.classList.add("lineup-sofa-status-warning");
+          status.setAttribute("role","alert");
+        }
       });
   }
 
