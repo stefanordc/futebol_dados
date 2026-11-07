@@ -595,10 +595,24 @@ function sectionEscalacao(esc, jogo) {
             ↓ = saiu · ↑ = entrou.</p>
           ${original}
         </div>`:
-        `<p class="lineup-source-hint">Este jogo ainda não possui ID Sofascore vinculado.
-          Exibindo a escalação disponível no banco. Clique nos jogadores para consultar estatísticas.
-          ↓ = saiu · ↑ = entrou.</p>
-        ${original}`}
+        `<div id="lineup-sofa-lookup" class="lineup-sofa-lookup">
+          <p class="lineup-source-hint" id="lineup-sofa-status" role="status" aria-live="polite">
+            Verificando automaticamente a escalação do Sofascore…
+          </p>
+          <details class="lineup-sofa-manual">
+            <summary>Vincular partida pelo link ou ID do Sofascore</summary>
+            <form id="lineup-sofa-form">
+              <label for="lineup-sofa-url">Link do Sofascore com #id: ou ID numérico</label>
+              <div class="lineup-sofa-form-row">
+                <input id="lineup-sofa-url" type="text" required autocomplete="off"
+                  placeholder="https://www.sofascore.com/...#id:12345678" />
+                <button class="tab" type="submit">Vincular</button>
+              </div>
+              <p class="lineup-sofa-form-msg" id="lineup-sofa-form-msg" role="status"></p>
+            </form>
+          </details>
+        </div>
+        <div class="lineup-local" id="lineup-local">${original}</div>`}
     </section>`;
 
 }
@@ -734,22 +748,92 @@ function render(jogo) {
   });
 
 
-  const lineupNav=document.querySelector(".lineup-source-nav");
-  lineupNav?.addEventListener("click",ev=>{
-    const button=ev.target.closest("[data-lineup-mode]");
-    if(!button)return;
-    const mode=button.dataset.lineupMode;
-    const sofa=document.querySelector("#sofa-lineups");
-    const local=document.querySelector("#lineup-local");
-    if(!sofa||!local)return;
+  const lineupSection=document.querySelector('[data-sec="escalacao"]');
+  const changeLineupMode=mode=>{
+    const nav=lineupSection?.querySelector(".lineup-source-nav");
+    const sofa=lineupSection?.querySelector("#sofa-lineups");
+    const local=lineupSection?.querySelector("#lineup-local");
+    if(!nav||!sofa||!local)return;
     sofa.hidden=mode!=="sofascore";
     local.hidden=mode!=="local";
-    lineupNav.querySelectorAll("[data-lineup-mode]").forEach(tab=>{
+    nav.querySelectorAll("[data-lineup-mode]").forEach(tab=>{
       const active=tab.dataset.lineupMode===mode;
       tab.classList.toggle("active",active);
       tab.setAttribute("aria-pressed",String(active));
     });
+  };
+  const activateSofaLineups=id=>{
+    const number=idSofascore(id);
+    const area=lineupSection?.querySelector("#lineup-sofa-lookup");
+    if(!number||!area||lineupSection.querySelector("#sofa-lineups"))return;
+    area.innerHTML=`
+      <div class="lineup-source-nav" role="group" aria-label="Modelo de escalação">
+        <button class="tab active" type="button" data-lineup-mode="sofascore"
+          aria-pressed="true">Campo do Sofascore</button>
+        <button class="tab" type="button" data-lineup-mode="local"
+          aria-pressed="false">Campo do site</button>
+      </div>
+      <div class="sofa-lineups" id="sofa-lineups">
+        ${sofaLineupsMarkup(number)}
+      </div>`;
+    changeLineupMode("sofascore");
+  };
+
+  lineupSection?.addEventListener("click",ev=>{
+    const button=ev.target.closest("[data-lineup-mode]");
+    if(button)changeLineupMode(button.dataset.lineupMode);
   });
+  lineupSection?.addEventListener("submit",async ev=>{
+    const form=ev.target.closest("#lineup-sofa-form");
+    if(!form)return;
+    ev.preventDefault();
+    const message=lineupSection.querySelector("#lineup-sofa-form-msg");
+    const link=form.querySelector("#lineup-sofa-url")?.value?.trim()||"";
+    const submit=form.querySelector('button[type="submit"]');
+    if(!link||!message||!submit)return;
+    submit.disabled=true;
+    message.textContent="Validando o vínculo…";
+    try{
+      const response=await fetch(`/api/jogo/${jogo.id}/sofascore-escalacao`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({link}),
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(typeof result.detail==="string"?result.detail:
+        "Não foi possível vincular este jogo.");
+      if(!idSofascore(result.id))throw new Error("O servidor não retornou um ID válido.");
+      activateSofaLineups(result.id);
+    }catch(error){
+      message.textContent=error.message;
+    }finally{
+      submit.disabled=false;
+    }
+  });
+
+  if(!idSofascore(jogo.id_sofascore)){
+    // Atualiza sem recarregar a página e sem perder os eventos dos jogadores.
+    // Jogos importados duas vezes podem compartilhar o ID no banco por leitura.
+    fetch(`/api/jogo/${jogo.id}/sofascore-escalacao`)
+      .then(async response=>{
+        if(!response.ok)throw new Error("Não foi possível consultar o vínculo.");
+        return response.json();
+      })
+      .then(data=>{
+        if(idSofascore(data.id)){
+          activateSofaLineups(data.id);
+        }else{
+          const status=lineupSection?.querySelector("#lineup-sofa-status");
+          if(status)status.textContent=(data.mensagem||"Partida sem ID no Sofascore.")+
+            " O campo do site permanece disponível abaixo.";
+        }
+      })
+      .catch(error=>{
+        const status=lineupSection?.querySelector("#lineup-sofa-status");
+        if(status)status.textContent=error.message+
+          " É possível vincular o ID manualmente abaixo.";
+      });
+  }
 
   const pitch = $("#pitch");
   if (pitch) {
