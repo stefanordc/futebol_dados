@@ -153,68 +153,54 @@
     return {title:'Atributos do jogador — 3 ofensivos e 3 defensivos',subtitle:`${fmt(minutes,0)} min jogados · valores normalizados por 90 minutos`,labels:PLAYER_LABELS,values:scores,notes:PLAYER_NOTES,warning};
   }
 
-  function coachMatchStats(detail,coachId){
-    const side=Number(detail.tecnico_casa_id)===coachId?'Casa':Number(detail.tecnico_fora_id)===coachId?'Fora':null;
-    if(!side)return null;
-    const c=side==='Casa'?'Fora':'Casa';
-    const gf=number(detail[side==='Casa'?'gols_casa':'gols_fora']);
-    const ga=number(detail[side==='Casa'?'gols_fora':'gols_casa']);
-    const e=detail.estatisticas?.completo?.[side]||{};
-    return {
-      gf,ga, clean:ga===0?1:0,win:gf>ga?1:0,draw:gf===ga?1:0,
-      shots:number(e.total_chutes),xg:number(e.xg),chances:number(e.grandes_chances),
-      blocks:number(e.bloqueios),intercepts:number(e.interceptacoes),passes:number(e.passes_certos),
-      poss:number(e.posse_bola),
-    };
-  }
+
   async function coachRadar(progress,token){
-    const profile=await get(api('tecnico'));
-    const selectedLeague=$('#df-profile-camp')?.value||'';
-    const selectedClub=$('#df-profile-club')?.value||'';
-    const lines=(profile.linhas||[]).filter(l=>(!selectedLeague||String(l.campeonato_id)===selectedLeague)&&(!selectedClub||String(l.clube_id)===selectedClub));
-    const clubs=[...new Map(lines.map(l=>[l.clube_id,l])).values()];
-    if(!clubs.length)return {title:'Estilo de jogo do técnico',subtitle:'Sem jogos na temporada',labels:CLUB_LABELS,values:Array(6).fill(null),notes:CLUB_NOTES,warning:'Não há partidas registradas para o técnico.'};
-    const matchDates=new Map();
-    const clubJobs=clubs.map(async line=>{
-      const q=new URLSearchParams({aba:'jogos'});
-      if(profile.temporada)q.set('temporada',profile.temporada);
-      if(selectedLeague)q.set('campeonato_id',selectedLeague);
-      const data=await get(`/api/clube/${line.clube_id}?${q}`);
-      for(const m of data.jogos?.linhas||[])matchDates.set(Number(m.id),String(m.data||''));
-    });
-    await Promise.all(clubJobs);
-    const all=[...matchDates.keys()].filter(Boolean).sort((a,b)=>matchDates.get(b).localeCompare(matchDates.get(a)) || b-a);
-    // Seleção de amostra limitada para proteger o backend. O número é informado no cartão.
-    const candidates=all.slice(0,maxFetches);
-    let pos=0,done=0,fail=0;
-    const own=[];
-    await Promise.all(Array.from({length:4},async()=>{
-      while(pos<candidates.length && token===sequence){
-        const id=candidates[pos++];
-        try{
-          const detail=await get(`/api/jogo/${id}`);
-          const m=coachMatchStats(detail,idInUrl);
-          if(m)own.push(m);
-        }catch{fail++;}
-        done++;
-        if(done%5===0)progress?.(`Verificando partidas do técnico: ${done}/${candidates.length}`);
-      }
-    }));
-    if(token!==sequence)return null;
-    const games=own.length;
-    const sum=(k)=>{const xs=own.map(x=>x[k]).filter(x=>x!=null);return xs.length?xs.reduce((a,b)=>a+b,0):null;};
-    const vals=sixTeam({games,goalsFor:sum('gf'),goalsAgainst:sum('ga'),sheets:sum('clean'),wins:sum('win')||0,draws:sum('draw')||0,shots:sum('shots'),shotsGames:own.filter(m=>m.shots!=null).length,xg:sum('xg'),xgGames:own.filter(m=>m.xg!=null).length,chances:sum('chances'),chancesGames:own.filter(m=>m.chances!=null).length,blocks:sum('blocks'),blocksGames:own.filter(m=>m.blocks!=null).length,intercepts:sum('intercepts'),interceptsGames:own.filter(m=>m.intercepts!=null).length,passes:sum('passes'),passesGames:own.filter(m=>m.passes!=null).length});
-    const offensive=combine(vals[0],vals[2],vals[3]);
-    const defensive=combine(vals[1],vals[4]);
-    let style='Indeterminado',description='Os dados disponíveis não permitem distinguir o estilo.';
-    if(offensive!=null && defensive!=null){
-      const d=offensive-defensive;
-      style=d>=12?'Predominantemente ofensivo':d<=-12?'Predominantemente defensivo':'Equilibrado';
-      description=`Índice ofensivo ${offensive}/100 · defensivo ${defensive}/100. Diferença ${d>0?'+':''}${d} pontos. É uma estimativa estatística, não uma identificação da tática.`;
+    // Agregar apenas partidas comandadas por este técnico. Uma consulta,
+    // no lugar de várias páginas de clubes e 100 detalhes de partidas.
+    const q=scope();
+    const league=$('#df-profile-camp')?.value||'';
+    const club=$('#df-profile-club')?.value||'';
+    if(league)q.set('campeonato_id',league);
+    if(club)q.set('clube_id',club);
+    if(!q.get('temporada')){
+      return {title:'Estilo de jogo do técnico',subtitle:'Temporada não selecionada',
+        labels:CLUB_LABELS,values:Array(6).fill(null),notes:CLUB_NOTES,
+        warning:'Selecione uma temporada para calcular o radar.'};
     }
-    return {title:'Estilo de jogo do técnico',subtitle:`${games} partidas confirmadas sob seu comando`,labels:CLUB_LABELS,values:vals,notes:CLUB_NOTES,
-      style,description,
-      warning:[all.length>maxFetches?`Amostra limitada às ${maxFetches} partidas candidatas mais recentes.`:null,fail?`${fail} partidas não puderam ser consultadas.`:null,games<5?'Amostra pequena (menos de cinco partidas).':null].filter(Boolean).join(' ')};
+    progress?.('Agregando partidas comandadas pelo técnico…');
+    const data=await get(`/api/tecnico/${idInUrl}/radar?${q.toString()}`);
+    if(token!==sequence)return null;
+    const stats=data.metricas||{},games=number(data.jogos)||0;
+    if(games===0){
+      return {title:'Estilo de jogo do técnico',subtitle:'Sem jogos finalizados no recorte',
+        labels:CLUB_LABELS,values:Array(6).fill(null),notes:CLUB_NOTES,
+        warning:data.aviso||'Não foram encontradas partidas para o técnico.'};
+    }
+    const vals=sixTeam({
+      games,
+      goalsFor:number(stats.gols_marcados),goalsAgainst:number(stats.gols_sofridos),
+      sheets:number(stats.clean_sheets),wins:number(stats.vitorias)||0,
+      draws:number(stats.empates)||0,
+      shots:number(stats.finalizacoes),shotsGames:number(stats.jogos_finalizacoes),
+      xg:number(stats.xg),xgGames:number(stats.jogos_xg),
+      chances:number(stats.grandes_chances),chancesGames:number(stats.jogos_chances),
+      blocks:number(stats.bloqueios),blocksGames:number(stats.jogos_bloqueios),
+      intercepts:number(stats.interceptacoes),interceptsGames:number(stats.jogos_interceptacoes),
+      passes:number(stats.passes_certos),passesGames:number(stats.jogos_passes),
+    });
+    const offensive=combine(vals[0],vals[2],vals[3]),defensive=combine(vals[1],vals[4]);
+    let style='Indeterminado',description='Amostra insuficiente para distinguir o estilo.';
+    if(offensive!=null&&defensive!=null){
+      const delta=offensive-defensive;
+      style=delta>=12?'Predominantemente ofensivo':delta<=-12?'Predominantemente defensivo':'Equilibrado';
+      description=`Índice ofensivo ${offensive}/100 · defensivo ${defensive}/100. Diferença ${delta>0?'+':''}${delta} pontos. Estimativa estatística, não avaliação da tática.`;
+    }
+    return {
+      title:'Estilo de jogo do técnico',
+      subtitle:`${games} partidas confirmadas sob seu comando · cálculo direto no banco`,
+      labels:CLUB_LABELS,values:vals,notes:CLUB_NOTES,
+      style,description,warning:data.aviso||null,
+    };
   }
   const SPECIAL_LABELS=[
     'Força ofensiva','Força defensiva','Bola parada ofensiva',
@@ -309,7 +295,7 @@
       renderKey='';++sequence;
       return;
     }
-    const q=scope(),sig=`${kind}:${idInUrl}?${q.toString()}`;
+    const q=scope(),sig=`${kind}:${idInUrl}?${q.toString()}&league=${$('#df-profile-camp')?.value||''}&club=${$('#df-profile-club')?.value||''}`;
     if(node && renderKey===sig)return;
     renderKey=sig;
     const token=++sequence;
