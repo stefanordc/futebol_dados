@@ -34,11 +34,20 @@ assert.ok(html.includes('id="lineup-local" hidden'));
 assert.ok(html.includes("lineup-grid"),"Manter campo e jogadores originais");
 const missing=lineup.sectionEscalacao({casa:empty,fora:empty},{...game,id_sofascore:null});
 assert.ok(!missing.includes("sofa-lineups-embed"),"Não usar ID de outra partida");
-assert.ok(missing.includes("não possui ID Sofascore"));
+assert.ok(missing.includes("Verificando automaticamente a escalação do Sofascore"));
 assert.ok(missing.includes("lineup-grid"));
+assert.ok(missing.includes('id="lineup-sofa-lookup"'),"Resolver deve aparecer em jogos sem ID");
+assert.ok(missing.includes('id="lineup-sofa-form"'),"Permitir vínculo manual pelo URL Sofascore");
+assert.ok(missing.includes('id="lineup-local"'),"Campo interno permanece como alternativa");
+assert.ok(match.includes('fetch(`/api/jogo/${jogo.id}/sofascore-escalacao`)'),
+  "Consultar correspondência de partida pelo backend");
+assert.ok(match.includes('method:"POST"'),
+  "Permitir salvar ID fornecido pelo usuário");
+assert.ok(match.includes('activateSofaLineups(data.id)'),
+  "Ativar widget sem recarregar a página");
 assert.ok(css.includes(".sofa-lineups-iframe"));
 assert.ok(css.includes(".lineup-local[hidden]"));
-assert.ok(matchHtml.includes("match.js?v=sofa-radar-v1-20261106"));
+assert.ok(matchHtml.includes("match.js?v=sofa-lookup-v1-20261106"));
 assert.ok(entityHtml.includes("profile-radar.js?v=sofa-radar-v1-20261106"));
 
 const cs=radar.indexOf("async function coachRadar(");
