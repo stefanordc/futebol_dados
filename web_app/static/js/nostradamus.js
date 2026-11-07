@@ -167,6 +167,85 @@ function drawCount(target="#ns-conditions"){
   $(prefix+"-count").textContent=n+"/10 condições";
   $(prefix+"-add").disabled=n>=10;
 }
+// [] significa todos os clubes dos campeonatos marcados.
+let chosenClubIds=new Set();
+const selectedClubs=()=>[...chosenClubIds].sort((a,b)=>a-b);
+function availableClubs(){
+  const leagues=new Set(selectedLeagues());
+  return (meta?.clubes||[]).filter(club=>
+    !leagues.size||(club.campeonato_ids||[]).some(id=>leagues.has(Number(id))));
+}
+function drawClubSummary(){
+  const clubs=availableClubs(),selected=selectedClubs();
+  const summary=$("#ns-club-summary");
+  if(!selected.length)summary.textContent="Todos os "+clubs.length+" clubes";
+  else if(selected.length===1)
+    summary.textContent=clubs.find(c=>Number(c.id)===selected[0])?.nome||"1 clube selecionado";
+  else summary.textContent=selected.length+" clubes selecionados";
+  $("#ns-club-all").classList.toggle("is-active",!selected.length);
+  $("#ns-club-select-all").disabled=!clubs.length||selected.length===clubs.length;
+}
+function searchClubs(){
+  const query=$("#ns-club-search").value.trim().toLocaleLowerCase("pt-BR");
+  $("#ns-club-items").querySelectorAll("label.ns-league-option").forEach(row=>{
+    row.hidden=Boolean(query)&&!row.dataset.search.includes(query);
+  });
+}
+function drawClubChoices(){
+  const clubs=availableClubs();
+  const eligible=new Set(clubs.map(c=>Number(c.id)));
+  chosenClubIds=new Set([...chosenClubIds].filter(id=>eligible.has(id)));
+  $("#ns-club-items").innerHTML=clubs.map(c=>
+    '<label class="ns-league-option" data-search="'+esc(c.nome).toLocaleLowerCase("pt-BR")+'">'+
+    '<input type="checkbox" value="'+Number(c.id)+'"'+
+    (chosenClubIds.has(Number(c.id))?" checked":"")+'>'+
+    '<span>'+esc(c.nome)+'</span></label>').join("");
+  $("#ns-club-hint").textContent=clubs.length?
+    clubs.length+" clubes disponíveis. Sem marcação = todos; com marcação = só jogos desses clubes.":
+    "Nenhum clube disponível para os campeonatos selecionados.";
+  searchClubs();
+  drawClubSummary();
+}
+function setClubs(ids){
+  chosenClubIds=new Set(Array.isArray(ids)?ids.map(Number).filter(Number.isInteger):[]);
+  drawClubChoices();
+}
+function closeClubs(){
+  $("#ns-club-options").hidden=true;
+  $("#ns-club-trigger").setAttribute("aria-expanded","false");
+}
+$("#ns-club-trigger").addEventListener("click",()=>{
+  const options=$("#ns-club-options");
+  options.hidden=!options.hidden;
+  $("#ns-club-trigger").setAttribute("aria-expanded",String(!options.hidden));
+});
+$("#ns-club-all").addEventListener("click",()=>{
+  setClubs([]);
+  closeClubs();
+  $("#ns-club-trigger").focus();
+});
+$("#ns-club-select-all").addEventListener("click",()=>{
+  setClubs(availableClubs().map(c=>Number(c.id)));
+});
+$("#ns-club-items").addEventListener("change",event=>{
+  const checkbox=event.target.closest('input[type="checkbox"]');
+  if(!checkbox)return;
+  const id=Number(checkbox.value);
+  if(checkbox.checked)chosenClubIds.add(id);
+  else chosenClubIds.delete(id);
+  drawClubSummary();
+});
+$("#ns-club-search").addEventListener("input",searchClubs);
+document.addEventListener("click",event=>{
+  if(!$("#ns-club-control").contains(event.target))closeClubs();
+});
+$("#ns-club-control").addEventListener("keydown",event=>{
+  if(event.key==="Escape"){
+    closeClubs();
+    $("#ns-club-trigger").focus();
+  }
+});
+
 // Dropdown de checkboxes: sem seleção = todos os campeonatos.
 const selectedLeagues=()=>[...document.querySelectorAll("#ns-league-items input:checked")]
   .map(input=>Number(input.value));
@@ -185,6 +264,7 @@ function drawLeagues(){
   allButton.disabled=total===0||ids.length===total;
   allButton.setAttribute("aria-label",total>0?
     "Selecionar todos os "+total+" campeonatos":"Nenhum campeonato disponível");
+  drawClubChoices();
 }
 function setLeagues(ids){
   const wanted=new Set(Array.isArray(ids)?ids.map(Number):[]);
@@ -249,7 +329,7 @@ function readConditionRows(target="#ns-conditions"){
 }
 const values=()=>({
   nome:$("#ns-nome").value.trim(),corte:$("#ns-corte").value,
-  jogos:$("#ns-janela").value,campeonato_ids:selectedLeagues(),
+  jogos:$("#ns-janela").value,campeonato_ids:selectedLeagues(),clube_ids:selectedClubs(),
   objetivo:$("#ns-objetivo").value,
   odd_hipotetica:$("#ns-odd").value?Number($("#ns-odd").value):null,
   comissao_pct:4.5,
@@ -271,6 +351,7 @@ function restore(saved){
   $("#ns-janela").value=saved.jogos||"20";
   setLeagues(Array.isArray(saved.campeonato_ids)&&saved.campeonato_ids.length
     ?saved.campeonato_ids:(saved.campeonato_id?[saved.campeonato_id]:[]));
+  setClubs(saved.clube_ids||[]);
   $("#ns-objetivo").value=saved.objetivo||"back_favorito";
   $("#ns-odd").value=saved.odd_hipotetica??"";
   $("#ns-comissao").value="4.5";
