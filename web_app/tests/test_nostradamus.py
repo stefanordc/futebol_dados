@@ -425,6 +425,65 @@ class TestNostradamus(TestCase):
         legacy.pop("campeonato_ids")
         self.assertEqual(ns.testar(legacy,rows=partidas)["entradas"],5)
 
+    def test_valida_lista_de_clubes_e_compatibilidade_com_estrategias_antigas(self):
+        self.assertIsNone(ns.clubes_selecionados({}))
+        self.assertIsNone(ns.clubes_selecionados({"clube_ids":[]}))
+        self.assertIsNone(ns.clubes_selecionados({"clube_ids":None}))
+        self.assertEqual(ns.clubes_selecionados({"clube_ids":[23,1,11]}),[1,11,23])
+        for invalid in ([1,1],[0],[-3],[True],["5"],{},2,
+                        list(range(1,1003))):
+            with self.subTest(invalid=str(invalid)[:60]),self.assertRaises(ValueError):
+                ns.clubes_selecionados({"clube_ids":invalid})
+
+    def test_filtro_clubes_aceita_mandante_ou_visitante(self):
+        rows=[]
+        for i in range(10):
+            d=self.start+timedelta(days=i)
+            rows.append(game(i*10+1,d))
+            g=game(i*10+2,d)
+            g.update(casa_id=3,fora_id=4,mandante="Clube 3",visitante="Clube 4")
+            rows.append(g)
+        p=config(self.cutoff)
+        p["clube_ids"]=[3]
+        result=ns.testar(p,rows=rows)
+        self.assertEqual(result["clube_ids"],[3])
+        self.assertEqual(result["entradas"],5)
+        self.assertTrue(all(
+            "Clube 3" in (g["mandante"],g["visitante"])
+            for grupo in result["resultados"] for g in grupo["jogos"]
+        ))
+        self.assertEqual(ns.testar({**p,"clube_ids":[]},rows=rows)["entradas"],10)
+        self.assertEqual(ns.testar({**p,"clube_ids":[4]},rows=rows)["entradas"],5)
+        self.assertEqual(ns.testar({**p,"clube_ids":[999]},rows=rows)["entradas"],0)
+
+    def test_filtra_entradas_sem_excluir_jogos_anteriores_da_estatistica(self):
+        # Os jogos do clube 3 alimentam o histórico mesmo quando o filtro
+        # inclui apenas o clube 1. No confronto 1x3, os dois têm >=5 jogos.
+        rows=[]
+        for i in range(10):
+            d=self.start+timedelta(days=i)
+            rows.append(game(i*10+1,d))
+            g=game(i*10+2,d)
+            g.update(casa_id=3,fora_id=4,mandante="Clube 3",visitante="Clube 4")
+            rows.append(g)
+        last=game(1001,self.start+timedelta(days=10))
+        last.update(fora_id=3,visitante="Clube 3")
+        rows.append(last)
+        params={**config(self.cutoff),"clube_ids":[1]}
+        out=ns.testar(params,rows=rows)
+        self.assertEqual(out["entradas"],6)
+        self.assertIn(1001,[g["id"] for x in out["resultados"] for g in x["jogos"]])
+        self.assertNotIn(2,[g["id"] for x in out["resultados"] for g in x["jogos"]])
+
+    def test_metadados_clubes_distintos_por_liga_sem_repeticao(self):
+        with patch.object(ns,"fetch_all",return_value=[]) as sql:
+            ns.clubes_disponiveis()
+        query=sql.call_args.args[0]
+        self.assertIn("SELECT j.casa_id AS clube_id",query)
+        self.assertIn("SELECT j.fora_id AS clube_id",query)
+        self.assertIn("ARRAY_AGG(DISTINCT p.campeonato_id",query)
+        self.assertIn("JOIN clubes c",query)
+
     def test_valida_lista_de_campeonatos_sem_duplicatas(self):
         for invalid in ([1,1],[0],[True],["1"],list(range(1,33)),{},2):
             with self.subTest(invalid=invalid),self.assertRaises(ValueError):
