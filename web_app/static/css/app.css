@@ -2113,3 +2113,26 @@ body[data-page="match"] .sofa-lineups-note{
   body[data-page="match"] .sofa-lineups-frame-wrap{padding:8px}
   body[data-page="match"] .sofa-lineups-iframe{min-height:840px;height:840px}
 }
+
+/* Resolver automático e correção manual de escalações sem ID Sofascore. */
+body[data-page="match"] .lineup-sofa-lookup{
+  border:1px solid var(--line,#354052);border-radius:12px;
+  background:var(--bg-card,#1c222d);padding:14px 17px;margin-bottom:18px
+}
+body[data-page="match"] .lineup-sofa-lookup>.lineup-source-hint{margin:0 0 12px}
+body[data-page="match"] .lineup-sofa-manual summary{
+  display:list-item;cursor:pointer;font-size:13px;font-weight:700;
+  color:var(--text,#fff);margin:4px 0 10px
+}
+body[data-page="match"] .lineup-sofa-manual form{display:grid;gap:8px}
+body[data-page="match"] .lineup-sofa-manual label{font-weight:650;font-size:12px}
+body[data-page="match"] .lineup-sofa-form-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+body[data-page="match"] .lineup-sofa-form-row input{
+  flex:1 1 260px;min-width:0;padding:11px 12px;border-radius:9px;
+  border:1px solid var(--line,#354052);background:var(--bg-elev,#131924);
+  color:var(--text,#fff);font-size:13px
+}
+body[data-page="match"] .lineup-sofa-form-row button{flex:0 0 auto}
+body[data-page="match"] .lineup-sofa-form-msg{
+  font-size:12px;color:var(--muted,#9ca3af);margin:0;overflow-wrap:anywhere
+}
