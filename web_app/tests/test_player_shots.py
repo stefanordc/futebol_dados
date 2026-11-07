@@ -123,6 +123,7 @@ class TestPlayersShots(unittest.TestCase):
         self.assertEqual(answer["mapa_total"],1)
 
 
+
     def test_goleiro_com_id_fotmob_alternativo_recebe_totais_oficiais(self):
         player={"id":286,"nome":"Álvaro Vallés","posicao":"Goleiro"}
         official={
@@ -147,18 +148,7 @@ class TestPlayersShots(unittest.TestCase):
         sql,params=query.call_args.args
         self.assertIn("JOIN individual ki",sql)
         self.assertIn("related.id_externo",sql)
-        self.assertIn("'[.]0
-        with patch.object(shots,"fetch_one",return_value={
-            "id":11,"nome":"Exemplo","posicao":"Centroavante"
-        }),patch.object(shots,"fetch_all",return_value=[]) as q:
-            result=shots.consultar(11,"2026")
-        self.assertEqual(result["tipo"],"linha")
-        self.assertIn("f.jogador_id = %s",q.call_args.args[0])
-        self.assertNotIn("f.goleiro_id = %s",q.call_args.args[0])
-
-if __name__=="__main__":
-    unittest.main()
-",sql)
+        self.assertIn("regexp_replace",sql)
         self.assertEqual(params,(286,286,286,"2026/2027"))
 
     def test_goleiro_sem_dados_individuais_usa_apenas_os_lances_auditados(self):
@@ -187,6 +177,7 @@ if __name__=="__main__":
         self.assertEqual(result["tipo"],"linha")
         self.assertIn("f.jogador_id = %s",q.call_args.args[0])
         self.assertNotIn("f.goleiro_id = %s",q.call_args.args[0])
+
 
 if __name__=="__main__":
     unittest.main()
