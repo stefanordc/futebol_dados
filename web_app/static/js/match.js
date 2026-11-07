@@ -500,6 +500,26 @@ function playerNode(p, flipY = false) {
     </div>`;
 }
 
+
+function idSofascore(value){
+  // Identificadores numéricos, sem permitir código/URLs arbitrários.
+  const id=Number(value);
+  return Number.isSafeInteger(id)&&id>0?id:null;
+}
+function sofaLineupsMarkup(id){
+  if(!idSofascore(id))return "";
+  const theme=document.documentElement.getAttribute("data-theme")==="light"?"light":"dark";
+  const src=`https://widgets.sofascore.com/pt-BR/embed/lineups?id=${id}&widgetTheme=${theme}`;
+  return `<div class="sofa-lineups-frame-wrap">
+    <iframe id="sofa-lineups-embed-${id}" class="sofa-lineups-iframe"
+      src="${src}" title="Escalações no campo do Sofascore — partida ${id}"
+      loading="lazy" frameborder="0" scrolling="no"
+      referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <p class="sofa-lineups-note">Campo fornecido pelo Sofascore.
+      Se o widget não carregar, selecione <strong>Campo do site</strong>.</p>
+  </div>`;
+}
+
 function sectionEscalacao(esc, jogo) {
   const casa = esc?.casa || { titulares: [], reservas: [] };
   const fora = esc?.fora || { titulares: [], reservas: [] };
@@ -550,17 +570,37 @@ function sectionEscalacao(esc, jogo) {
       }
     </div>`;
 
+
+  const sofaId=idSofascore(jogo.id_sofascore);
+  const original=`
+    <div class="lineup-grid">
+      ${lado(casa, jogo.casa_id, jogo.casa, jogo.casa_logo, jogo.tecnico_casa_id, jogo.tecnico_casa, false)}
+      ${lado(fora, jogo.fora_id, jogo.fora, jogo.fora_logo, jogo.tecnico_fora_id, jogo.tecnico_fora, true)}
+    </div>`;
   return `
     <section class="section" data-sec="escalacao">
       <h2>Escalação</h2>
-      <p style="color:var(--muted);font-size:.85rem;margin:0 0 1rem">
-        Clique em um jogador para ver as estatísticas da partida. ↑↓ = saiu · ↑ = entrou.
-      </p>
-      <div class="lineup-grid">
-        ${lado(casa, jogo.casa_id, jogo.casa, jogo.casa_logo, jogo.tecnico_casa_id, jogo.tecnico_casa, false)}
-        ${lado(fora, jogo.fora_id, jogo.fora, jogo.fora_logo, jogo.tecnico_fora_id, jogo.tecnico_fora, true)}
-      </div>
+      ${sofaId?`
+        <div class="lineup-source-nav" role="group" aria-label="Modelo de escalação">
+          <button class="tab active" type="button" data-lineup-mode="sofascore"
+            aria-pressed="true">Campo do Sofascore</button>
+          <button class="tab" type="button" data-lineup-mode="local"
+            aria-pressed="false">Campo do site</button>
+        </div>
+        <div class="sofa-lineups" id="sofa-lineups">
+          ${sofaLineupsMarkup(sofaId)}
+        </div>
+        <div class="lineup-local" id="lineup-local" hidden>
+          <p class="lineup-source-hint">Clique nos jogadores para consultar as estatísticas do jogo.
+            ↓ = saiu · ↑ = entrou.</p>
+          ${original}
+        </div>`:
+        `<p class="lineup-source-hint">Este jogo ainda não possui ID Sofascore vinculado.
+          Exibindo a escalação disponível no banco. Clique nos jogadores para consultar estatísticas.
+          ↓ = saiu · ↑ = entrou.</p>
+        ${original}`}
     </section>`;
+
 }
 
 const PLAYER_STAT_ROWS = [
@@ -691,6 +731,24 @@ function render(jogo) {
   $("#tabs").addEventListener("click", (ev) => {
     const btn = ev.target.closest(".tab");
     if (btn) showTab(btn.dataset.tab);
+  });
+
+
+  const lineupNav=document.querySelector(".lineup-source-nav");
+  lineupNav?.addEventListener("click",ev=>{
+    const button=ev.target.closest("[data-lineup-mode]");
+    if(!button)return;
+    const mode=button.dataset.lineupMode;
+    const sofa=document.querySelector("#sofa-lineups");
+    const local=document.querySelector("#lineup-local");
+    if(!sofa||!local)return;
+    sofa.hidden=mode!=="sofascore";
+    local.hidden=mode!=="local";
+    lineupNav.querySelectorAll("[data-lineup-mode]").forEach(tab=>{
+      const active=tab.dataset.lineupMode===mode;
+      tab.classList.toggle("active",active);
+      tab.setAttribute("aria-pressed",String(active));
+    });
   });
 
   const pitch = $("#pitch");
