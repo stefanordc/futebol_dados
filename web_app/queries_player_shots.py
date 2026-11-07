@@ -20,7 +20,7 @@ GOAL = "gol"
 # O FotMob criou ID interno duplicado para o mesmo atleta quando o ID
 # externo foi importado como "999171" e "999171.0". Usar fonte
 # normalizada em vez de relacionar apenas com a PK interna.
-_GOALIE_MATCH = r"""
+_GOALIE_MATCH = """
   f.clube_id <> ki.clube_id
   AND (
     f.goleiro_id = %s
@@ -28,11 +28,11 @@ _GOALIE_MATCH = r"""
       SELECT related.jogador_id
       FROM jogadores_fontes source
       JOIN jogadores_fontes related ON related.fonte='fotmob'
-        AND related.id_externo ~ '^[0-9]+(\\.0)?$'
-        AND regexp_replace(related.id_externo, '\\.0$', '') =
-            regexp_replace(source.id_externo, '\\.0$', '')
+        AND related.id_externo ~ '^[0-9]+([.]0)?$'
+        AND regexp_replace(related.id_externo, '[.]0$', '') =
+            regexp_replace(source.id_externo, '[.]0$', '')
       WHERE source.jogador_id=%s AND source.fonte='fotmob'
-        AND source.id_externo ~ '^[0-9]+(\\.0)?$'
+        AND source.id_externo ~ '^[0-9]+([.]0)?$'
     )
     OR (f.goleiro_id IS NULL AND ki.minutos >= 90)
   )
