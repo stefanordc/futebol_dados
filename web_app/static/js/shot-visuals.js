@@ -18,6 +18,32 @@
       top:100*(20+(longitudinal/LENGTH)*1010)/1050,
     };
   }
+  // Perfis: FotMob registra o chute dos dois clubes junto ao gol
+  // adversário (coordenada_x ~90). No mapa completo antigo o mando
+  // mandava as finalizações visitantes para a outra extremidade.
+  // Esta vista normaliza as direções e usa apenas o meio-campo ofensivo.
+  function shotPosAttacking(f){
+    if(!f)return null;
+    const x=num(f.coordenada_x),y=num(f.coordenada_y);
+    if(!finite(x)||!finite(y)||x<0||x>LENGTH||y<0||y>WIDTH)return null;
+    const oppositeEnd=x<LENGTH/2;
+    const attackingX=oppositeEnd?LENGTH-x:x;
+    const attackingY=oppositeEnd?y:WIDTH-y;
+    const px=20+(attackingY/WIDTH)*640;
+    const py=20+((LENGTH-attackingX)/LENGTH)*1010;
+    return {
+      left:100*px/680,
+      top:100*Math.min(525,Math.max(0,py))/525,
+    };
+  }
+  function halfPitchSvg(){
+    // Reutiliza as mesmas áreas, gols e gramado, cortando no meio.
+    return pitchSvg().replace('viewBox="0 0 680 1050"',
+      'viewBox="0 0 680 525"').replace(
+      'Campo de 105 por 68 metros com grande área, pequena área, pênaltis e gols.',
+      'Meio-campo ofensivo, com grande área, pequena área, pênalti e gol.'
+    );
+  }
   function goalPosition(f){
     if(!f)return null;
     const x=num(f.local_x_gol),z=num(f.altura_z_gol);
@@ -90,7 +116,7 @@
        ${ball}
     </svg>`;
   }
-  const api={shotPos,goalPosition,pitchSvg,goalSvg,constants:{
+  const api={shotPos,shotPosAttacking,goalPosition,pitchSvg,halfPitchSvg,goalSvg,constants:{
     width:WIDTH,length:LENGTH,goalWidth:GOAL_WIDTH,goalHeight:GOAL_HEIGHT
   }};
   root.DFShotMap=api;
