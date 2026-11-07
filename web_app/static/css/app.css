@@ -2136,3 +2136,13 @@ body[data-page="match"] .lineup-sofa-form-row button{flex:0 0 auto}
 body[data-page="match"] .lineup-sofa-form-msg{
   font-size:12px;color:var(--muted,#9ca3af);margin:0;overflow-wrap:anywhere
 }
+
+/* Aviso quando não há correspondência confiável em dados_fisicos. */
+body[data-page="match"] .lineup-sofa-status-warning{
+  color:#ffbf91;
+  border-left:3px solid #ff792f;
+  padding:11px 14px;
+  background:rgba(255,121,47,.065);
+  border-radius:5px;
+  line-height:1.6
+}
