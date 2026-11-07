@@ -258,6 +258,46 @@ def consultar(jogador_id: int, temporada: str | None = None):
         tuple(args),
     )
     result = summarize(rows, goalkeeper=goalkeeper)
+    if goalkeeper:
+        # Totais da tabela individual são oficiais para o goleiro.
+        # O mapa é uma amostra de lances, e não define esses totais.
+        conditions = ["i.jogador_id = %s", "jo.gols_casa IS NOT NULL"]
+        summary_args = [jogador_id]
+        if temporada:
+            conditions.append("jo.temporada = %s")
+            summary_args.append(temporada)
+        official = fetch_one(
+            """
+            SELECT COUNT(DISTINCT i.jogo_id) AS jogos,
+                   SUM(i.defesas) AS defesas,
+                   SUM(i.gols_sofridos) AS gols_sofridos,
+                   SUM(i.penaltis_defendidos) AS penaltis_defendidos
+            FROM individual i JOIN jogos jo ON jo.id=i.jogo_id
+            WHERE """ + " AND ".join(conditions),
+            tuple(summary_args),
+        ) or {}
+        saves = official.get("defesas")
+        conceded = official.get("gols_sofridos")
+        if saves is not None or conceded is not None:
+            real_saves = int(saves or 0)
+            real_goals = int(conceded or 0)
+            real_on_target = real_saves + real_goals
+            result["resumo"].update({
+                "defesas": real_saves, "gols": real_goals,
+                "no_alvo": real_on_target, "acertos": real_saves,
+                "acerto_pct": _pct(real_saves, real_on_target),
+            })
+            result["fonte_totais"] = "individual"
+            result["cobertura"] = (
+                "Totais oficiais de defesas e gols sofridos da tabela "
+                "individual. Os mapas mostram finalizações identificadas "
+                "ou atribuíveis ao goleiro que disputou toda a partida; "
+                "a cobertura pode ser diferente."
+            )
+        result["jogos"] = int(official.get("jogos") or 0)
+        result["penaltis_defendidos_individual"] = int(
+            official.get("penaltis_defendidos") or 0
+        )
     result["jogador_id"] = jogador_id
     result["temporada"] = temporada
     result["jogador"] = info["nome"]
@@ -268,3 +308,27 @@ def consultar(jogador_id: int, temporada: str | None = None):
     if result["penaltis"]:
         result["penaltis"]["mapa"] = result["penaltis"]["mapa"][:300]
     return result
+
+def tem_penaltis_goleiro(jogador_id: int, temporada: str | None) -> bool:
+    # A mesma regra da consulta principal mantém a aba visível mesmo
+    # quando o ID interno das finalizações termina em .0.
+    conditions = [
+        _GOALIE_MATCH, "f.situacao_jogada = 'Pênalti'",
+        "jo.gols_casa IS NOT NULL",
+    ]
+    args = [jogador_id, jogador_id, jogador_id]
+    if temporada:
+        conditions.append("jo.temporada = %s")
+        args.append(temporada)
+    row = fetch_one(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM finalizacoes f
+            JOIN jogos jo ON jo.id=f.jogo_id
+            JOIN individual ki ON ki.jogo_id=f.jogo_id AND ki.jogador_id=%s
+            WHERE """ + " AND ".join(conditions) + """
+        ) AS disponivel
+        """,
+        tuple(args),
+    )
+    return bool(row and row.get("disponivel"))
