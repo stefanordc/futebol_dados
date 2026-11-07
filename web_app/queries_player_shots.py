@@ -5,8 +5,6 @@ a partir do destino da bola (são eventos diferentes).
 """
 from __future__ import annotations
 
-from collections import defaultdict
-from decimal import Decimal
 from math import isfinite
 
 from db import fetch_all, fetch_one
@@ -18,6 +16,27 @@ LEFT_POST = GOAL_CENTER_X - GOAL_WIDTH / 2
 RIGHT_POST = GOAL_CENTER_X + GOAL_WIDTH / 2
 SAVED = "defendida"
 GOAL = "gol"
+
+# O FotMob criou ID interno duplicado para o mesmo atleta quando o ID
+# externo foi importado como "999171" e "999171.0". Usar fonte
+# normalizada em vez de relacionar apenas com a PK interna.
+_GOALIE_MATCH = r"""
+  f.clube_id <> ki.clube_id
+  AND (
+    f.goleiro_id = %s
+    OR f.goleiro_id IN (
+      SELECT related.jogador_id
+      FROM jogadores_fontes source
+      JOIN jogadores_fontes related ON related.fonte='fotmob'
+        AND related.id_externo ~ '^[0-9]+(\\.0)?$'
+        AND regexp_replace(related.id_externo, '\\.0$', '') =
+            regexp_replace(source.id_externo, '\\.0$', '')
+      WHERE source.jogador_id=%s AND source.fonte='fotmob'
+        AND source.id_externo ~ '^[0-9]+(\\.0)?$'
+    )
+    OR (f.goleiro_id IS NULL AND ki.minutos >= 90)
+  )
+"""
 
 
 def _number(value):
@@ -205,9 +224,17 @@ def consultar(jogador_id: int, temporada: str | None = None):
         return None
     goalkeeper = "goleiro" in str(info.get("posicao") or "").casefold()
 
-    filters = ["f.goleiro_id = %s" if goalkeeper else "f.jogador_id = %s",
-               "jo.gols_casa IS NOT NULL"]
-    args = [jogador_id]
+    if goalkeeper:
+        # Por partida, o goleiro precisa ser confirmado em individual.
+        # Lances sem goleiro_id só podem ser associados se disputou 90min;
+        # para substituídos, apenas lances identificados nominalmente.
+        filters = [_GOALIE_MATCH, "jo.gols_casa IS NOT NULL"]
+        args = [jogador_id, jogador_id, jogador_id]
+        keeper_join = "JOIN individual ki ON ki.jogo_id=f.jogo_id AND ki.jogador_id=%s"
+    else:
+        filters = ["f.jogador_id = %s", "jo.gols_casa IS NOT NULL"]
+        args = [jogador_id]
+        keeper_join = ""
     if temporada:
         filters.append("jo.temporada = %s")
         args.append(temporada)
@@ -222,6 +249,7 @@ def consultar(jogador_id: int, temporada: str | None = None):
                a.nome AS atacante, co.nome AS campeonato
         FROM finalizacoes f
         JOIN jogos jo ON jo.id = f.jogo_id
+        """ + keeper_join + """
         LEFT JOIN jogadores a ON a.id = f.jogador_id
         LEFT JOIN campeonatos co ON co.id = jo.campeonato_id
         WHERE """ + " AND ".join(filters) + """
