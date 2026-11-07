@@ -1,8 +1,8 @@
 """Vinculação de partidas FotMob/Sofascore para o widget de escalações.
 
-Prioridade: ID registrado -> partida equivalente no próprio banco ->
-agenda pública Sofascore validada por IDs dos dois clubes e data.
-A consulta externa pode estar indisponível: não inventamos IDs.
+Prioridade: ID registrado -> dados_fisicos (data, campeonato, mandante;
+depois visitante) -> partida equivalente em jogos.
+Sem correspondência, gerar alerta; nunca inventar ID.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import unicodedata
 from datetime import date, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from db import fetch_one, execute
+from db import fetch_all, fetch_one, execute
 
 _API_ROOTS = (
     "https://www.sofascore.com/api/v1",
@@ -107,10 +107,12 @@ def _get_match(match_id: int) -> dict | None:
     return fetch_one(
         """
         SELECT j.id, j.data, j.id_sofascore, j.casa_id, j.fora_id,
+               c.nome AS campeonato, c.id_sofascore AS campeonato_sofascore,
                home.clube AS casa, away.clube AS fora,
                home_sofa.id_externo AS sofa_casa_id,
                away_sofa.id_externo AS sofa_fora_id
         FROM jogos j
+        JOIN campeonatos c ON c.id = j.campeonato_id
         JOIN clubes home ON home.id = j.casa_id
         JOIN clubes away ON away.id = j.fora_id
         LEFT JOIN clubes_fontes home_sofa ON home_sofa.clube_id=j.casa_id
@@ -137,6 +139,104 @@ def _same_match_id(match: dict) -> int | None:
         (match["casa_id"], match["fora_id"], match["data"]),
     )
     return _number(found.get("sofa_id")) if found else None
+
+
+
+# Tabelas de origem usam nomes diferentes para a mesma liga.
+# IDs confirmados em dados_fisicos.id_campeonato, não IDs internos de jogos.
+_PHYSICAL_LEAGUE_IDS = {
+    "laliga": 8, "espanhol": 8,
+    "serie a": 23, "italiano": 23,
+    "premier league": 17, "ingles": 17,
+    "bundesliga": 35, "alemao": 35,
+    "ligue 1": 34, "frances": 34,
+    "eredivisie": 37, "holandes": 37,
+    "brasileiro": 325,
+    "portugues": 238, "liga portugal": 238,
+    "belga": 38, "mls": 242,
+    "dinamarques": 20,
+}
+
+
+def _same_physical_league(row: dict, match: dict) -> bool:
+    observed = _number(row.get("id_campeonato"))
+    expected = _number(match.get("campeonato_sofascore"))
+    if expected and observed == expected:
+        return True
+    league = _name(match.get("campeonato"))
+    row_league = _name(row.get("campeonato"))
+    if observed and _PHYSICAL_LEAGUE_IDS.get(league) == observed:
+        return True
+    # Para ligas sem mapeamento de IDs, aceitar apenas nome exato normalizado.
+    return bool(league and league == row_league)
+
+
+def _same_physical_club(row: dict, match: dict, side: str) -> bool:
+    expected_id = _number(match.get("sofa_casa_id" if side == "Casa" else "sofa_fora_id"))
+    actual_id = _number(row.get("id_clube"))
+    if expected_id and actual_id:
+        return expected_id == actual_id
+    expected_name = _name(match.get("casa" if side == "Casa" else "fora"))
+    return bool(expected_name and expected_name == _name(row.get("clube")))
+
+
+def _physical_match(match: dict) -> tuple[int | None, str]:
+    """Localiza o ID por mandante e, se necessário, pelo visitante.
+
+    Valida data e liga antes de considerar os clubes. Quando a outra equipe
+    possui uma linha no mesmo id_jogo, ela também deve corresponder à partida.
+    IDs ambíguos nunca são escolhidos ao acaso.
+    """
+    rows = fetch_all(
+        """
+        SELECT id_jogo, data, id_campeonato, campeonato,
+               id_clube, clube, mando
+        FROM dados_fisicos
+        WHERE data = %s AND id_jogo IS NOT NULL
+        """,
+        (match["data"],),
+    )
+    league_rows = [
+        row for row in rows
+        if _number(row.get("id_jogo")) and _same_physical_league(row, match)
+    ]
+    # Mando ("Casa" / "Fora") vem da própria tabela de dados físicos.
+    ids_by_side: dict[str, set[int]] = {}
+    for side in ("Casa", "Fora"):
+        counterpart = "Fora" if side == "Casa" else "Casa"
+        matches = set()
+        for row in league_rows:
+            if str(row.get("mando") or "").casefold().strip() != side.casefold():
+                continue
+            if not _same_physical_club(row, match, side):
+                continue
+            identifier = _number(row["id_jogo"])
+            if not identifier:
+                continue
+            opposite = [
+                r for r in league_rows
+                if _number(r.get("id_jogo")) == identifier
+                and str(r.get("mando") or "").casefold().strip() == counterpart.casefold()
+            ]
+            if opposite and not any(
+                _same_physical_club(other, match, counterpart) for other in opposite
+            ):
+                continue
+            matches.add(identifier)
+        ids_by_side[side] = matches
+        if len(matches) == 1:
+            return next(iter(matches)), (
+                "dados_fisicos_mandante" if side == "Casa" else "dados_fisicos_visitante"
+            )
+    # Se o mandante teve múltiplos IDs, a identificação única do visitante
+    # pode desambiguar sem perder o critério de correspondência.
+    common = ids_by_side.get("Casa", set()) & ids_by_side.get("Fora", set())
+    if len(common) == 1:
+        return next(iter(common)), "dados_fisicos_ambos"
+    if any(len(group) > 1 for group in ids_by_side.values()):
+        return None, "dados_fisicos_ambiguo"
+    return None, "dados_fisicos_nao_encontrado"
+
 
 
 def _external_match(match: dict) -> tuple[int | None, str]:
@@ -194,22 +294,28 @@ def resolve_match_id(match_id: int, online: bool = True) -> dict:
     direct = _number(match.get("id_sofascore"))
     if direct:
         return {"id":direct,"fonte":"vinculo","mensagem":None}
+    # Primeira consulta à tabela de dados físicos: mandante, depois visitante.
+    # Não depender da API pública do Sofascore, que pode bloquear requisições.
+    physical, reason = _physical_match(match)
+    if physical:
+        return {"id":physical,"fonte":reason,"mensagem":None}
     duplicate = _same_match_id(match)
     if duplicate:
         return {"id":duplicate,"fonte":"jogo_correspondente","mensagem":None}
 
-    if online:
-        result, status = _external_match(match)
-        if result:
-            return {"id":result,"fonte":status,"mensagem":None}
-        message = {
-            "upstream_unavailable":"O Sofascore não respondeu à consulta automática.",
-            "not_found":"A partida não foi encontrada na agenda consultada.",
-            "ambiguous":"Foram encontradas partidas ambíguas; informe o ID correto.",
-            "invalid_date":"Data do jogo não disponível.",
-        }.get(status,"Não foi possível confirmar a partida no Sofascore.")
-        return {"id":None,"fonte":status,"mensagem":message}
-    return {"id":None,"fonte":"not_linked","mensagem":"Jogo sem vínculo Sofascore."}
+    if reason == "dados_fisicos_ambiguo":
+        message = (
+            "ALERTA: existem múltiplos IDs possíveis em dados_fisicos para "
+            "a data, o campeonato e os clubes desta partida. "
+            "Nenhum ID foi selecionado automaticamente."
+        )
+    else:
+        message = (
+            "ALERTA: ID do Sofascore não encontrado na tabela dados_fisicos "
+            "pela data, campeonato e time mandante nem pelo visitante. "
+            "Confira o vínculo do jogo ou informe o ID manualmente."
+        )
+    return {"id":None,"fonte":reason,"mensagem":message}
 
 
 def parse_user_id(value: str | int) -> int:
