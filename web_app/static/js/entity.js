@@ -1,7 +1,7 @@
 import { openEditModal, pencilBtn } from "./edit.js";
 import { setFavicon, setSiteFavicon } from "./favicon.js";
 import { initNav } from "./nav.js";
-import { mountPlayerShots } from "./player-shots.js?v=player-profile-v1-20261106";
+import { mountPlayerShots } from "./player-shots.js?v=player-profile-v2-20261106";
 
 const $ = (sel, el = document) => el.querySelector(sel);
 
