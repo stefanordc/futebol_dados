@@ -8,9 +8,9 @@ const visuals=require("../static/js/shot-visuals.js");
 assert.ok(profile.includes("[playerKeeper?'defesas':'finalizacoes'"));
 assert.ok(profile.includes("state.data.penaltis_disponiveis"));
 assert.ok(profile.includes("mountPlayerShots($('#player-shots-root')"));
-assert.ok(html.includes("entity.js?v=player-shots-v1-20261106"));
-assert.ok(html.includes("profiles.css?v=player-shots-v1-20261106"));
-assert.ok(script.startsWith('import "./shot-visuals.js?v=player-visuals-v1-20261106"'));
+assert.ok(html.includes("entity.js?v=player-shots-v2-20261106"));
+assert.ok(html.includes("profiles.css?v=player-shots-v2-20261106"));
+assert.ok(script.startsWith('import "./shot-visuals.js?v=player-visuals-v2-20261106"'));
 assert.ok(css.includes(".player-shot-field")&&css.includes(".player-shot-goal"));
 
 const code=script.split("\n").slice(1).join("\n")
@@ -59,7 +59,7 @@ const output=view.renderContent(data,filters,chosen,"principal");
 assert.ok(output.includes("Pé direito"));
 assert.ok(output.includes("66,7%"));
 assert.ok(output.includes("2 / 3"));
-assert.ok(output.includes('class="shot-pitch-art"'));
+assert.ok(output.includes('class="shot-pitch-art"'));\nassert.ok(output.includes('viewBox="0 0 680 525"'),"Mapa só mostra a metade ofensiva");\nassert.ok(!output.includes('viewBox="0 0 680 1050"'),"Perfil não pode mostrar o campo inteiro");
 assert.ok(output.includes('class="shot-goal-art"'));
 assert.ok(output.includes("data-select-shot"));
 assert.ok(!output.includes("Pênaltis cobrados"));
