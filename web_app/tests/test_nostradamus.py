@@ -464,7 +464,8 @@ class TestNostradamus(TestCase):
             d=self.start+timedelta(days=i)
             rows.append(game(i*10+1,d))
             g=game(i*10+2,d)
-            g.update(casa_id=3,fora_id=4,mandante="Clube 3",visitante="Clube 4")
+            g.update(casa_id=3,fora_id=4,mandante="Clube 3",visitante="Clube 4",
+                     home_xg=0.8)
             rows.append(g)
         last=game(1001,self.start+timedelta(days=10))
         last.update(fora_id=3,visitante="Clube 3")
