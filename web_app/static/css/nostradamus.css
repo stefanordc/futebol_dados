@@ -344,3 +344,23 @@ padding:9px 0}.ns-saved-item:last-child{border-bottom:0}
   padding-top:17px;padding-bottom:17px;
 }
 #ns-inplay-grand-total th{text-transform:uppercase}
+
+/* Clubes: mesmo dropdown de seleção múltipla dos campeonatos. */
+.ns-club-field .ns-league-options{min-width:100%;z-index:55}
+.ns-club-field .ns-league-option[hidden]{display:none!important}
+.ns-club-field .ns-club-search-label{
+  display:flex;flex-direction:column;gap:6px;padding:10px 12px;
+  border-bottom:1px solid var(--df-border);color:var(--df-secondary);
+  font-size:12px;font-weight:650
+}
+.ns-club-field .ns-club-search{
+  display:block;min-height:38px;width:100%;padding:9px 12px;
+  border:1px solid var(--df-border);border-radius:8px;
+  background:var(--df-bg,#141923);color:var(--df-text);
+  outline-offset:2px;font:inherit;font-size:13px
+}
+.ns-club-field .ns-club-search:focus{outline:2px solid var(--df-orange)}
+.ns-club-field .ns-league-items{max-height:290px}
+.ns-club-field .ns-league-trigger:focus-visible{
+  outline:2px solid var(--df-orange);outline-offset:2px
+}
