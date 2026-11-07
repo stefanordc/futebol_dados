@@ -155,6 +155,10 @@ def _external_match(match: dict) -> tuple[int | None, str]:
     for day_to_search in (day, day - timedelta(days=1), day + timedelta(days=1)):
         events = _events(day_to_search)
         if events is None:
+            # Se nem a agenda do próprio dia abriu, não sobrecarregar
+            # o provedor com mais duas datas que também falharão.
+            if day_to_search == day:
+                return None, "upstream_unavailable"
             continue
         saw_response = True
         candidates = []
