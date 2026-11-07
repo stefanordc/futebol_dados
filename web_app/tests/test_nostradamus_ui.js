@@ -83,6 +83,33 @@ assert.ok(src.includes('optgroup label="Dados físicos"'),"As métricas físicas
 assert.ok(src.includes('indicatorOpts(meta.metricas,meta.mercados_odd,'),"O seletor Indicador deve aceitar estatísticas e mercados de odds");
 assert.ok(src.includes('metricOpts(meta.metricas,data.metrica_ref)'),"Os indicadores físicos podem ser comparados com outros indicadores");
 
+
+// Filtro de clubes no backtesting pré-jogo (não altera a aba Ao Vivo).
+assert.ok(html.includes('id="ns-club-control"'),"Exibir Clube depois do campeonato");
+assert.ok(html.includes('id="ns-club-items"'),"Permitir escolher múltiplos clubes");
+assert.ok(html.includes('id="ns-club-search"'),"Permitir procurar clube pelo nome");
+assert.ok(html.indexOf('id="ns-club-control"')>html.indexOf('id="ns-league-control"'),
+  "O campo Clubes deve estar logo depois dos campeonatos");
+assert.ok(src.includes("const selectedClubs=()"),"Serializar IDs de clubes escolhidos");
+assert.ok(src.includes("campeonato_ids:selectedLeagues(),clube_ids:selectedClubs()"),
+  "Enviar campeonato e clube no payload");
+assert.ok(src.includes("setClubs(saved.clube_ids||[])"),
+  "Restaurar filtro de clubes das estratégias salvas");
+assert.ok(src.includes("drawClubChoices();"),"Atualizar lista de clubes ao trocar campeonatos");
+assert.ok(src.includes("club.campeonato_ids||[]"),
+  "Filtrar clubes apenas pelas competições selecionadas");
+assert.ok(src.includes('$("#ns-club-items").addEventListener("change"'),
+  "Alterar seleção de clubes individualmente");
+assert.ok(src.includes('$("#ns-club-all").addEventListener("click"'),
+  "Permitir selecionar todos os clubes através do modo sem filtro");
+assert.ok(src.includes('$("#ns-club-select-all").addEventListener("click"'),
+  "Permitir selecionar explicitamente todos os clubes disponíveis");
+assert.ok(html.includes("nostradamus.js?v=club-filter-v1-20261107"),
+  "Atualização deve invalidar cache do JavaScript");
+assert.ok(html.includes("nostradamus.css?v=club-filter-v1-20261107"),
+  "Atualização deve invalidar cache do CSS");
+assert.ok(py.includes("clube_ids"),"Persistir clubes em estratégias salvas");
+
 assert.ok(html.includes('id="ns-league-items"'),"Multi-seleção de ligas deve existir");
 assert.ok(html.includes('id="ns-league-all"'),"Permitir selecionar todas as ligas");
 assert.ok(src.includes("campeonato_ids:selectedLeagues()"),"Enviar lista de ligas no backtest");
