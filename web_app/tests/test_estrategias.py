@@ -47,6 +47,21 @@ class TestEstratégias(TestCase):
             with self.subTest(invalid=invalid),self.assertRaises(ValueError):
                 st._validate({**valid(),"campeonato_ids":invalid})
 
+    def test_salva_clubes_e_mantem_filtro_ausente_em_estrategias_antigas(self):
+        old=st._validate(valid())
+        self.assertEqual(old["clube_ids"],[])
+        self.assertIn("clube_ids",st.COLS)
+        self.assertIn("clube_ids",st.INSERT)
+        v=st._validate({**valid(),"campeonato_ids":[2,4],"clube_ids":[20,5,9]})
+        self.assertEqual(v["campeonato_ids"],[2,4])
+        self.assertEqual(v["clube_ids"],[5,9,20])
+        self.assertEqual(st._params(v)[6],[5,9,20])
+        self.assertTrue(any("clube_ids=%s" in str(x)
+                            for x in st.editar.__code__.co_consts))
+        for invalid in ([3,3],[0],[-2],[True],["3"],{},25):
+            with self.subTest(invalid=invalid),self.assertRaises(ValueError):
+                st._validate({**valid(),"clube_ids":invalid})
+
     def test_condicao_com_valor_absoluto(self):
         body=valid()
         body["condicoes"]=[{"lado":"visitante","metrica":"gols_sofridos",
