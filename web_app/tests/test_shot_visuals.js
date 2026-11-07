@@ -36,7 +36,7 @@ assert.ok(!view.goalSvg({local_x_gol:null,altura_z_gol:null}).includes("<circle"
   "Sem dados, não inventar ponto da bola");
 
 for(const [html,entry] of [[page,"match.js"],[index,"home-premium.js"]]){
-  assert.ok(html.includes(entry+(entry==="match.js"?"?v=sofa-lookup-v1-20261106":"?v=shotmap-v3-20261106")),
+  assert.ok(html.includes(entry+(entry==="match.js"?"?v=sofa-dados-fisicos-v1-20261106":"?v=shotmap-v3-20261106")),
     "Página deve atualizar o cache do módulo de entrada");
   assert.ok(!html.includes('src="/static/js/shot-visuals.js"'),
     "Evitar carregamento clássico duplicado e dependência de ordem");
