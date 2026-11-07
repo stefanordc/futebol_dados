@@ -29,6 +29,7 @@ import queries_galileu_gameplay
 import queries_galileu_melhorias
 import queries_tecnico_avancadas
 import queries_coach_radar
+import queries_sofascore_lineups
 import queries_vinculos
 import queries_integracoes
 from ipaddress import ip_address
@@ -44,6 +45,29 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 @app.get("/")
 def home():
     return FileResponse(TEMPLATES / "index.html")
+
+
+class SofaScoreLineupLink(BaseModel):
+    link: str
+
+
+@app.get("/api/jogo/{jogo_id}/sofascore-escalacao")
+def api_sofascore_escalacao(jogo_id: int):
+    result = queries_sofascore_lineups.resolve_match_id(jogo_id)
+    if result["fonte"] == "not_found":
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    return result
+
+
+@app.post("/api/jogo/{jogo_id}/sofascore-escalacao")
+def api_vincular_sofascore_escalacao(
+    jogo_id: int, payload: SofaScoreLineupLink, request: Request
+):
+    _integracoes_somente_local(request)
+    try:
+        return queries_sofascore_lineups.set_match_id(jogo_id, payload.link)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/jogo/{jogo_id}")
